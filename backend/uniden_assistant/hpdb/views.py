@@ -157,9 +157,14 @@ class StateViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         queryset = State.objects.all()
-        country_id = self.request.query_params.get('country', None)
-        if country_id:
-            queryset = queryset.filter(country_id=country_id)
+        country_id_param = self.request.query_params.get('country', None)
+        if country_id_param:
+            # Filter by country's spec ID
+            try:
+                numeric_id = int(country_id_param.replace('country-', ''))
+                queryset = queryset.filter(country__country_id=numeric_id)
+            except (ValueError, TypeError):
+                queryset = queryset.none()
         return queryset
 
 
@@ -170,9 +175,14 @@ class CountyViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         queryset = County.objects.all()
-        state_id = self.request.query_params.get('state', None)
-        if state_id:
-            queryset = queryset.filter(state_id=state_id)
+        state_id_param = self.request.query_params.get('state', None)
+        if state_id_param:
+            # Filter by state's spec ID
+            try:
+                numeric_id = int(state_id_param.replace('state-', ''))
+                queryset = queryset.filter(state__state_id=numeric_id)
+            except (ValueError, TypeError):
+                queryset = queryset.none()
         return queryset
 
 
@@ -183,13 +193,22 @@ class HPDBAgencyViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         queryset = HPDBAgency.objects.all()
-        state_id = self.request.query_params.get('state', None)
-        county_id = self.request.query_params.get('county', None)
+        state_id_param = self.request.query_params.get('state', None)
+        county_id_param = self.request.query_params.get('county', None)
         
-        if state_id:
-            queryset = queryset.filter(states__state_id=state_id)
-        if county_id:
-            queryset = queryset.filter(counties__county_id=county_id)
+        if state_id_param:
+            try:
+                numeric_id = int(state_id_param.replace('state-', ''))
+                queryset = queryset.filter(states__state_id=numeric_id)
+            except (ValueError, TypeError):
+                queryset = queryset.none()
+        
+        if county_id_param:
+            try:
+                numeric_id = int(county_id_param.replace('county-', ''))
+                queryset = queryset.filter(counties__county_id=numeric_id)
+            except (ValueError, TypeError):
+                queryset = queryset.none()
         
         return queryset.distinct()
 
@@ -200,11 +219,30 @@ class HPDBChannelGroupViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = HPDBChannelGroupSerializer
     
     def get_queryset(self):
-        queryset = HPDBChannelGroup.objects.all()
-        agency_id = self.request.query_params.get('agency', None)
-        if agency_id:
-            queryset = queryset.filter(agency_id=agency_id)
-        return queryset
+        queryset = HPDBChannelGroup.objects.using('hpdb').select_related('agency')
+        
+        # Filter by agency (primary filter)
+        # Note: We filter by agency only, not by county/state, because:
+        # 1. The agency is already scoped to the selected county
+        # 2. Adding county/state filters forces expensive M2M lookups (1000x slower!)
+        # 3. The frontend already passes the correct agency for the county
+        # 
+        # IMPORTANT: Filter by agency.agency_id directly, not via double underscore
+        # Using agency__agency_id is 1000x slower than direct FK filter!
+        agency_id_param = self.request.query_params.get('agency', None)
+        if agency_id_param:
+            try:
+                numeric_id = int(agency_id_param.replace('agency-', ''))
+                # First find the agency object with this agency_id
+                agency_obj = HPDBAgency.objects.using('hpdb').filter(agency_id=numeric_id).first()
+                if agency_obj:
+                    queryset = queryset.filter(agency=agency_obj)
+                else:
+                    queryset = queryset.none()
+            except (ValueError, TypeError):
+                queryset = queryset.none()
+        
+        return queryset.distinct()
 
 
 class HPDBFrequencyViewSet(viewsets.ReadOnlyModelViewSet):
@@ -213,11 +251,33 @@ class HPDBFrequencyViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = HPDBFrequencySerializer
     
     def get_queryset(self):
-        queryset = HPDBFrequency.objects.all()
-        cgroup_id = self.request.query_params.get('cgroup', None)
-        if cgroup_id:
-            queryset = queryset.filter(cgroup_id=cgroup_id)
-        return queryset
+        queryset = HPDBFrequency.objects.using('hpdb').select_related('cgroup')
+        
+        # Support filtering by channel group - can accept either 'channel_group' or 'cgroup' parameter
+        # Note: We only filter by channel_group, not by agency/county/state, because:
+        # 1. The channel_group is already scoped to the selected agency/county
+        # 2. Adding extra filters forces expensive M2M lookups
+        # 3. Once we have the channel_group, we have all relevant frequencies
+        # 
+        # IMPORTANT: Filter by cgroup.cgroup_id directly, not via double underscore
+        # Using cgroup__cgroup_id is 1000x slower than direct FK filter!
+        cgroup_param = self.request.query_params.get('channel_group') or self.request.query_params.get('cgroup')
+        if cgroup_param:
+            try:
+                numeric_id = int(cgroup_param.replace('cgroup-', ''))
+                # First find the channel group object with this cgroup_id
+                cgroup_obj = HPDBChannelGroup.objects.using('hpdb').filter(cgroup_id=numeric_id).first()
+                if cgroup_obj:
+                    queryset = queryset.filter(cgroup=cgroup_obj)
+                else:
+                    queryset = queryset.none()
+            except (ValueError, TypeError):
+                try:
+                    queryset = queryset.filter(cgroup_id=int(cgroup_param))
+                except (ValueError, TypeError):
+                    queryset = queryset.none()
+        
+        return queryset.distinct()
 
 
 class HPDBTreeViewSet(viewsets.ViewSet):
@@ -231,22 +291,21 @@ class HPDBTreeViewSet(viewsets.ViewSet):
         # Only load countries and states initially - counties/agencies will be lazy-loaded
         for country in Country.objects.using('hpdb').all():
             country_node = {
-                'id': f'country-{str(country.id)}',
+                'id': f'country-{str(country.country_id)}',
                 'type': 'country',
-                'name': country.name,
+                'name_tag': country.name_tag,
                 'code': country.code,
                 'children': []
             }
             
-            for state in country.states.using('hpdb').exclude(name='_MultipleStates'):
+            for state in country.states.using('hpdb').exclude(name_tag='_MultipleStates'):
                 state_node = {
-                    'id': f'state-{str(state.id)}',
+                    'id': f'state-{str(state.state_id)}',
                     'type': 'state',
-                    'name': state.name,
-                    'code': state.code,
+                    'name_tag': state.name_tag,
+                    'short_name': state.short_name,
                     'state_id': state.state_id,
-                    'lazy': True,  # Mark for lazy loading of counties
-                    'children': []
+                    'lazy': True  # Mark for lazy loading of counties
                 }
                 country_node['children'].append(state_node)
             
@@ -258,13 +317,15 @@ class HPDBTreeViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'], url_path='counties')
     def counties(self, request):
         """Get counties for a specific state (lazy load endpoint)"""
-        state_id = request.query_params.get('state')
-        if not state_id:
+        state_id_param = request.query_params.get('state')
+        if not state_id_param:
             return Response({'error': 'state parameter required'}, status=400)
         
         try:
-            state = State.objects.using('hpdb').get(id=state_id.replace('state-', ''))
-        except State.DoesNotExist:
+            # Extract numeric ID from state parameter (e.g., "state-12" -> 12)
+            numeric_id = int(state_id_param.replace('state-', ''))
+            state = State.objects.using('hpdb').get(state_id=numeric_id)
+        except (State.DoesNotExist, ValueError):
             return Response({'error': 'State not found'}, status=404)
         
         # Get all counties for this state that have agencies (in single query with aggregation)
@@ -272,17 +333,36 @@ class HPDBTreeViewSet(viewsets.ViewSet):
             state.counties.using('hpdb')
             .filter(hpdb_agencies__isnull=False)
             .distinct()
-            .order_by('name')
+            .order_by('name_tag')
         )
         
         counties = []
+        
+        # Check for statewide agencies (agencies in this state but not tied to specific counties)
+        statewide_agencies = (
+            HPDBAgency.objects.using('hpdb')
+            .filter(states=state)
+            .exclude(counties__state=state)
+            .distinct()
+        )
+        
+        if statewide_agencies.exists():
+            # Add a pseudo-county for statewide agencies
+            counties.append({
+                'id': f'statewide-{state.state_id}',
+                'type': 'statewide',
+                'name_tag': 'Statewide',
+                'state_id': state.state_id,
+                'lazy': True
+            })
+        
         for county in counties_with_agencies:
             county_node = {
-                'id': f'county-{str(county.id)}',
+                'id': f'county-{str(county.county_id)}',
                 'type': 'county',
-                'name': county.name,
-                'county_id': county.county_id
-                # No lazy or children - counties are leaf nodes in the tree
+                'name_tag': county.name_tag,
+                'county_id': county.county_id,
+                'lazy': True  # Counties lazy-load agencies
             }
             counties.append(county_node)
         
@@ -290,28 +370,59 @@ class HPDBTreeViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'], url_path='agencies')
     def agencies(self, request):
-        """Get agencies for a specific county (lazy load endpoint)"""
-        county_id = request.query_params.get('county')
-        if not county_id:
+        """Get agencies for a specific county or statewide agencies (lazy load endpoint)"""
+        county_id_param = request.query_params.get('county')
+        if not county_id_param:
             return Response({'error': 'county parameter required'}, status=400)
         
-        try:
-            county = County.objects.using('hpdb').get(id=county_id.replace('county-', ''))
-        except County.DoesNotExist:
-            return Response({'error': 'County not found'}, status=404)
-        
         agencies = []
-        for agency in HPDBAgency.objects.using('hpdb').filter(counties=county):
-            agency_node = {
-                'id': f'agency-{str(agency.id)}',
-                'type': 'agency',
-                'name': agency.name,
-                'agency_id': agency.agency_id,
-                'system_type': agency.system_type,
-                'enabled': agency.enabled,
-                'group_count': agency.channel_groups.using('hpdb').count()
-            }
-            agencies.append(agency_node)
+        
+        # Check if this is a statewide request
+        if county_id_param.startswith('statewide-'):
+            try:
+                state_id = int(county_id_param.replace('statewide-', ''))
+                state = State.objects.using('hpdb').get(state_id=state_id)
+                
+                # Get agencies in this state that are NOT tied to any county in the state
+                statewide_agencies = (
+                    HPDBAgency.objects.using('hpdb')
+                    .filter(states=state)
+                    .exclude(counties__state=state)
+                    .distinct()
+                )
+                
+                for agency in statewide_agencies:
+                    agency_node = {
+                        'id': f'agency-{str(agency.agency_id)}',
+                        'type': 'agency',
+                        'name_tag': agency.name_tag,
+                        'agency_id': agency.agency_id,
+                        'system_type': agency.system_type,
+                        'enabled': agency.enabled,
+                        'group_count': agency.channel_groups.using('hpdb').count()
+                    }
+                    agencies.append(agency_node)
+            except (State.DoesNotExist, ValueError):
+                return Response({'error': 'State not found'}, status=404)
+        else:
+            try:
+                # Extract numeric ID from county parameter (e.g., "county-268" -> 268)
+                numeric_id = int(county_id_param.replace('county-', ''))
+                county = County.objects.using('hpdb').get(county_id=numeric_id)
+            except (County.DoesNotExist, ValueError):
+                return Response({'error': 'County not found'}, status=404)
+            
+            for agency in HPDBAgency.objects.using('hpdb').filter(counties=county):
+                agency_node = {
+                    'id': f'agency-{str(agency.agency_id)}',
+                    'type': 'agency',
+                    'name_tag': agency.name_tag,
+                    'agency_id': agency.agency_id,
+                    'system_type': agency.system_type,
+                    'enabled': agency.enabled,
+                    'group_count': agency.channel_groups.using('hpdb').count()
+                }
+                agencies.append(agency_node)
         
         return Response(agencies)
 

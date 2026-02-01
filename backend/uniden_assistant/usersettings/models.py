@@ -125,6 +125,8 @@ class ScannerFileRecord(models.Model):
     file_path = models.CharField(max_length=500)  # e.g., profile.cfg, favorites_lists/f_list.cfg
     record_type = models.CharField(max_length=100)
     fields = models.JSONField(default=list)  # list of fields (excluding record_type)
+    spec_field_order = models.JSONField(default=list)  # list of spec-aligned field names
+    spec_field_map = models.JSONField(default=dict)  # spec field name -> value
     trailing_empty_fields = models.IntegerField(default=0)
     line_number = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)

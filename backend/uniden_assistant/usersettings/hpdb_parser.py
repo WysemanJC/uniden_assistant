@@ -3,6 +3,7 @@ import os
 import logging
 from typing import Dict, List, Optional
 from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, ScannerFileRecord
+from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
 
 logger = logging.getLogger(__name__)
 
@@ -385,12 +386,15 @@ class FavoritesListParser:
                     parts_all = raw_line.split('\t')
                     record_type = parts_all[0] if parts_all else ''
                     fields = parts_all[1:] if len(parts_all) > 1 else []
+                    spec_field_order, spec_field_map = build_spec_field_map(record_type, fields)
 
                     records_buffer.append(ScannerFileRecord(
                         file_name=os.path.basename(file_path),
                         file_path='favorites_lists/f_list.cfg',
                         record_type=record_type,
                         fields=fields,
+                        spec_field_order=spec_field_order,
+                        spec_field_map=spec_field_map,
                         trailing_empty_fields=trailing_empty,
                         line_number=line_number,
                     ))

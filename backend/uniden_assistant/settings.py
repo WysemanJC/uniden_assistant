@@ -248,4 +248,5 @@ CORS_ALLOW_CREDENTIALS = True
 # File upload settings
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
+DATA_UPLOAD_MAX_NUMBER_FILES = 10000  # Allow up to 10,000 files per upload
 UNIDEN_DATA_DIR = get_setting('UNIDEN_DATA_DIR', default=str(BASE_DIR.parent / 'data'))

@@ -4,6 +4,7 @@ import logging
 from typing import Dict, List, Optional
 from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, HPDBFileRecord, HPDBRawFile, HPDBRawLine
 from uniden_assistant.record_parser import RecordHandler, BaseRecordParser
+from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class HPDBParser:
         if not country:
             country, _ = Country.objects.using('hpdb').update_or_create(
                 country_id=0,
-                defaults={'name': 'Nationwide', 'code': ''}
+                defaults={'name_tag': 'Nationwide', 'code': ''}
             )
             self.countries[0] = country
 
@@ -80,7 +81,7 @@ class HPDBParser:
         if not state:
             state, _ = State.objects.using('hpdb').update_or_create(
                 state_id=0,
-                defaults={'country': country, 'name': 'Nationwide', 'code': ''}
+                defaults={'country': country, 'name_tag': 'Nationwide', 'short_name': ''}
             )
             self.states[0] = state
     
@@ -224,7 +225,7 @@ class HPDBParser:
                 country_name = 'USA' if country_id == 1 else 'Canada' if country_id == 2 else f'Country {country_id}'
                 country, _ = Country.objects.using('hpdb').update_or_create(
                     country_id=country_id,
-                    defaults={'name': country_name, 'code': ''}
+                    defaults={'name_tag': country_name, 'code': ''}
                 )
                 self.countries[country_id] = country
             
@@ -233,8 +234,8 @@ class HPDBParser:
                 state_id=state_id,
                 defaults={
                     'country': self.countries[country_id],
-                    'name': name,
-                    'code': code
+                    'name_tag': name,
+                    'short_name': code
                 }
             )
             self.states[state_id] = state
@@ -273,7 +274,7 @@ class HPDBParser:
                 county_id=county_id,
                 defaults={
                     'state': self.states[state_id],
-                    'name': name
+                    'name_tag': name
                 }
             )
             self.counties[county_id] = county
@@ -392,6 +393,7 @@ class HPDBParser:
         parts = raw_line.split('\t')
         record_type = parts[0] if parts else ''
         fields = parts[1:] if len(parts) > 1 else []
+        spec_field_order, spec_field_map = build_spec_field_map(record_type, fields)
 
         rel_path = os.path.relpath(file_path, self._hpdb_base_dir) if self._hpdb_base_dir else os.path.basename(file_path)
         file_rel = os.path.join('HPDB', rel_path).replace('\\', '/')
@@ -401,6 +403,8 @@ class HPDBParser:
             file_path=file_rel,
             record_type=record_type,
             fields=fields,
+            spec_field_order=spec_field_order,
+            spec_field_map=spec_field_map,
             trailing_empty_fields=trailing_empty,
             line_number=line_number,
         )
@@ -427,7 +431,7 @@ class HPDBParser:
             agency, created = HPDBAgency.objects.using('hpdb').update_or_create(
                 agency_id=agency_id,
                 defaults={
-                    'name': name,
+                    'name_tag': name,
                     'system_type': system_type,
                     'enabled': enabled,
                     'raw_data': raw_line
@@ -533,7 +537,7 @@ class HPDBParser:
                 cgroup_id=cgroup_id,
                 agency=agency,
                 defaults={
-                    'name': name,
+                    'name_tag': name,
                     'enabled': enabled,
                     'latitude': latitude,
                     'longitude': longitude,
@@ -594,7 +598,7 @@ class HPDBParser:
                 if len(parts) > 6 and parts[6].strip() in ['AM', 'FM', 'NFM', 'AUTO', 'DSB']:
                     modulation = parts[6].strip()
                 
-                # [7] = Tone/NAC
+                # [7] = Tone/NAC (AudioOption per spec)
                 if len(parts) > 7 and parts[7]:
                     tone_part = parts[7].strip()
                     if tone_part.startswith('TONE=') or tone_part.startswith('NAC='):
@@ -615,12 +619,12 @@ class HPDBParser:
                 cfreq_id=cfreq_id,
                 cgroup=group,
                 defaults={
-                    'name': '',
+                    'name_tag': '',
                     'description': description,
                     'enabled': enabled,
                     'frequency': frequency,
                     'modulation': modulation,
-                    'tone': tone,
+                    'audio_option': tone,
                     'delay': delay,
                     'raw_data': raw_line
                 }

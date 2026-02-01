@@ -4,6 +4,7 @@ Parser for Uniden scanner configuration files
 import os
 import re
 from .models import Frequency, ChannelGroup, Agency, ScannerFileRecord
+from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
 
 
 class UnidenFileParser:
@@ -72,12 +73,15 @@ class UnidenFileParser:
             parts = raw_line.split('\t')
             record_type = parts[0] if parts else ''
             fields = parts[1:] if len(parts) > 1 else []
+            spec_field_order, spec_field_map = build_spec_field_map(record_type, fields)
 
             records_buffer.append(ScannerFileRecord(
                 file_name=file_name,
                 file_path=self._infer_file_path(file_path, file_name),
                 record_type=record_type,
                 fields=fields,
+                spec_field_order=spec_field_order,
+                spec_field_map=spec_field_map,
                 trailing_empty_fields=trailing_empty,
                 line_number=idx,
             ))

@@ -128,3 +128,8 @@ The application must adhere to a strict multi‑tier API hierarchy:
 - Environment variables are stored in `config.env` (not `.env`)
 - Frontend environment: `frontend/.env.local`
 - Do NOT create or reference `.env` or `.env.example` files
+
+## Documentation Governance
+
+- **Before creating any new specification docs**, check the Input_File_Specification folder for existing .md documentation and reuse it.
+- Only create new spec docs if the needed information does not exist there; otherwise update or link to the existing docs.

@@ -93,10 +93,10 @@ const props = defineProps({
 const $q = useQuasar()
 
 const columns = [
-  { name: 'name', label: 'Name', field: 'name', align: 'left' },
+  { name: 'name_tag', label: 'Name', field: 'name_tag', align: 'left' },
   { name: 'frequency', label: 'Frequency', field: 'frequency', align: 'left' },
   { name: 'modulation', label: 'Modulation', field: 'modulation', align: 'left' },
-  { name: 'nac', label: 'NAC', field: 'nac', align: 'left' },
+  { name: 'audio_option', label: 'Audio Option', field: 'audio_option', align: 'left' },
   { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center' },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
 ]
@@ -114,8 +114,8 @@ const filterFrequencies = () => {
   } else {
     const search = searchText.value.toLowerCase()
     filteredFrequencies.value = frequencies.value.filter(f =>
-      f.name.toLowerCase().includes(search) ||
-      f.nac.toLowerCase().includes(search)
+      f.name_tag.toLowerCase().includes(search) ||
+      (f.audio_option && f.audio_option.toLowerCase().includes(search))
     )
   }
 }

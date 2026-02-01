@@ -29,7 +29,7 @@
       >
         <q-card>
           <q-card-section>
-            <div class="text-h6">{{ group.name }}</div>
+            <div class="text-h6">{{ group.name_tag }}</div>
             <div class="text-caption text-grey">
               {{ group.frequencies?.length || 0 }} frequencies
             </div>
@@ -45,7 +45,7 @@
                 @remove="removeFrequencyFromGroup(group.id, freq.id)"
                 size="sm"
               >
-                {{ freq.name }}
+                {{ freq.name_tag }}
               </q-chip>
             </div>
           </q-card-section>
@@ -104,7 +104,7 @@ const editingGroup = ref(null)
 const filteredGroups = computed(() => {
   if (!searchText.value) return groups.value
   return groups.value.filter(g =>
-    g.name.toLowerCase().includes(searchText.value.toLowerCase())
+    g.name_tag.toLowerCase().includes(searchText.value.toLowerCase())
   )
 })
 

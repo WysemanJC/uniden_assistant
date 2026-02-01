@@ -437,7 +437,7 @@
                     <q-tree
                       :nodes="hpdbTree"
                       node-key="id"
-                      label-key="name"
+                      label-key="name_tag"
                       children-key="children"
                       v-model:expanded="expandedNodes"
                       v-model:selected="selectedNode"
@@ -448,17 +448,22 @@
                     >
                       <template #default-header="prop">
                         <div 
-                          class="row items-center q-gutter-xs" 
+                          class="row items-center q-gutter-xs cursor-pointer" 
                           style="flex: 1;"
-                          :class="{ 'cursor-pointer': prop.node.type === 'county' }"
-                          @click="prop.node.type === 'county' ? selectCounty(prop.node) : null"
+                          @click.stop="selectNode(prop.node)"
                         >
                           <q-icon 
                             :name="getNodeIcon(prop.node)" 
                             :color="getNodeColor(prop.node)" 
                             size="sm"
                           />
-                          <span class="text-body2">{{ prop.node.name }}</span>
+                          <span class="text-body2">{{ prop.node.name_tag }}</span>
+                          <q-badge 
+                            v-if="prop.node.type === 'agency' && prop.node.group_count"
+                            :label="prop.node.group_count"
+                            color="blue"
+                            class="q-ml-xs"
+                          />
                         </div>
                       </template>
                     </q-tree>
@@ -467,70 +472,61 @@
               </q-card>
             </div>
 
-            <!-- Middle Pane: County Systems/Departments -->
-            <div class="col-12 col-md-3">
+            <!-- Right Pane: Frequency List or Channel Groups -->
+            <div class="col-12 col-md-9">
               <q-card flat bordered style="height: 100%;">
                 <q-card-section class="q-pa-sm">
-                  <div v-if="selectedCounty">
-                    <div class="text-subtitle2 q-mb-sm">{{ selectedCounty.name }}</div>
-                    <div class="text-caption text-grey-7 q-mb-md">Systems & Departments</div>
-                  </div>
-                  <div v-else class="text-caption text-grey-7 q-mb-md">
-                    Select a county
-                  </div>
-
-                  <div style="height: calc(100vh - 400px); overflow-y: auto;">
-                    <div v-if="selectedCounty && countyAgencies.length > 0">
-                      <q-list bordered separator>
-                        <q-item
-                          v-for="agency in countyAgencies"
-                          :key="agency.id"
-                          clickable
-                          :active="selectedAgency && selectedAgency.id === agency.id"
-                          active-class="bg-blue-1"
-                          @click="selectAgency(agency)"
-                        >
-                          <q-item-section avatar>
-                            <q-icon name="radio" color="primary" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>{{ agency.name }}</q-item-label>
-                            <q-item-label caption>
-                              {{ agency.system_type }}
-                            </q-item-label>
-                          </q-item-section>
-                          <q-item-section side>
-                            <q-badge 
-                              v-if="agency.group_count" 
-                              :label="agency.group_count" 
-                              color="blue" 
-                            />
-                          </q-item-section>
-                        </q-item>
-                      </q-list>
-                    </div>
-                    <div v-else-if="selectedCounty && !loadingAgencies && countyAgencies.length === 0" class="text-center q-pa-lg text-grey-7">
-                      <q-icon name="info" size="2em" />
-                      <div class="q-mt-md text-caption">No systems in this county</div>
-                    </div>
-                    <div v-else-if="loadingAgencies" class="text-center q-pa-lg">
-                      <q-spinner color="primary" size="2em" />
-                    </div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <!-- Right Pane: Frequency List -->
-            <div class="col-12 col-md-6">
-              <q-card flat bordered style="height: 100%;">
-                <q-card-section class="q-pa-sm">
-                  <div v-if="selectedAgency">
+                  <!-- Show Channel Groups when Agency is selected -->
+                  <div v-if="selectedAgency && !selectedChannelGroup">
                     <div class="row items-center q-mb-md">
                       <div class="col">
-                        <div class="text-h6">{{ selectedAgency.name }}</div>
+                        <div class="text-h6">{{ selectedAgency.name_tag }}</div>
+                        <div class="text-caption text-grey-7">Channel Groups</div>
+                      </div>
+                    </div>
+
+                    <div v-if="agencyChannelGroups.length > 0" style="height: calc(100vh - 340px); overflow-y: auto;">
+                      <q-table
+                        :rows="agencyChannelGroups"
+                        :columns="channelGroupColumns"
+                        row-key="id"
+                        flat
+                        dense
+                        :rows-per-page-options="[0]"
+                        virtual-scroll
+                        @row-click="onChannelGroupRowClick"
+                        style="max-height: calc(100vh - 340px); cursor: pointer;"
+                      >
+                        <template #body-cell-avoid="props">
+                          <q-td :props="props">
+                            <q-icon 
+                              :name="props.row.enabled ? 'check_circle' : 'cancel'" 
+                              :color="props.row.enabled ? 'grey' : 'negative'"
+                              size="xs"
+                            />
+                          </q-td>
+                        </template>
+                      </q-table>
+                    </div>
+
+                    <div v-else-if="loadingFrequencies" class="text-center q-pa-xl">
+                      <q-spinner color="primary" size="2em" />
+                      <div class="q-mt-md text-caption">Loading channel groups...</div>
+                    </div>
+
+                    <div v-else class="text-center q-pa-xl text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No channel groups found</div>
+                    </div>
+                  </div>
+
+                  <!-- Show Frequencies when Channel Group is selected -->
+                  <div v-else-if="selectedChannelGroup">
+                    <div class="row items-center q-mb-md">
+                      <div class="col">
+                        <div class="text-h6">{{ selectedChannelGroup.name_tag }}</div>
                         <div class="text-caption text-grey-7">
-                          {{ selectedAgency.system_type }} System
+                          {{ selectedAgency?.name_tag || 'Agency' }}
                         </div>
                       </div>
                       <div class="col-auto">
@@ -540,7 +536,7 @@
                           icon="open_in_new" 
                           size="sm"
                           label="Details"
-                          @click="openAgencyDetail(selectedAgency)"
+                          @click="openChannelGroupDetail(selectedChannelGroup)"
                         />
                       </div>
                     </div>
@@ -552,10 +548,10 @@
                       <div class="q-mt-md text-grey-7 text-caption">Loading frequencies...</div>
                     </div>
 
-                    <div v-else-if="agencyFrequencies.length > 0">
-                      <div class="text-caption text-weight-bold q-mb-sm">Frequencies ({{ agencyFrequencies.length }})</div>
+                    <div v-else-if="channelGroupFrequencies.length > 0">
+                      <div class="text-caption text-weight-bold q-mb-sm">Frequencies ({{ channelGroupFrequencies.length }})</div>
                       <q-table
-                        :rows="agencyFrequencies"
+                        :rows="channelGroupFrequencies"
                         :columns="frequencyColumns"
                         row-key="id"
                         flat
@@ -564,11 +560,11 @@
                         virtual-scroll
                         style="max-height: calc(100vh - 480px);"
                       >
-                        <template #body-cell-enabled="props">
+                        <template #body-cell-avoid="props">
                           <q-td :props="props">
                             <q-icon 
-                              :name="props.value ? 'check_circle' : 'cancel'" 
-                              :color="props.value ? 'positive' : 'grey'"
+                              :name="props.row.enabled ? 'check_circle' : 'cancel'" 
+                              :color="props.row.enabled ? 'grey' : 'negative'"
                               size="xs"
                             />
                           </q-td>
@@ -588,8 +584,8 @@
                   </div>
 
                   <div v-else class="text-center q-pa-xl text-grey-7">
-                    <q-icon name="radio" size="3em" />
-                    <div class="q-mt-md">Select a system/department from the middle pane</div>
+                    <q-icon name="waves" size="3em" />
+                    <div class="q-mt-md">Select a system/department to view frequencies</div>
                   </div>
                 </q-card-section>
               </q-card>
@@ -629,135 +625,202 @@
         <div v-if="activeSection === 'load-data'">
           <div class="text-h5 q-mb-md">Load Data</div>
           <div class="text-body2 text-grey-7 q-mb-lg">
-            Upload HPDB database files or favourites files.
+            Upload a directory containing HPDB database files, Favourites, or an entire SD card.
           </div>
 
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-md-6">
-              <q-card flat bordered>
-                <q-card-section>
-                  <div class="row items-center">
-                    <div class="col">
-                      <div class="text-h6 q-mb-sm">
-                        <q-icon name="storage" color="primary" size="sm" class="q-mr-sm" />
-                        Load HPDB Database
-                      </div>
-                      <div class="text-body2">
-                        Select a directory containing hpdb.cfg and s_*.hpd files.
-                      </div>
-                    </div>
-                    <div class="col-auto q-gutter-sm">
-                      <q-btn
-                        outline
-                        color="primary"
-                        label="Re-parse From Last Loaded Data"
-                        :loading="hpdbImportLoading"
-                        @click="reloadHpdbFromRaw"
-                      />
-                      <q-btn
-                        outline
-                        color="negative"
-                        label="Clear Existing Data"
-                        @click="clearHpdbDataConfirm"
-                      />
-                    </div>
+          <q-card flat bordered>
+            <q-card-section>
+              <div class="text-h6 q-mb-sm">
+                <q-icon name="folder_open" color="primary" size="sm" class="q-mr-sm" />
+                Select Data Directory
+              </div>
+              <div class="text-body2 q-mb-md">
+                Choose one of:
+                <ul class="q-my-sm q-pl-md">
+                  <li>SD Card root directory</li>
+                  <li>HPDB database directory (containing hpdb.cfg and s_*.hpd files)</li>
+                  <li>Favourites directory (containing f_list.cfg and f_*.hpd files)</li>
+                </ul>
+                The system will automatically detect what you've uploaded.
+              </div>
+              
+              <q-file
+                ref="importFilePicker"
+                v-model="importFiles"
+                class="q-mt-md"
+                filled
+                multiple
+                use-chips
+                label="Select directory to upload"
+                accept=".cfg,.hpd,.avd,.dat,.inf"
+                :directory="true"
+                :webkitdirectory="true"
+              />
+              
+              <div v-if="importLoading && uploadProgress.totalBytes > 0" class="q-mt-md q-pa-md bg-primary-1 rounded-borders">
+                <div class="text-body2 text-weight-medium q-mb-sm">
+                  <q-icon name="cloud_upload" color="primary" />
+                  Uploading files...
+                </div>
+                <q-linear-progress
+                  :value="uploadProgressPercent / 100"
+                  color="primary"
+                  class="q-mt-xs"
+                />
+                <div class="row justify-between q-mt-xs">
+                  <div class="text-caption text-grey-7">
+                    {{ (uploadProgress.bytesUploaded / 1024 / 1024).toFixed(2) }} MB / {{ (uploadProgress.totalBytes / 1024 / 1024).toFixed(2) }} MB
                   </div>
-                  <q-file
-                    ref="hpdbFilePicker"
-                    v-model="hpdbFiles"
-                    class="q-mt-md"
-                    filled
-                    multiple
-                    use-chips
-                    label="Select HPDB directory"
-                    accept=".cfg,.hpd"
-                    :directory="true"
-                    :webkitdirectory="true"
-                  />
-                  <div v-if="hpdbImportProgress.status !== 'idle'" class="q-mt-md">
-                    <div class="text-caption text-grey-7">
-                      <span v-if="hpdbImportProgress.currentFile">
-                        Processing: {{ hpdbImportProgress.currentFile }}
-                      </span>
-                      <span v-else>
-                        Preparing HPDB import...
-                      </span>
-                    </div>
-                    <q-linear-progress
-                      :value="hpdbImportProgressPercent"
-                      color="primary"
-                      class="q-mt-xs"
-                    />
-                    <div class="text-caption text-grey-7 q-mt-xs">
-                      {{ hpdbImportProgress.processedFiles }} / {{ hpdbImportProgress.totalFiles }} files
-                    </div>
-                    <div v-if="hpdbImportProgress.status === 'processing'" class="text-caption text-primary q-mt-md">
-                      <q-icon name="info" size="xs" />
-                      Safe to navigate away - processing continues in background
-                    </div>
-                  </div>
-                </q-card-section>
-                <q-card-actions>
-                  <q-btn
-                    outline
-                    color="primary"
-                    label="Choose Directory"
-                    @click="openHpdbPicker"
-                  />
-                  <q-btn
-                    outline
-                    color="primary"
-                    label="Load HPDB"
-                    :loading="hpdbImportLoading"
-                    :disable="!hasHpdbFiles"
-                    @click="importHpdb"
-                  />
-                </q-card-actions>
-              </q-card>
-            </div>
+                  <div class="text-caption text-weight-medium">{{ uploadProgressPercent }}%</div>
+                </div>
+              </div>
+              
+              <div v-if="importDetection" class="q-mt-md q-pa-md bg-blue-1 rounded-borders">
+                <div class="text-subtitle1 text-weight-medium">
+                  <q-icon name="info" color="primary" />
+                  Detected: {{ importDetection.description }}
+                </div>
+                <div class="text-body2 q-mt-xs">
+                  {{ importDetection.contains }}
+                </div>
+                <div class="text-caption text-grey-7 q-mt-xs">
+                  {{ importDetection.file_count }} file(s) uploaded
+                </div>
+              </div>
 
-            <div class="col-12 col-md-6">
-              <q-card flat bordered>
-                <q-card-section>
-                  <div class="text-h6 q-mb-sm">
-                    <q-icon name="star" color="primary" size="sm" class="q-mr-sm" />
-                    Load Favourites
-                  </div>
-                  <div class="text-body2">
-                    Select a directory containing f_list.cfg and favourites .hpd files.
-                  </div>
-                  <q-file
-                    ref="favoritesFilePicker"
-                    v-model="favoritesFiles"
-                    class="q-mt-md"
-                    filled
-                    multiple
-                    use-chips
-                    label="Select Favourites directory"
-                    accept=".cfg,.hpd"
-                    :directory="true"
-                    :webkitdirectory="true"
-                  />
-                </q-card-section>
-                <q-card-actions>
-                  <q-btn
-                    outline
-                    color="primary"
-                    label="Choose Directory"
-                    @click="openFavoritesPicker"
-                  />
-                  <q-btn
-                    outline
-                    color="primary"
-                    label="Load Favourites"
-                    :loading="favoritesImportLoading"
-                    :disable="!hasFavoritesFiles"
-                    @click="importFavorites"
-                  />
-                </q-card-actions>
-              </q-card>
-            </div>
-          </div>
+              <!-- Processing Steps Display -->
+              <div v-if="hpdbImportProgress.status !== 'idle'" class="q-mt-md">
+                <q-card flat bordered>
+                  <q-card-section class="q-pa-md">
+                    <div class="text-subtitle1 text-weight-medium q-mb-md">
+                      <q-icon name="sync" color="primary" class="rotating" />
+                      Import Progress
+                    </div>
+                    
+                    <!-- Step 1: Upload -->
+                    <div class="q-mb-md">
+                      <div class="row items-center q-mb-xs">
+                        <q-icon 
+                          :name="hpdbImportProgress.status === 'uploading' ? 'radio_button_checked' : 'check_circle'" 
+                          :color="hpdbImportProgress.status === 'uploading' ? 'primary' : 'positive'"
+                          size="sm"
+                          class="q-mr-sm"
+                        />
+                        <span class="text-body2 text-weight-medium">
+                          Step 1: Upload Files
+                        </span>
+                        <q-space />
+                        <q-badge 
+                          v-if="hpdbImportProgress.status !== 'uploading'" 
+                          color="positive" 
+                          label="Complete"
+                        />
+                      </div>
+                    </div>
+                    
+                    <!-- Step 2: Processing -->
+                    <div class="q-mb-md">
+                      <div class="row items-center q-mb-xs">
+                        <q-icon 
+                          :name="hpdbImportProgress.status === 'processing' ? 'radio_button_checked' : hpdbImportProgress.status === 'completed' ? 'check_circle' : 'radio_button_unchecked'" 
+                          :color="hpdbImportProgress.status === 'processing' ? 'primary' : hpdbImportProgress.status === 'completed' ? 'positive' : 'grey'"
+                          size="sm"
+                          class="q-mr-sm"
+                        />
+                        <span class="text-body2 text-weight-medium">
+                          Step 2: Process Data
+                        </span>
+                        <q-space />
+                        <q-badge 
+                          v-if="hpdbImportProgress.status === 'completed'" 
+                          color="positive" 
+                          label="Complete"
+                        />
+                        <q-badge 
+                          v-else-if="hpdbImportProgress.status === 'processing'" 
+                          color="primary" 
+                          :label="`${hpdbImportProgress.processedFiles}/${hpdbImportProgress.totalFiles}`"
+                        />
+                      </div>
+                      
+                      <!-- Processing Details -->
+                      <div v-if="hpdbImportProgress.status === 'processing'" class="q-ml-lg q-pl-sm">
+                        <div v-if="hpdbImportProgress.stage" class="text-caption text-grey-7 q-mb-xs">
+                          Stage: {{ hpdbImportProgress.stage }}
+                        </div>
+                        <div v-if="hpdbImportProgress.message" class="text-caption text-weight-medium q-mb-sm text-primary">
+                          {{ hpdbImportProgress.message }}
+                        </div>
+                        <div v-if="hpdbImportProgress.currentFile" class="text-caption text-grey-7 q-mb-sm">
+                          File: {{ hpdbImportProgress.currentFile }}
+                        </div>
+                        <q-linear-progress
+                          :value="hpdbImportProgressPercent"
+                          color="primary"
+                          class="q-mb-xs"
+                          stripe
+                        />
+                        <div class="text-caption text-grey-7">
+                          {{ hpdbImportProgress.processedFiles }} / {{ hpdbImportProgress.totalFiles }} files
+                          <span v-if="hpdbImportProgress.currentRecords">
+                            ({{ hpdbImportProgress.currentRecords }} / {{ hpdbImportProgress.totalRecords }} records)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Info Message -->
+                    <div v-if="hpdbImportProgress.status === 'processing'" class="q-pa-sm bg-blue-1 rounded-borders">
+                      <q-icon name="info" color="primary" size="xs" />
+                      <span class="text-caption text-grey-8 q-ml-xs">
+                        Safe to navigate away - processing continues in background
+                      </span>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
+            </q-card-section>
+            
+            <q-card-actions>
+              <q-btn
+                outline
+                color="primary"
+                label="Choose Directory"
+                icon="folder_open"
+                @click="openImportPicker"
+              />
+              <q-btn
+                outline
+                color="primary"
+                label="Analyze & Upload"
+                icon="upload"
+                :loading="importLoading"
+                :disable="!hasImportFiles"
+                @click="analyzeImport"
+              />
+              <q-space />
+              <q-btn
+                outline
+                color="primary"
+                label="Clean Temp Uploads"
+                icon="delete_sweep"
+                @click="cleanupTempUploads"
+              />
+              <q-btn
+                outline
+                color="primary"
+                label="Re-Parse Data from Last Upload"
+                :loading="hpdbImportLoading"
+                @click="reloadHpdbFromRaw"
+              />
+              <q-btn
+                outline
+                color="negative"
+                label="Clear All Data"
+                @click="clearHpdbDataConfirm"
+              />
+            </q-card-actions>
+          </q-card>
         </div>
 
         <!-- Specifications Section -->
@@ -821,7 +884,71 @@
       </q-card>
     </q-dialog>
 
-    <!-- SD card import dialog removed; use Load Data page uploads -->
+    <!-- Import Confirmation Dialog -->
+    <q-dialog v-model="showImportConfirm" persistent>
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Confirm Data Import</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="cancelImport" />
+        </q-card-section>
+
+        <q-card-section v-if="importDetection">
+          <div class="text-body1 q-mb-md">
+            <q-icon name="folder" color="primary" size="md" class="q-mr-sm" />
+            <strong>{{ importDetection.description }}</strong>
+          </div>
+          
+          <div class="text-body2 q-mb-md">
+            Contains: {{ importDetection.contains }}
+          </div>
+
+          <div class="q-pa-md bg-orange-1 rounded-borders">
+            <div class="text-body2 text-weight-medium q-mb-sm">
+              <q-icon name="warning" color="warning" />
+              What data will be affected?
+            </div>
+            <div class="text-body2" v-if="importDetection.type === 'hpdb'">
+              This will import HPDB database records (countries, states, counties, agencies, and frequencies).
+            </div>
+            <div class="text-body2" v-else-if="importDetection.type === 'favorites'">
+              This will import favourites profiles and channel configurations.
+            </div>
+            <div class="text-body2" v-else-if="importDetection.type === 'sd_card'">
+              This will import both HPDB database AND favourites profiles from your SD card.
+            </div>
+          </div>
+
+          <div class="q-mt-md text-body2 text-grey-7">
+            <strong>Choose import mode:</strong>
+            <ul class="q-my-sm q-pl-md">
+              <li><strong>Replace:</strong> Clear existing data and import fresh</li>
+              <li><strong>Merge:</strong> Add to existing data (duplicates may occur)</li>
+            </ul>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancel" @click="cancelImport" />
+          <q-btn
+            outline
+            label="Proceed with Merge"
+            color="primary"
+            icon="merge_type"
+            @click="confirmImport('merge')"
+            :loading="importLoading"
+          />
+          <q-btn
+            unelevated
+            label="Proceed with Replace"
+            color="primary"
+            icon="refresh"
+            @click="confirmImport('replace')"
+            :loading="importLoading"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-layout>
 </template>
 <script setup>
@@ -883,18 +1010,39 @@ const hpdbImportProgressPercent = computed(() => {
 // Agency Details and Frequencies
 const selectedCounty = ref(null)
 const selectedAgency = ref(null)
+const selectedChannelGroup = ref(null)
 const countyAgencies = ref([])
+const agencyTreeNodes = ref([])
 const agencyFrequencies = ref([])
+const agencyChannelGroups = ref([])
+const channelGroupFrequencies = ref([])
 const loadingAgencies = ref(false)
 const loadingFrequencies = ref(false)
 
 const frequencyColumns = [
-  { name: 'group_name', label: 'Channel Group', field: 'group_name', align: 'left', sortable: true },
-  { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
+  { name: 'channel_name', label: 'Channel Name', field: row => row.name_tag || row.description || '', align: 'left', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: row => (!row.enabled ? 'Yes' : 'No'), align: 'center', sortable: true },
   { name: 'frequency', label: 'Frequency', field: 'frequency', align: 'left', sortable: true },
   { name: 'modulation', label: 'Modulation', field: 'modulation', align: 'left', sortable: true },
-  { name: 'tone', label: 'Tone/NAC', field: 'tone', align: 'left', sortable: true },
-  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center' }
+  { name: 'audio_option', label: 'Audio Option', field: 'audio_option', align: 'left', sortable: true },
+  { name: 'service_type', label: 'Service Type', field: 'description', align: 'left', sortable: true },
+  { name: 'attenuator', label: 'Attenuator', field: 'attenuator', align: 'center' },
+  { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
+  { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'left' },
+  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'left' },
+  { name: 'volume_offset', label: 'Volume Offset', field: 'volume_offset', align: 'center' },
+  { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center' },
+  { name: 'p_ch', label: 'P-CH', field: 'p_ch', align: 'center' }
+]
+
+const channelGroupColumns = [
+  { name: 'system_name', label: 'System Name', field: 'name_tag', align: 'left', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: row => (!row.enabled ? 'Yes' : 'No'), align: 'center', sortable: true },
+  { name: 'system_type', label: 'System Type', field: 'location_type', align: 'left', sortable: true },
+  { name: 'latitude', label: 'Latitude', field: 'latitude', align: 'center', sortable: true },
+  { name: 'longitude', label: 'Longitude', field: 'longitude', align: 'center', sortable: true },
+  { name: 'range_miles', label: 'Range (mi)', field: 'range_miles', align: 'center', sortable: true },
+  { name: 'frequency_count', label: 'Frequencies', field: 'frequency_count', align: 'center', sortable: true }
 ]
 
 // Favourites
@@ -910,33 +1058,64 @@ const favoritesColumns = [
 ]
 
 const showCreateDialog = ref(false)
-const hpdbFiles = ref([])
-const favoritesFiles = ref([])
-const hpdbFilePicker = ref(null)
-const favoritesFilePicker = ref(null)
-const hasHpdbFiles = computed(() => {
-  const files = Array.isArray(hpdbFiles.value)
-    ? hpdbFiles.value
-    : Array.from(hpdbFiles.value || [])
+const importFiles = ref([])
+const importFilePicker = ref(null)
+const hasImportFiles = computed(() => {
+  const files = Array.isArray(importFiles.value)
+    ? importFiles.value
+    : Array.from(importFiles.value || [])
   return files.length > 0
 })
-const hasFavoritesFiles = computed(() => {
-  const files = Array.isArray(favoritesFiles.value)
-    ? favoritesFiles.value
-    : Array.from(favoritesFiles.value || [])
-  return files.length > 0
+const importDetection = ref(null)
+const importSession = ref(null)
+const importTempPath = ref(null)
+const showImportConfirm = ref(false)
+const importLoading = ref(false)
+const uploadProgress = ref({
+  bytesUploaded: 0,
+  totalBytes: 0,
+  percent: 0
 })
+const uploadProgressPercent = computed(() => uploadProgress.value.percent)
 const newProfile = ref({
   name: '',
   model: '',
   firmware_version: ''
 })
 
-onMounted(() => {
+onMounted(async () => {
   // Check for section query parameter
   const section = route.query.section
   if (section && ['home', 'database', 'favorites'].includes(section)) {
     activeSection.value = section
+  }
+  
+  // Check for ongoing import job from previous session
+  const storedJobId = localStorage.getItem('hpdb_import_job_id')
+  const storedTimestamp = localStorage.getItem('hpdb_import_timestamp')
+  
+  if (storedJobId && storedTimestamp) {
+    const jobAge = Date.now() - parseInt(storedTimestamp)
+    // Only resume if job is less than 24 hours old
+    if (jobAge < 86400000) {
+      console.log('Resuming import job:', storedJobId)
+      // Automatically switch to load-data section to show progress
+      activeSection.value = 'load-data'
+      // Set initial progress state
+      hpdbImportProgress.value = {
+        status: 'processing',
+        stage: 'Resuming import...',
+        currentFile: '',
+        processedFiles: 0,
+        totalFiles: 0
+      }
+      // Start polling the existing job
+      startHpdbImportPolling(storedJobId)
+    } else {
+      // Job is too old, clear it
+      localStorage.removeItem('hpdb_import_job_id')
+      localStorage.removeItem('hpdb_import_timestamp')
+    }
   }
   
   scanner.fetchProfiles()
@@ -953,8 +1132,8 @@ const loadStats = async () => {
   statsLoading.value = true
   try {
     const [hpdbResp, favResp] = await Promise.all([
-      api.get('/uniden_manager/hpdb/stats/'),
-      api.get('/uniden_manager/usersettings/stats/')
+      api.get('/hpdb/stats/'),
+      api.get('/usersettings/stats/')
     ])
     hpdbStats.value = hpdbResp.data
     favoritesStats.value = favResp.data
@@ -968,7 +1147,7 @@ const loadStats = async () => {
 // HPDB Tree Methods
 const loadHPDBTree = async () => {
   try {
-    const { data } = await api.get('/uniden_manager/hpdb/tree/tree/')
+    const { data } = await api.get('/hpdb/tree/tree/')
     hpdbTree.value = data
   } catch (error) {
     console.error('Error loading HPDB tree:', error)
@@ -980,7 +1159,7 @@ const expandAgencyGroups = async (agencyId) => {
   try {
     // Extract numeric ID from node ID (e.g., "agency-268" -> "268")
     const numericId = agencyId.toString().replace('agency-', '')
-    const { data } = await api.get(`/uniden_manager/hpdb/channel-groups/?agency=${numericId}`)
+    const { data } = await api.get(`/hpdb/channel-groups/?agency=${numericId}`)
     // Handle paginated response
     const groups = data.results || []
     return groups.map(group => ({
@@ -1020,7 +1199,10 @@ const openFavoriteDetail = (evt, row) => {
 const selectCounty = async (node) => {
   selectedCounty.value = node
   selectedAgency.value = null
+  selectedChannelGroup.value = null
   agencyFrequencies.value = []
+  channelGroupFrequencies.value = []
+  agencyTreeNodes.value = []
   loadingAgencies.value = true
   countyAgencies.value = []
   
@@ -1029,8 +1211,21 @@ const selectCounty = async (node) => {
     const numericId = node.id.toString().replace('county-', '')
     
     // Load agencies for this county
-    const { data: agenciesResponse } = await api.get(`/uniden_manager/hpdb/tree/agencies/?county=county-${numericId}`)
+    const { data: agenciesResponse } = await api.get(`/hpdb/tree/agencies/?county=county-${numericId}`)
     countyAgencies.value = agenciesResponse
+    
+    // Build tree nodes: agencies with channel groups as children
+    agencyTreeNodes.value = agenciesResponse.map(agency => ({
+      id: agency.id.toString().startsWith('agency-') ? agency.id.toString() : `agency-${agency.id}`,
+      type: 'agency',
+      name_tag: agency.name_tag,
+      system_type: agency.system_type,
+      enabled: agency.enabled,
+      group_count: agency.group_count || 0,
+      lazy: true  // Will load children on expand
+    }))
+    
+    console.log('Agency tree nodes built:', agencyTreeNodes.value)
   } catch (error) {
     console.error('Error loading county agencies:', error)
     $q.notify({ type: 'negative', message: 'Failed to load systems' })
@@ -1039,44 +1234,146 @@ const selectCounty = async (node) => {
   }
 }
 
-const selectAgency = async (node) => {
-  selectedAgency.value = node
-  loadingFrequencies.value = true
-  agencyFrequencies.value = []
+const onAgencyLazyLoad = async ({ node, key, done, fail }) => {
+  console.log('[LAZY-LOAD] Triggered for node:', { node, key })
+  console.log('[LAZY-LOAD] Node type:', node.type)
+  console.log('[LAZY-LOAD] Node id:', node.id)
   
-  try {
-    // Extract numeric ID from node ID (e.g., "agency-268" -> "268")
-    const numericId = node.id.toString().replace('agency-', '')
-    
-    // Load channel groups for this agency
-    const { data: groupsResponse } = await api.get(`/uniden_manager/hpdb/channel-groups/?agency=${numericId}`)
-    const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
-    
-    // Load frequencies for each group
-    const allFrequencies = []
-    for (const group of groups) {
-      try {
-        const { data: freqData } = await api.get(`/uniden_manager/hpdb/frequencies/?channel_group=${group.id}`)
-        const frequencies = Array.isArray(freqData) ? freqData : (freqData.results || [])
-        // Add group name to each frequency for context
-        frequencies.forEach(freq => {
-          allFrequencies.push({
-            ...freq,
-            group_name: group.name
-          })
-        })
-      } catch (error) {
-        console.error(`Error loading frequencies for group ${group.id}:`, error)
-      }
+  // Load channel groups when agency node is expanded
+  if (node.type === 'agency') {
+    try {
+      const numericId = node.id.toString().replace(/^(agency-)+/, '')
+      console.log('[LAZY-LOAD] Extracted numeric ID:', numericId)
+      
+      // Only pass agency parameter - no need for county/state since agency is already scoped
+      const params = new URLSearchParams()
+      params.append('agency', `agency-${numericId}`)
+      
+      const url = `/hpdb/channel-groups/?${params.toString()}`
+      console.log('[LAZY-LOAD] Fetching from URL:', url)
+      
+      const response = await api.get(url)
+      console.log('[LAZY-LOAD] Got response:', response)
+      
+      const groupsResponse = response.data
+      console.log('[LAZY-LOAD] Response data:', groupsResponse)
+      
+      const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
+      console.log('[LAZY-LOAD] Parsed', groups.length, 'groups from response')
+      console.log('[LAZY-LOAD] Groups:', groups)
+      
+      const groupNodes = groups.map(group => {
+        console.log('[LAZY-LOAD] Processing group:', group)
+        return {
+          id: `cgroup-${group.id}`,
+          type: 'group',
+          name_tag: group.name_tag,
+          enabled: group.enabled,
+          latitude: group.latitude,
+          longitude: group.longitude,
+          range_miles: group.range_miles,
+          lazy: false
+        }
+      })
+      
+      console.log('[LAZY-LOAD] Created', groupNodes.length, 'group nodes:', groupNodes)
+      console.log('[LAZY-LOAD] Calling done() callback with nodes')
+      
+      done(groupNodes)
+      
+      console.log('[LAZY-LOAD] done() callback completed successfully')
+    } catch (error) {
+      console.error('[LAZY-LOAD] ERROR:', error)
+      console.error('[LAZY-LOAD] Error message:', error.message)
+      console.error('[LAZY-LOAD] Error stack:', error.stack)
+      console.log('[LAZY-LOAD] Calling fail() callback')
+      fail()
     }
-    
-    agencyFrequencies.value = allFrequencies
-  } catch (error) {
-    console.error('Error loading agency frequencies:', error)
-    $q.notify({ type: 'negative', message: 'Failed to load frequencies' })
-  } finally {
-    loadingFrequencies.value = false
+  } else {
+    console.log('[LAZY-LOAD] Node is not an agency, calling done([]) and returning')
+    done([])
   }
+}
+
+const selectNode = async (node) => {
+  console.log('[SELECT-NODE] Clicked on node:', node)
+  
+  if (node.type === 'county' || node.type === 'statewide') {
+    selectedCounty.value = node
+    selectedAgency.value = null
+    selectedChannelGroup.value = null
+    agencyChannelGroups.value = []
+    channelGroupFrequencies.value = []
+  } else if (node.type === 'agency') {
+    selectedAgency.value = node
+    selectedChannelGroup.value = null
+    channelGroupFrequencies.value = []
+    loadingFrequencies.value = true
+    agencyChannelGroups.value = []
+    
+    try {
+      const numericId = node.id.toString().replace(/^(agency-)+/, '')
+      console.log('Loading channel groups for agency:', numericId)
+      
+      const params = new URLSearchParams()
+      params.append('agency', `agency-${numericId}`)
+      
+      const { data: groupsResponse } = await api.get(`/hpdb/channel-groups/?${params.toString()}`)
+      console.log('Channel groups response:', groupsResponse)
+      
+      const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
+      agencyChannelGroups.value = groups
+      console.log('Channel groups loaded:', groups.length)
+    } catch (error) {
+      console.error('Error loading channel groups:', error)
+      $q.notify({ type: 'negative', message: 'Failed to load channel groups' })
+    } finally {
+      loadingFrequencies.value = false
+    }
+  } else if (node.type === 'group') {
+    // Load frequencies for this channel group
+    selectedChannelGroup.value = node
+    loadingFrequencies.value = true
+    channelGroupFrequencies.value = []
+    
+    try {
+      const numericId = node.id.toString().replace('cgroup-', '')
+      console.log('Loading frequencies for channel group:', numericId)
+      
+      const params = new URLSearchParams()
+      params.append('channel_group', `cgroup-${numericId}`)
+      
+      const { data: freqResponse } = await api.get(`/hpdb/frequencies/?${params.toString()}`)
+      console.log('Frequencies response:', freqResponse)
+      
+      const frequencies = Array.isArray(freqResponse) ? freqResponse : (freqResponse.results || [])
+      channelGroupFrequencies.value = frequencies
+      console.log('Frequencies loaded:', frequencies.length)
+    } catch (error) {
+      console.error('Error loading frequencies:', error)
+      $q.notify({ type: 'negative', message: 'Failed to load frequencies' })
+    } finally {
+      loadingFrequencies.value = false
+    }
+  }
+}
+
+const onChannelGroupRowClick = async (evt, row) => {
+  console.log('[CHANNEL-GROUP-CLICK] Row clicked:', row)
+  
+  // Create a node-like object to pass to selectNode
+  const groupNode = {
+    id: `cgroup-${row.id}`,
+    type: 'group',
+    name_tag: row.name_tag,
+    enabled: row.enabled,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    range_miles: row.range_miles
+  }
+  
+  // Select this channel group node which will load its frequencies
+  await selectNode(groupNode)
 }
 
 const getNodeIcon = (node) => {
@@ -1084,6 +1381,7 @@ const getNodeIcon = (node) => {
     case 'country': return 'public'
     case 'state': return 'map'
     case 'county': return 'location_city'
+    case 'statewide': return 'language'
     case 'agency': return 'radio'
     case 'group': return 'waves'
     default: return 'folder'
@@ -1095,35 +1393,70 @@ const getNodeColor = (node) => {
     case 'country': return 'blue'
     case 'state': return 'green'
     case 'county': return 'orange'
+    case 'statewide': return 'purple'
     case 'agency': return node.enabled ? 'primary' : 'grey'
     case 'group': return 'purple'
     default: return 'grey'
   }
 }
 
-const onLazyLoad = ({ node, key, done, fail }) => {
-  // Only lazy load counties for states; counties are leaf nodes
-  if (node.type === 'state') {
-    // Load counties for the state
-    const stateId = node.id
-    api.get(`/uniden_manager/hpdb/tree/counties/?state=${stateId}`)
-      .then(({ data }) => {
-        done(data)
-      })
-      .catch(error => {
-        console.error('Error loading counties:', error)
-        fail()
-        $q.notify({ type: 'negative', message: 'Failed to load counties' })
-      })
-  } else {
-    // No lazy loading for other node types in the tree
-    done([])
+const onLazyLoad = async ({ node, key, done, fail }) => {
+  console.log('[LAZY-LOAD] Triggered for node:', { node, key })
+  
+  try {
+    if (node.type === 'state') {
+      // Load counties for the state
+      const { data } = await api.get(`/hpdb/tree/counties/?state=${node.id}`)
+      done(data)
+    } else if (node.type === 'county' || node.type === 'statewide') {
+      // Load agencies for this county or statewide
+      const { data: agenciesResponse } = await api.get(`/hpdb/tree/agencies/?county=${node.id}`)
+      
+      const agencyNodes = agenciesResponse.map(agency => ({
+        id: agency.id.toString().startsWith('agency-') ? agency.id.toString() : `agency-${agency.id}`,
+        type: 'agency',
+        name_tag: agency.name_tag,
+        system_type: agency.system_type,
+        enabled: agency.enabled,
+        group_count: agency.group_count || 0,
+        lazy: true
+      }))
+      
+      done(agencyNodes)
+    } else if (node.type === 'agency') {
+      // Load channel groups for this agency
+      const numericId = node.id.toString().replace(/^(agency-)+/, '')
+      const params = new URLSearchParams()
+      params.append('agency', `agency-${numericId}`)
+      
+      const { data: groupsResponse } = await api.get(`/hpdb/channel-groups/?${params.toString()}`)
+      const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
+      
+      const groupNodes = groups.map(group => ({
+        id: `cgroup-${group.id}`,
+        type: 'group',
+        name_tag: group.name_tag,
+        enabled: group.enabled,
+        latitude: group.latitude,
+        longitude: group.longitude,
+        range_miles: group.range_miles,
+        lazy: false
+      }))
+      
+      done(groupNodes)
+    } else {
+      done([])
+    }
+  } catch (error) {
+    console.error('[LAZY-LOAD] ERROR:', error)
+    fail()
+    $q.notify({ type: 'negative', message: 'Failed to load data' })
   }
 }
 
 const filterMethod = (node, filter) => {
   const filt = filter.toLowerCase()
-  return node.name.toLowerCase().includes(filt)
+  return node.name_tag.toLowerCase().includes(filt)
 }
 
 const openAgencyDetail = (node) => {
@@ -1132,34 +1465,200 @@ const openAgencyDetail = (node) => {
   router.push(`/database/${agencyId}`)
 }
 
-// Import/Export Methods
-
-const validateHpdbFiles = (files) => {
-  const names = files.map(f => f.name.toLowerCase())
-  const hasCfg = names.includes('hpdb.cfg')
-  const hasSystem = names.some(n => n.startsWith('s_') && n.endsWith('.hpd'))
-  return { hasCfg, hasSystem }
+const openChannelGroupDetail = (node) => {
+  // Extract numeric ID from node.id (format is "cgroup-123")
+  const cgroupId = node.id.toString().replace('cgroup-', '')
+  // Could navigate to a channel group detail page if available
+  console.log('Opening channel group details:', cgroupId)
+  $q.notify({ type: 'info', message: `Channel Group: ${node.name_tag}` })
 }
 
-const validateFavoritesFiles = (files) => {
-  const names = files.map(f => f.name.toLowerCase())
-  const hasCfg = names.includes('f_list.cfg')
-  const hasHpd = names.some(n => n.endsWith('.hpd'))
-  return { hasCfg, hasHpd }
+// Import/Export Methods
+
+const openImportPicker = () => {
+  triggerFilePicker(importFilePicker)
+}
+
+const analyzeImport = async () => {
+  const files = Array.isArray(importFiles.value)
+    ? importFiles.value
+    : Array.from(importFiles.value || [])
+  
+  if (files.length === 0) {
+    openImportPicker()
+    return
+  }
+
+  importLoading.value = true
+  importDetection.value = null
+  uploadProgress.value = { bytesUploaded: 0, totalBytes: 0, percent: 0 }
+  
+  try {
+    // Calculate total bytes
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
+    uploadProgress.value.totalBytes = totalBytes
+    
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+    
+    const { data } = await axios.post(
+      api.defaults.baseURL + '/import/detect/',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          uploadProgress.value.bytesUploaded = progressEvent.loaded
+          uploadProgress.value.percent = Math.round((progressEvent.loaded / totalBytes) * 100)
+        }
+      }
+    )
+    
+    importSession.value = data.session_id
+    importDetection.value = data.detection
+    importTempPath.value = data.temp_path
+    showImportConfirm.value = true
+    
+  } catch (error) {
+    $q.notify({ 
+      type: 'negative', 
+      message: 'Detection failed: ' + (error.response?.data?.error || error.message) 
+    })
+  } finally {
+    importLoading.value = false
+  }
+}
+
+const cancelImport = () => {
+  showImportConfirm.value = false
+  importDetection.value = null
+  importSession.value = null
+  importTempPath.value = null
+}
+
+const confirmImport = async (mode) => {
+  if (!importSession.value || !importDetection.value) {
+    $q.notify({ type: 'negative', message: 'Import session expired' })
+    return
+  }
+
+  console.log('Starting import process:', { 
+    mode, 
+    session: importSession.value, 
+    type: importDetection.value.type 
+  })
+
+  importLoading.value = true
+  showImportConfirm.value = false
+  
+  // Show processing status immediately (files already uploaded during detect)
+  hpdbImportProgress.value = {
+    status: 'processing',
+    stage: 'Processing data (this may take a few minutes for large imports)...',
+    currentFile: '',
+    processedFiles: 0,
+    totalFiles: 0
+  }
+  
+  try {
+    console.log('Calling process endpoint...')
+    console.log('API baseURL:', api.defaults.baseURL)
+    console.log('Full URL will be:', api.defaults.baseURL + '/import/process/')
+    console.log('Request data:', {
+      session_id: importSession.value,
+      mode: mode,
+      type: importDetection.value.type,
+      temp_path: importTempPath.value
+    })
+    
+    const { data } = await api.post('/import/process/', {
+      session_id: importSession.value,
+      mode: mode,
+      type: importDetection.value.type,
+      temp_path: importTempPath.value
+    }, {
+      timeout: 300000 // 5 minute timeout
+    })
+    
+    console.log('Process response received!')
+    console.log('Process response:', data)
+    
+    // Start polling for progress updates
+    if (data.job_id) {
+      startImportProgressPolling(data.job_id)
+    }
+    
+    // Handle different import types
+    if (data.type === 'hpdb' || (data.type === 'sd_card' && data.results?.hpdb)) {
+      const hpdbJobId = data.results?.hpdb?.job_id
+      if (hpdbJobId) {
+        hpdbImportProgress.value = {
+          status: 'processing',
+          stage: 'systems',
+          currentFile: '',
+          processedFiles: 0,
+          totalFiles: 0
+        }
+        startHpdbImportPolling(hpdbJobId)
+      }
+    }
+    
+    if (data.type === 'favorites' || (data.type === 'sd_card' && data.results?.favorites)) {
+      const favResults = data.type === 'favorites' ? data : data.results.favorites
+      if (favResults.errors?.length) {
+        $q.notify({ 
+          type: 'warning', 
+          message: `Favourites imported with ${favResults.errors.length} error(s)` 
+        })
+      } else {
+        $q.notify({ 
+          type: 'positive', 
+          message: `Imported ${favResults.imported} favourite(s)` 
+        })
+      }
+      await scanner.fetchProfiles()
+      await loadFavoritesList()
+      
+      // If this is favorites-only (not SD card with HPDB), clear progress
+      if (data.type === 'favorites') {
+        resetHpdbImportProgress()
+      }
+    }
+    
+    if (data.type === 'sd_card') {
+      $q.notify({ 
+        type: 'positive', 
+        message: 'SD card import started - processing both HPDB and favourites' 
+      })
+      await loadHPDBTree()
+    }
+    
+  } catch (error) {
+    console.error('Import error:', error)
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response,
+      request: error.request,
+      config: error.config
+    })
+    $q.notify({ 
+      type: 'negative', 
+      message: 'Import failed: ' + (error.response?.data?.error || error.message) 
+    })
+    // Reset progress on error
+    resetHpdbImportProgress()
+  } finally {
+    console.log('Import finally block')
+    importLoading.value = false
+    importDetection.value = null
+    importSession.value = null
+    importTempPath.value = null
+  }
 }
 
 const triggerFilePicker = (pickerRef) => {
   const el = pickerRef?.value?.$el
   const input = el?.querySelector('input[type="file"]')
   input?.click()
-}
-
-const openHpdbPicker = () => {
-  triggerFilePicker(hpdbFilePicker)
-}
-
-const openFavoritesPicker = () => {
-  triggerFilePicker(favoritesFilePicker)
 }
 
 let hpdbImportTimer = null
@@ -1172,6 +1671,9 @@ const resetHpdbImportProgress = () => {
     processedFiles: 0,
     totalFiles: 0
   }
+  // Clear stored job ID when resetting
+  localStorage.removeItem('hpdb_import_job_id')
+  localStorage.removeItem('hpdb_import_timestamp')
 }
 
 const stopHpdbImportPolling = () => {
@@ -1181,8 +1683,72 @@ const stopHpdbImportPolling = () => {
   }
 }
 
+let importProgressTimer = null
+
+const stopImportProgressPolling = () => {
+  if (importProgressTimer) {
+    clearInterval(importProgressTimer)
+    importProgressTimer = null
+  }
+}
+
+const startImportProgressPolling = (jobId) => {
+  stopImportProgressPolling()
+  
+  const poll = async () => {
+    try {
+      const { data } = await api.get('/import/progress/', {
+        params: { job_id: jobId }
+      })
+      
+      console.log('Import progress update:', data)
+      
+      hpdbImportProgress.value = {
+        status: data.status || 'processing',
+        stage: data.stage || '',
+        currentFile: data.current_file || '',
+        processedFiles: data.processed_files || 0,
+        totalFiles: data.total_files || 0,
+        message: data.message || ''
+      }
+
+      if (data.hpdb_job_id && !hpdbImportTimer) {
+        startHpdbImportPolling(data.hpdb_job_id)
+      }
+      
+      if (data.status === 'completed') {
+        stopImportProgressPolling()
+        $q.notify({ type: 'positive', message: 'Import completed successfully!' })
+        await loadHPDBTree()
+        await loadFavoritesList()
+        await loadStats()
+        await scanner.fetchProfiles()
+        setTimeout(resetHpdbImportProgress, 2000)
+      } else if (data.status === 'failed') {
+        stopImportProgressPolling()
+        $q.notify({ type: 'negative', message: `Import failed: ${data.message || 'Unknown error'}` })
+        resetHpdbImportProgress()
+      }
+    } catch (error) {
+      console.error('Failed to get import progress:', error)
+      if (error?.response?.status === 404) {
+        stopImportProgressPolling()
+        resetHpdbImportProgress()
+      }
+      // Continue polling even on error
+    }
+  }
+  
+  poll()
+  importProgressTimer = setInterval(poll, 1000)
+}
+
 const startHpdbImportPolling = (jobId) => {
   stopHpdbImportPolling()
+  
+  // Store job ID in localStorage for page navigation resilience
+  localStorage.setItem('hpdb_import_job_id', jobId)
+  localStorage.setItem('hpdb_import_timestamp', Date.now().toString())
 
   const poll = async () => {
     try {
@@ -1214,56 +1780,17 @@ const startHpdbImportPolling = (jobId) => {
         $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (data.error_message || 'Unknown error') })
       }
     } catch (error) {
-      stopHpdbImportPolling()
-      hpdbImportLoading.value = false
-      $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (error.response?.data?.error || error.message) })
+      console.error('Error polling HPDB import progress:', error)
+      if (error?.response?.status === 404) {
+        stopHpdbImportPolling()
+        resetHpdbImportProgress()
+      }
+      // Continue polling even on error - the job may still be processing
     }
   }
 
   poll()
   hpdbImportTimer = setInterval(poll, 1000)
-}
-
-const importHpdb = async () => {
-  const files = Array.isArray(hpdbFiles.value)
-    ? hpdbFiles.value
-    : Array.from(hpdbFiles.value || [])
-  if (files.length === 0) {
-    openHpdbPicker()
-    return
-  }
-  const { hasCfg, hasSystem } = validateHpdbFiles(files)
-  if (!hasCfg || !hasSystem) {
-    $q.notify({ type: 'negative', message: 'HPDB upload requires hpdb.cfg and at least one s_*.hpd file.' })
-    return
-  }
-
-  hpdbImportLoading.value = true
-  hpdbImportProgress.value = {
-    status: 'uploading',
-    stage: 'upload',
-    currentFile: '',
-    processedFiles: 0,
-    totalFiles: files.filter(file => file.name.toLowerCase().startsWith('s_') && file.name.toLowerCase().endsWith('.hpd')).length
-  }
-  try {
-    const formData = new FormData()
-    files.forEach(file => formData.append('files', file))
-    const { data } = await api.post('/hpdb/import-files/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    if (!data.job_id) {
-      throw new Error('Missing job id from import response')
-    }
-    startHpdbImportPolling(data.job_id)
-  } catch (error) {
-    stopHpdbImportPolling()
-    $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (error.response?.data?.error || error.message) })
-    hpdbImportLoading.value = false
-    resetHpdbImportProgress()
-  } finally {
-    // Loading state handled by progress polling
-  }
 }
 
 const reloadHpdbFromRaw = () => {
@@ -1302,61 +1829,46 @@ const reloadHpdbFromRaw = () => {
 
 const clearHpdbDataConfirm = () => {
   $q.dialog({
-    title: 'Clear HPDB Data',
-    message: 'Delete all HPDB database records? This cannot be undone.',
+    title: 'Clear All Data',
+    message: 'This will delete ALL data in the system:\n\n• All HPDB database records (countries, states, counties, agencies, frequencies)\n• All Favourites profiles and channel configurations\n\nThis cannot be undone. Continue?',
     ok: {
-      label: 'Delete',
+      label: 'Delete Everything',
       color: 'negative'
     },
     cancel: true,
     persistent: true
   }).onOk(() => {
-    clearHpdbData()
+    clearAllData()
   })
 }
 
-const clearHpdbData = async () => {
+const clearAllData = async () => {
   try {
-    await api.post('/hpdb/clear-data/')
-    $q.notify({ type: 'positive', message: 'HPDB data cleared successfully' })
+    await Promise.all([
+      api.post('/hpdb/clear-data/'),
+      api.post('/usersettings/clear-data/')
+    ])
+    $q.notify({ type: 'positive', message: 'All data cleared successfully' })
     await loadHPDBTree()
+    await loadFavoritesList()
+    await loadStats()
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to clear HPDB data: ' + (error.response?.data?.error || error.message) })
+    $q.notify({ type: 'negative', message: 'Failed to clear data: ' + (error.response?.data?.error || error.message) })
   }
 }
 
-const importFavorites = async () => {
-  const files = Array.isArray(favoritesFiles.value)
-    ? favoritesFiles.value
-    : Array.from(favoritesFiles.value || [])
-  if (files.length === 0) {
-    openFavoritesPicker()
-    return
-  }
-  const { hasCfg, hasHpd } = validateFavoritesFiles(files)
-  if (!hasCfg || !hasHpd) {
-    $q.notify({ type: 'negative', message: 'Favourites upload requires f_list.cfg and at least one .hpd file.' })
-    return
-  }
-
-  favoritesImportLoading.value = true
+const cleanupTempUploads = async () => {
   try {
-    const formData = new FormData()
-    files.forEach(file => formData.append('files', file))
-    const { data } = await api.post('/usersettings/import-files/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+    const { data } = await api.post('/import/cleanup/')
+    $q.notify({ 
+      type: 'positive', 
+      message: data.message || `Cleaned up temporary uploads` 
     })
-    if (data.errors?.length) {
-      $q.notify({ type: 'warning', message: `Imported with ${data.errors.length} error(s)` })
-    } else {
-      $q.notify({ type: 'positive', message: `Imported ${data.imported} profile(s)` })
-    }
-    await scanner.fetchProfiles()
-    await loadFavoritesList()
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'Favourites import failed: ' + (error.response?.data?.error || error.message) })
-  } finally {
-    favoritesImportLoading.value = false
+    $q.notify({ 
+      type: 'negative', 
+      message: 'Cleanup failed: ' + (error.response?.data?.error || error.message) 
+    })
   }
 }
 
@@ -1546,5 +2058,19 @@ const loadSpec = async (path, sectionId) => {
 .markdown-content :deep(img) {
   max-width: 100%;
   height: auto;
+}
+
+/* Rotating animation for processing icon */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rotating {
+  animation: rotate 2s linear infinite;
 }
 </style>

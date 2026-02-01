@@ -55,6 +55,36 @@ class UserSettingsStatsView(APIView):
             })
 
 
+class ClearUserSettingsDataView(APIView):
+    """Clear all user settings and favourites data"""
+
+    def post(self, request):
+        try:
+            logger.info("Clearing all user settings and favourites data")
+            
+            # Clear all data from favorites database
+            ScannerProfile.objects.using('favorites').all().delete()
+            Frequency.objects.using('favorites').all().delete()
+            ChannelGroup.objects.using('favorites').all().delete()
+            Agency.objects.using('favorites').all().delete()
+            FavoritesList.objects.using('favorites').all().delete()
+            
+            logger.info("Cleared all user settings and favourites data successfully")
+            return Response({'success': True, 'message': 'All user settings and favourites data cleared'})
+        except DatabaseError as e:
+            logger.exception("Failed to clear user settings data", exc_info=e)
+            return Response(
+                {'error': f'Failed to clear data: {str(e)}', 'host': _favorites_db_host()},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.exception("Failed to clear user settings data", exc_info=e)
+            return Response(
+                {'error': f'Failed to clear data: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 class ScannerProfileViewSet(viewsets.ModelViewSet):
     """ViewSet for Scanner Profiles"""
     queryset = ScannerProfile.objects.all()
