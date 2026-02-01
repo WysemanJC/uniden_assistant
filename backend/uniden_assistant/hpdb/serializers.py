@@ -60,7 +60,12 @@ class HPDBAgencySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = HPDBAgency
-        fields = ['id', 'name_tag', 'system_type', 'enabled', 'channel_groups', 'group_count']
+        fields = [
+            'id', 'name_tag', 'system_type', 'enabled', 'channel_groups', 'group_count',
+            'quick_key', 'emergency_alert', 'number_tag', 'hold_time', 'priority_id_scan',
+            'agc_analog', 'agc_digital', 'trunk_id_search', 'trunk_end_code', 
+            'trunk_emergency_alert_light', 'trunk_status_bit', 'trunk_nxdn_format'
+        ]
 
 
 class HPDBTreeSerializer(serializers.Serializer):

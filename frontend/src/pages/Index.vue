@@ -476,8 +476,48 @@
             <div class="col-12 col-md-9">
               <q-card flat bordered style="height: 100%;">
                 <q-card-section class="q-pa-sm">
+                  <!-- Show Agencies when County is selected -->
+                  <div v-if="selectedCounty && !selectedAgency">
+                    <div class="row items-center q-mb-md">
+                      <div class="col">
+                        <div class="text-h6">{{ selectedCounty.name_tag }}</div>
+                        <div class="text-caption text-grey-7">Agencies</div>
+                      </div>
+                    </div>
+
+                    <div v-if="countyAgencies.length > 0" style="height: calc(100vh - 340px); overflow-y: auto;">
+                      <q-table
+                        :rows="countyAgencies"
+                        :columns="agencyColumns"
+                        row-key="id"
+                        flat
+                        dense
+                        :rows-per-page-options="[0]"
+                        virtual-scroll
+                        @row-click="onAgencyRowClick"
+                        style="max-height: calc(100vh - 340px); cursor: pointer;"
+                      >
+                        <template #body-cell-avoid="props">
+                          <q-td :props="props">
+                            {{ props.value }}
+                          </q-td>
+                        </template>
+                      </q-table>
+                    </div>
+
+                    <div v-else-if="loadingFrequencies" class="text-center q-pa-xl">
+                      <q-spinner color="primary" size="2em" />
+                      <div class="q-mt-md text-caption">Loading agencies...</div>
+                    </div>
+
+                    <div v-else class="text-center q-pa-xl text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No agencies found</div>
+                    </div>
+                  </div>
+
                   <!-- Show Channel Groups when Agency is selected -->
-                  <div v-if="selectedAgency && !selectedChannelGroup">
+                  <div v-else-if="selectedAgency && !selectedChannelGroup">
                     <div class="row items-center q-mb-md">
                       <div class="col">
                         <div class="text-h6">{{ selectedAgency.name_tag }}</div>
@@ -1045,6 +1085,24 @@ const channelGroupColumns = [
   { name: 'frequency_count', label: 'Frequencies', field: 'frequency_count', align: 'center', sortable: true }
 ]
 
+const agencyColumns = [
+  { name: 'system_name', label: 'System Name', field: 'name_tag', align: 'left', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: row => (!row.enabled ? 'Yes' : 'No'), align: 'center', sortable: true },
+  { name: 'system_type', label: 'System Type', field: 'system_type', align: 'left', sortable: true },
+  { name: 'id_search', label: 'ID:Search', field: 'trunk_id_search', align: 'left', sortable: true },
+  { name: 'emergency_alert', label: 'Emergency Alert', field: 'emergency_alert', align: 'center' },
+  { name: 'emergency_alert_light', label: 'Emergency Alert Light', field: 'trunk_emergency_alert_light', align: 'center' },
+  { name: 'status_bit', label: 'Status Bit', field: 'trunk_status_bit', align: 'center' },
+  { name: 'quick_key', label: 'Quick Key', field: 'quick_key', align: 'center' },
+  { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center' },
+  { name: 'hold_time', label: 'Hold Time', field: 'hold_time', align: 'center' },
+  { name: 'priority_id_scan', label: 'Priority ID Scan', field: 'priority_id_scan', align: 'center' },
+  { name: 'end_code', label: 'End Code', field: 'trunk_end_code', align: 'left', sortable: true },
+  { name: 'nxdn_format', label: 'NXDN TGID Format', field: 'trunk_nxdn_format', align: 'left', sortable: true },
+  { name: 'agc_analog', label: 'Analog AGC', field: 'agc_analog', align: 'center' },
+  { name: 'agc_digital', label: 'Digital AGC', field: 'agc_digital', align: 'center' }
+]
+
 // Favourites
 const favorites = ref([])
 const favoritesLoading = ref(false)
@@ -1304,6 +1362,29 @@ const selectNode = async (node) => {
     selectedChannelGroup.value = null
     agencyChannelGroups.value = []
     channelGroupFrequencies.value = []
+    countyAgencies.value = []
+    loadingFrequencies.value = true
+    
+    // Load agencies for this county
+    try {
+      const numericId = node.id.toString().replace(/^(county-|statewide-)+/, '')
+      console.log('Loading agencies for county:', numericId)
+      
+      const params = new URLSearchParams()
+      params.append('county', `county-${numericId}`)
+      
+      const { data: agenciesResponse } = await api.get(`/hpdb/agencies/?${params.toString()}`)
+      console.log('Agencies response:', agenciesResponse)
+      
+      const agencies = Array.isArray(agenciesResponse) ? agenciesResponse : (agenciesResponse.results || [])
+      countyAgencies.value = agencies
+      console.log('Agencies loaded:', agencies.length)
+    } catch (error) {
+      console.error('Error loading agencies:', error)
+      $q.notify({ type: 'negative', message: 'Failed to load agencies' })
+    } finally {
+      loadingFrequencies.value = false
+    }
   } else if (node.type === 'agency') {
     selectedAgency.value = node
     selectedChannelGroup.value = null
@@ -1356,6 +1437,23 @@ const selectNode = async (node) => {
       loadingFrequencies.value = false
     }
   }
+}
+
+const onAgencyRowClick = async (evt, row) => {
+  console.log('[AGENCY-CLICK] Row clicked:', row)
+  
+  // Create a node-like object to pass to selectNode
+  const agencyNode = {
+    id: `agency-${row.id}`,
+    type: 'agency',
+    name_tag: row.name_tag,
+    system_type: row.system_type,
+    enabled: row.enabled,
+    group_count: row.group_count || 0
+  }
+  
+  // Select this agency node which will load its channel groups
+  await selectNode(agencyNode)
 }
 
 const onChannelGroupRowClick = async (evt, row) => {
