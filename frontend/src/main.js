@@ -3,6 +3,7 @@ import { createApp } from 'vue'
 import {
   Quasar,
   Notify,
+  Dialog,
   QLayout,
   QHeader,
   QDrawer,
@@ -36,7 +37,9 @@ import {
   QTree,
   QExpansionItem,
   QFile,
-  QSpinner
+  QSpinner,
+  QLinearProgress,
+  QTooltip
 } from 'quasar'
 import '@quasar/extras/roboto-font/roboto-font.css'
 import '@quasar/extras/material-icons/material-icons.css'
@@ -50,7 +53,8 @@ app.use(createPinia())
 app.use(router)
 app.use(Quasar, {
   plugins: {
-    Notify
+    Notify,
+    Dialog
   },
   components: {
     QLayout,
@@ -86,7 +90,9 @@ app.use(Quasar, {
     QTree,
     QExpansionItem,
     QFile,
-    QSpinner
+    QSpinner,
+    QLinearProgress,
+    QTooltip
   },
   config: {
     dark: false,

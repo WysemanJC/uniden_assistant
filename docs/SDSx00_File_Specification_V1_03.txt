@@ -1,0 +1,2749 @@
+    SDS100/200
+FILE SPECIFICATION
+
+
+
+
+              BUYER'S MODEL : SDS100/200
+
+                 VERSION No. : 1.03
+                ISSUED DATE : 2019/01/18
+                  CATEGORY : SCN
+
+
+
+
+                     Holdings Corporation
+
+
+
+
+      APRVD   CHECKED (S)          ISSUED
+           Internal Use Only
+
+■   Revision
+    Ver    Date                Description
+    0.01                       draft
+    1.02                       appended "Site NAC Operation" in GlobalSetting.
+    1.03   Jan. 18, 2019       Append Global Auto Filter and Filter
+microSD directory image
+
+\ root
++ \ BCDx36HP
+   |
+   |     scanner.inf   Scanner Information (Ex.ESN,ModelName…)
+   |
+   |     profile.cfg   Profile(owner's info,wx,location,…) and Limit Search
+   |
+   |     discvery.cfg Conventional and Trunking Discovery
+   |
+   |     app_data.cfg Scanner settings data which scanner reads when scanner resumes last mode.
+   |                   PC application must delete this file, when it writes program data to scanner.
+   + \audio
+   | |
+   | + \inner_rec
+   | |       YYYY-MM-DD_hh-mm-ss.wav
+   | |
+   | + \user_rec             hexadecimal time stamp name
+   |      + \XXXXXXXX
+   |      |      YYYY-MM-DD_hh-mm-ss.wav
+   |      |      YYYY-MM-DD_hh-mm-ss.wav
+   |      |
+   |      + \XXXXXXXX                                                    hh: hour, mm: miniute, ss: second
+   |             YYYY-MM-DD_hh-mm-ss.wav                                 DD: date, MM: month, YYYY: year
+   |             YYYY-MM-DD_hh-mm-ss.wav
+   |             YYYY-MM-DD_hh-mm-ss.wav                                 File/Sub-directory name is start
+   |
+   |
+   + \alert
+   |         YYYY-MM-DD_hh-mm-ss.wav
+   |         YYYY-MM-DD_hh-mm-ss.wav
+   |         YYYY-MM-DD_hh-mm-ss.wav
+   |
+   |
+   + \favorites_lists
+   |     f_list.cfg
+   |                                       favorites_xxxxxx.hpd
+         f_000001.hpd
+   |                                       (xxxxxx = 000001-999999)
+         f_000002.hpd
+   |     f_000003.hpd
+                                           The name of file is managed by
+   |
+                                           favorite_list.config.
+   |
+   |
+   + \firmware
+   |     BCD536HP_Vx_xx_xx.scn
+   |     BCD436HP_Vx_xx_xx.scn              Download from Sentinel
+   |     ZipTable_Vx_xx_xx.dat
+   |     CityTable_Vx_xx_xx.dat
+   |
+   |
+   + \HPDB
+   |     hpdb.cfg                  State, County list, Locate me info
+   |
+|     s_000000.avd            avoid list (each state)
+|     s_000001.avd
+|     s_000002.avd
+|          :
+|          :
+|     s_000113.avd
+|     s_000181.avd
+|
+|     s_000000.hpd            Scan channel (each state)
+|     s_000001.hpd
+|     s_000002.hpd
+|        :
+|        :
+|     s_000113.hpd
+|     s_000181.hpd
+|
+|
++ \discovery
+| + \Conventional                                         ¥Sessionxxxx is Session name.
+| | + Session0001_Run0001
+| | | |         summary.log
+| | | |         detail.log
+| | | + \25000000_AM_None
+| | | |            ss-mm-hh_DD-MM-YYYY.wav
+| | | |            ss-mm-hh_DD-MM-YYYY.wav
+| | | |            ss-mm-hh_DD-MM-YYYY.wav
+| | | + \225000000_FM_C100.0
+                                                     each channel.
+| | | |            ss-mm-hh_DD-MM-YYYY.wav           Frequency+Modulation+CTCSS/DCS/NAC/Co
+| | | + \225000000_NFM_D023                          lorCode/RAN/Area.
+| | | + \851012500_NFM_NFF
+| | | |
+| | + Session0001_Run0002
+| | + Session0001_Run0003
+| | + Session0001_Run0004
+| | + Session0001_Run0005
+| | + Session0002_Run0001
+| | + Session0002_Run0001
+| |
+| + \Trunk
+|     + Session0001_Run0001
+|      |     | summary.log
+|      |     | detail.log
+|      |     + \125_A
+|      |     |     ss-mm-hh_DD-MM-YYYY.wav
+|      |     + \65535_A
+|     + Session0002_Run0001
++ \activity_log
+   | YYYY-MM-DD_hh-mm-ss_SystemName .log
+   | YYYY-MM-DD_hh-mm-ss_SystemName .log
+   | YYYY-MM-DD_hh-mm-ss_SystemName .log
+   | YYYY-MM-DD_hh-mm-ss_SystemName .log
+         | YYYY-MM-DD_hh-mm-ss_SystemName .log
+         | YYYY-MM-DD_hh-mm-ss_SystemName .log
+
+
+
+                                               If system name include '¥¥', '/', ':', '*', '?' ,'¥"', '<', '>' ,'|',
+                                               those character are convert to '_'
+                                               If file name overs 64 characters, it is cut 64 characters.
+
+
+
+
+【hexadecimal time stamp name format】
+
+
+
+31                  25 24         21 20           16 15                   11 10                        5 4               0
+      YYYY-1980             MM            DD                    hh                       mm                       ss÷2
+
+
+     The sub folder name of user_rec is hexadecimal time stamp name format.
+     It's possible to converting hexadecimal time stamp to "YYYY‐MM‐SS_mm_dd_ss" format.
+
+     Ex.
+      4D786CA
+         ‐> 2018‐11‐24_13‐37‐24
+
+
+
+
+ 【convert function sample source (C)】
+ void convert_dir_name(char *buff, const char *source_name)
+ {
+     unsigned long year,month,day;
+     unsigned long hour,miniute,second;
+     unsigned long fat_time = strtol(source_name, NULL, 10);
+
+        year = ((fat_time>>25) & 0x7f) + 1980;
+        month = (fat_time>>21) & 0xf;
+        day = (fat_time>>16) & 0x1f;
+        hour = (fat_time>>11) & 0x1f;
+        miniute = (fat_time>>5) & 0x3f;
+        second = (fat_time<<1) & 0x3f;
+
+        sprintf(buff,"%04d-%02d-%02d_%02d-%02d-%02d",
+                year, month, day,
+                hour, miniute, second );
+ }
+Basic Rule
+  HomePatrol data file is described Encode=ASCII.
+  One line has One sentence.
+  One sentence has one command and several parameters.
+
+  A mark to divide command and parameter is Tab(/t)
+
+  The parameter be divided into multi parts.
+  A mark to divide into multi parts is "=" , "/" or ",".
+
+  All HomePatrol data file has the following information.
+        Target Model name
+        File type
+        File format version
+
+
+Rule each parameter
+  MyId/ParentId
+    HPDB's each resource has self and parent's ID.
+    ID is displayed xxId=xx
+
+     e.x.
+         CountyId=5
+         AgencyId=15
+
+     ID system list
+               description       HPDB ID
+        Country                 CountryId
+        State                   StateId
+        County                  CountyId
+        Agency                  AgencyId
+        Trunk System            TrunkId
+        cats                    ---
+        subcat                  CGroupId
+        Conventional Frequncy CFreqId
+        Trunk Site              SiteId
+        Trunk Frequncy          TFreqId
+        Talk Group ID Group     TGroupId
+        Talk Group ID Chanle    Tid
+        The scanner doesn't use RRDB ID
+
+     The hpd file which is Favorites List doesn't need MyId/ParentId.
+     just space
+
+  Name tag
+    Only 0x20-7E
+    MAX 64 lengths
+
+  Frequency / Step
+     1 = 1Hz
+
+     ex
+       851.0125MHz
+       ⇒851012500
+
+       6.25KHz
+       ⇒6250
+
+Latitude/Longitude
+   Use DEGREE format
+   Up to the sixth decimal point figure
+
+Time stamp
+   "MM/DD/YYYY hh:mm:ss" format
+
+TGID
+
+   MOTOROLA TYPE1
+       (1) BFF-SS Normal ID
+          B is 1 digit
+          FF should be 2 digits (0 filling)
+          SS is 1-2 digit(s)
+       (2) BFFF-S Normal ID (when FLEET is 100-127)
+          B is 1 digit
+          FFF is 3 digits
+          S is 1 digit
+       (3) B- Partial ID (free FLEET and SUB-FLEET)
+          B is 1 digit
+       (4) BFF- Partial ID (fleet SUB-FLEET)
+          B is 1 digit
+          FF should be 2 digits (0 filling)
+       (5) BFFF- Partial ID (fleet SUB-FLEET when FLEET is 100-127)
+          B is 1 digit
+          FFF is 3 digits
+       (6) NNNNN Normal ID when SIZE CODE is 0
+            N is 1-5 digit(s)
+       (7) iNNNNN I-CALL ID
+          N is 1-5 digit(s)
+
+       TYPE I format is no check.
+
+   MOTOROLA TYPE II
+       (1) Normal ID
+          NNNNN ( NNNNN is 1-5 digit(s), 1-65535 )
+       (2) I-CALL ID
+          iNNNNN ( NNNNN is 1-5 digit(s), i0-i65535 )
+
+   P25
+       (1) Normal ID
+          NNNNN ( NNNNN is 1-5 digit(s),1-65535 )
+       (2) I-CALL ID
+          iNNNNNNNN (NNNNNNNN is 1-8 digit(s),i0-i16777215)
+       Note
+          P25 format cannot support PARTIAL ID.
+
+   DMR/MotoTRBO
+     (1) Normal ID
+        NNNNNNNN ( NNNNNNNN is 1-8 digit(s), 1-16777215 )
+     (2) I-CALL ID
+        iNNNNNNNN (NNNNNNNN is 1-8 digit(s), i0-i16777215)
+     Note
+        DMR format cannot support PARTIAL ID.
+
+   NXDN
+     (1) Normal ID
+        NNNNN (NNNNN is 1-5 digit(s), 0-65535)
+     (2) I-CALL ID
+        iNNNNN (NNNNN is 1-5 digit(s), i0-i65535)
+     Note
+        NXDN does not support PARTIAL ID.
+
+
+   EDACS
+     (1) Normal ID
+        AA-FFS ( decimal 1-2,047 )
+     (2) Partial ID (free FLEET and SUB-FLEET)
+        AA----
+     (3) Partial ID (free SUB-FLEET)
+        AA-FF-
+           AA : AGENCY        2digits (00-15) / (0 filling)
+           FF : FLEET       2digits (00-15) / (0 filling)
+           S : SUB-FLEET 1digit (0-7)
+           *ALL0(00-00-0) is invalid
+     (4) I-CALL ID
+        iNNNNNN ( NNNNNN is 1-7 digit(s) i0-i1048575 )
+     (5) EA (Extend Addressing) System
+        NNNNN ( NNNNN is 1-5 digit(s), 2,048-65,535 )
+
+   LTR
+     (1) Normal ID
+        A-RR-NNN
+     (2) Partial ID
+        A-RR----
+        A : AREA CODE         1digit (0 or 1)
+        RR : HOME REPEATER         2digit (01-20)  / (0 filling)
+        NNN : ID          3digit (000-254) / (0 filling)
+     Note
+        LTR System has no I-CALL ID.
+
+
+
+Alert Tone Type (Alert Type)
+   Parameters are following:
+      Off / 1 /…/ 9
+
+
+
+Alert Tone Volume (Alert Volume)
+   Parameters are following:
+      Auto/1/…/15
+Alert Light Color (Light Color)
+   Parameters are following:
+       Off
+       Blue
+       Red
+       Magenta
+       Green
+       Cyan
+       Yellow
+       White
+
+
+Alert Light Pattern (Light Pattern)
+   Parameters are following:
+       On
+       Slow Blink
+       Fast Blink
+
+
+
+Digital Waiting Time
+   0-1000
+       1 means 1ms.
+
+Digital Threshold Mode
+   Parameters are following:
+       Auto
+       Manual
+       Default
+
+Digital Threshold Level
+   5-13
+-----------------------------------------------------------------------------------------
+[TargetModel]
+-----------------------------------------------------------------------------------------
+      Description :
+             Show target model name
+
+     Format :
+              TargetModel     ModelName
+
+     Parameter :
+          ModelName           BCDx36HP
+
+     Note :
+              cannot omit
+              BCD436HP/BCD536HP set "BCDx36HP"
+
+
+
+
+-----------------------------------------------------------------------------------------
+[FormatVersion]
+-----------------------------------------------------------------------------------------
+      Description :
+             Show file format version
+
+     Format :
+              FormatVersion   Version
+
+     Parameter :
+          Version
+                              x.xx
+
+     Note :
+              cannot omit
+*.hpd
+
+                is parameter which Favorites List doesn't need. It is just null.
+                is parameter which HPDB doesn't need. It is just null.
+                is parameter which user inputs doen't need. It is just null. In favorites list this on need.
+
+
+-----------------------------------------------------------------------------------------
+[Conventional ]
+-----------------------------------------------------------------------------------------
+
+     Description :
+             Conventional System Parameter
+
+     Format :
+                Conventional      MyId            ParentId     Name Tag                  Avoid                 Reserve         System Type        ->>
+                                         ->>      Quick Key    Number tag                System Hold Time      Analog AGC      Digital AGC        ->>
+                                                  Digital      Digital Threshold         Digital Threshold
+                                         ->>
+                                                  Waiting Time Mode                      Level
+
+     Parameter :
+            MyId
+                                  CountyId=xx
+                                  AgencyId=xx
+                ParentId          StateId=xx
+                Name Tag          Name Tag
+                Avoid             On/Off
+                System Type
+                Quick Key       Off/0-99
+                Number tag      Off/0-99
+                System Hold
+                                0-255
+                Time
+                Analog AGC      Off/On
+                Digital AGC     Off/On
+                Digital Waiting
+                                0-1000
+                Time
+                Digital
+                                Auto, Manual, Default
+                Threshold Mode
+                Digital
+                                5-13
+                Threshold Level
+
+     Note :
+                In HPDB, avoid parameter is always Off. It is managed by *.avoid file.
+
+-----------------------------------------------------------------------------------------
+[Trunk]
+-----------------------------------------------------------------------------------------
+     Description :
+             Trunked System Parameter
+
+     Format :
+                Trunk             MyId             ParentId       Name Tag               Avoid                 Reserve         System Type ->>
+                                               ->> ID Search      Alert Tone             Alert Volume          Status Bit      Reserve(NAC) ->>
+                                               ->> Quick Key      Number tag             Site Hold Time        Analog AGC      Digital AGC  ->>
+                                               ->> End Code       Priority ID Scan       Alert Color           Alert Pattern    TGID Format
+
+     Parameter :
+            MyId                  TrunkId=xx
+            ParentId              StateId=xx
+            Name Tag              ASCII character strings
+            Avoid                 On/Off
+            System Type
+                                  Conventional
+                                 Motorola
+                                 Edacs
+                                 Scat                          (reserve parameter)
+                                 Ltr
+                                 P25Standard                   it is P25 Phase I & II
+                                 P25OneFrequency
+                                 P25X2_TDMA
+                                 MotoTrbo
+                                 DmrOneFrequency
+                                 Nxdn
+                                 NxdnOneFrequency
+                ID Search        Off/On
+                Alert Tone       Off/0/1/…/9                  Emergency Alert Tone
+                Alert Volume     Auto/1/…/15
+                Status Bit       Yes/Ignore
+                NAC              Srch/0-FFF
+                Quick Key        Off/0-99
+                Number tag       Off/0-99
+                System Hold
+                                 0-255
+                Time
+                Analog AGC       Off/On
+                Digital AGC      Off/On
+                End Code         Analog/Analog+Digital/Ignore
+                Priority ID Scan Off/On
+                Alert Color      Alert Light Color format.
+                Alert Pattern    Alert Light Pattern format.
+                TGID Format      NEXEDGE/IDAS
+
+     Note :
+                In HPDB, avoid parameter is always Off. It is managed by *.avoid file.
+
+-----------------------------------------------------------------------------------------
+[AreaState]
+-----------------------------------------------------------------------------------------
+     Description :
+             State of System
+
+     Format :
+                AreaState        MyId            StateId
+
+     Parameter :
+            MyId                 CountyId/AgencyId/TrunkId=xx
+            StateId
+
+     Note :
+                Favorites List doesn't need AreaState sentence.
+
+-----------------------------------------------------------------------------------------
+[AreaCounty]
+-----------------------------------------------------------------------------------------
+     Description :
+             County of System
+
+     Format :
+                AreaCounty       MyId            CountyId
+
+     Parameter :
+            MyId                 CountyId/AgencyId/TrunkId=xx
+            CountyId
+
+     Note :
+                Favorites List doesn't need AreaCountysentence.
+
+-----------------------------------------------------------------------------------------
+[FleetMap]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                FleetMap          MyId           B0             B1                …                     …                B6            B7
+
+     Parameter :
+
+                MyId
+                B0                0/1-9/A/B/C/D/E
+                B1
+                B2
+                B3
+                B4
+                B5
+                B6
+                B7
+
+     Note :
+                If block size is all 0(TYPE 2)
+
+-----------------------------------------------------------------------------------------
+[UnitIds]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                UnitIds           Reserve        Reserve       Name Tag           Unit ID               Alert Tone       Alert Volue        ->>
+                      ->>         Alert Color    Alert Pattern
+
+     Parameter :
+            Name Tag              ASCII character strings
+            Unit ID               1-16777215
+            Alert Tone            Off/1-9
+            Alert Value           Auto/1-15
+            Alert Color           Alert Light Color format.
+            Alert Pattern         Alert Light Pattern format.
+
+     Note :
+
+-----------------------------------------------------------------------------------------
+[AvoidTgids]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                AvoidTgids        MyId           TGID 1         TGID 2            …                     TGID 16
+
+     Parameter :
+            TGID n                TGID character strings
+
+                                  n : 1-16
+
+     Note :
+                If TGID is avoided on ID Search mode doesn't exist, AvoidTgids sentence isn't outputted *.hpd file.
+                If over 16 TGIDs are avoided on ID Search mode, 2 or more AvoidTgids sentence are outputted to *.hpd file.
+
+-----------------------------------------------------------------------------------------
+Site
+-----------------------------------------------------------------------------------------
+     Description :
+
+     Format :
+                Site             MyId           ParentId       Name Tag              Avoid              Latitude        Longitude    ->>
+                                                                                                                        Edacs Band
+                                                     ->>       Range                 Modulation         Mot Band Type                ->>
+                                                                                                                        Type
+                                                     ->>       Location Type        Attenuator                  ->>
+                                                                                    Digital Threshold   Digital
+                                                     ->>       Digital Waiting Time                                     Quick Key    ->>
+                                                                                    Mode                Threshold Level
+                                                     ->>       NAC                  Filter
+
+     Parameter :
+            MyId                 SiteId=xx
+            ParentId             TrunkId=xx
+            Name Tag             ASCII character strings
+            Avoid                On/Off
+            Latitude             According to basic rules.
+            Longitude            According to basic rules.
+            Range                1=1mile, Up to the 1 decimal point figure.
+            Modulation           AUTO
+                                 NFM
+                                 FM
+
+                Mot Band Type Standard
+                              Sprinter
+                              Custom
+
+                Edacs Band
+                                 Wide
+                Type
+                                 Narrow
+
+                Location Type    Circle/Rectangles
+
+                Attenuator       On/Off
+
+                Digital Waiting
+                                0-1000
+                Time
+                Digital
+                                Auto, Manual, Default
+                Threshold Mode
+                Digital
+                                5-13
+                Threshold Level
+                Quick Key       Off/0-99
+                NAC             Srch/0-FFF
+                Filter          Global/Normal/Invert/Auto
+
+     Note :
+                In HPDB, avoid parameter is always Off. It is managed by *.avoid file.
+                If [Trunk] System Type isn't Motorola, Mot Band Type is set "Standard".
+                If [Trunk] System Type isn't Edacs, Edacs Band Type is set "Wide".
+
+-----------------------------------------------------------------------------------------
+Rectangle
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                Rectangle        MyId           Latitude 1     Longitude 1           Latitude 2         Longitude 2
+
+     Parameter :
+            MyId                 SiteId=xx, TGroupId=xx or CGroupId=xx
+            Latitude n           According to basic rules.
+            Longitude n          According to basic rules.
+
+     Note :
+                Rectangle sentence is addition information for Department or Site.
+-----------------------------------------------------------------------------------------
+BandPlan_Mot
+-----------------------------------------------------------------------------------------
+
+     Description :
+             Motorola's Custom Band Plan parameter
+
+     Format :
+                BandPlan_Mot     MyId           Lower 0        Upper 0       Spacing 0   Offset 0    …              ->>
+                                        ->>     …              Lower 5       Upper 5     Spacing 5   Offset 5
+
+     Parameter :
+            MyId                 SiteId of Site
+            Lower                Frequency format
+            Upper                Frequency format
+            Spacing              Frequency format
+
+                                 5000/6250/10000/12500/15000/18750/20000/25000/
+                                 30000/31250/35000/37500/40000/43750/45000/50000/
+                                 55000/56250/60000/62500/65000/68750/70000/75000/
+                                 80000/81250/85000/87500/90000/93750/95000/100000
+                                 (5k and 6.25K multiples. Up to 100K)
+                Offset           "-1023" - "1023"
+
+     Note :
+                [BandPlan_Mot] is valid only Mot Band Type is CUSTOM.
+
+-----------------------------------------------------------------------------------------
+BandPlan_P25
+-----------------------------------------------------------------------------------------
+
+     Description :
+             P25 Band plan
+
+     Format :
+                BandPlan_P25     MyId           Base 0         Spacing 0     Base 1      Spacing 1   …
+                                                                                         …           Base F     Spacing F
+
+     Parameter :
+            MyId                 SiteId
+            Base 0               Band Plan 0 Base Frequency
+            Spacing 0            Band Plan 0 Spacing Frequency
+            Base 1               Band Plan 1 Base Frequency
+            Spacing 1            Band Plan 1 Spacing Frequency
+            :
+            :
+            Base F               Band Plan F Base Frequency
+            Spacing F            Band Plan F Spacing Frequency
+
+                Base n :         Frequency format
+                                 Refer to Band Coverage
+
+                Spacing n :      Frequency format (1 = 1Hz)
+                                 Range 0.1250kHz≦Spacing ≦128.0000kHz per 125Hz
+
+     Note :
+                If Band Plan is undesignated, [BandPlan_P25] is omissible.
+
+------------------------------------------------------------------------------------------------
+DQKs_Status
+------------------------------------------------------------------------------------------------
+
+     Description :
+
+                Favorites List Quick Status
+     Format :
+           DQKs_Status MyId                      D-Qkey_00     D-Qkey_01             D-Qkey_02               ......     D-Qkey_99
+
+     Parameter :
+                D-Qkey_xx        Off/On
+
+     Note :
+
+-----------------------------------------------------------------------------------------
+[C-Group]
+[T-Group]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                C-Group          MyId            ParentId      Name Tag              Avoid                   ->>
+                                        ->>      Latitude      Longitude             Range             Location Type    Quick Key       Filter
+
+                T-Group          MyId            ParentId      Name Tag              Avoid                   ->>
+                                        ->>      Latitude      Longitude             Range             Location Type    Quick Key
+
+     Parameter :
+            MyId                 xxId=xx
+            ParentId             xxId=xx
+            Name Tag             ASCII character strings
+            Avoid                On/Off
+            Latitude
+            Longitude
+            Range
+            Location Type        Circle/Rectangles
+            Quick Key            Off/0-99
+            Filter               Global/Normal/Invert/Auto
+
+     Note :
+                In HPDB, avoid parameter is always Off. It is managed by *.avoid file.
+                Filter is C-Group only.
+
+-----------------------------------------------------------------------------------------
+[C-Freq]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                C-Freq           MyId            ParentId     Name Tag               Avoid             Frequency        Modulation           ->>
+                                        ->>      Audio Option FuncTagId              Attenuator              Delay      Volume Offset        ->>
+                                        ->>      Alert Tone Alert Volume             Alert Color       Alert Pattern         ->>
+                                        ->>      Number tag Priority Channel
+
+     Parameter :
+            MyId                 xxId=xx
+            ParentId             xxId=xx
+            Name Tag             ASCII character strings
+            Avoid                On/Off
+            Frequency            Frequency(1=1Hz)
+            Modulation           AUTO/AM/NFM/FM
+            Audio Option         null(All), Tone=xxxx, NAC=xxx, ColorCode=xx, RAN=xx, Area=x to see sheet "Sub Audio" for Detail.
+            FuncTagId            1-37,208-218
+            Attenuator           On/Off
+            Delay                30,10,5,4,3,2,1,0,-5,-10
+            Volume Offset        -3/-2/-1/0/1/2/3
+            Alert Tone           Off/1-9
+            Alert Volume         Auto/1-15
+                Alert Color      Alert Light Color format.
+                Alert Pattern    Alert Light Pattern format.
+                Number tag       Off/0-999
+                Priority Channel Off/On
+
+     Note :
+                In HPDB, avoid parameter is always Off. It is managed by *.avoid file.
+                According to "Service Type" sheet about FuncTagId number.
+
+-----------------------------------------------------------------------------------------
+[TGID]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                TGID             MyId            ParentId      Name Tag              Avoid            TGID             Audio Type          ->>
+                                                                       ->>           FuncTagId              Delay      Volume Offset       ->>
+                                                     ->>       Alert Tone            Alert Volume     Alert Color      Alert Pattern       ->>
+                                                                       ->>           Number tag       Priority Channel TDMA Slot
+
+     Parameter :
+            MyId             xxId=xx
+            ParentId         xxId=xx
+            Name Tag         ASCII character strings
+            Avoid            On/Off
+            TGID             TGID character strings
+            Audio Type       ALL/ANALOG/DIGITAL
+            FuncTagId        1-37,208-218
+            Delay            30,10,5,4,3,2,1,0,-5,-10
+            Volume Offset -3/-2/-1/0/1/2/3
+            Alert Tone       Off/1-9
+            Alert Volume     Auto/1-15
+            Alert Color      Alert Light Color format.
+            Alert Pattern    Alert Light Pattern format.
+            Number tag       Off/0-999
+            Priority Channel Off/On
+            TDMA Slot        1/2/Any
+
+     Note :
+                In HPDB, avoid parameter is always Off. It is managed by *.avoid file.
+                According to "Service Type" sheet about FuncTagId number.
+
+-----------------------------------------------------------------------------------------
+[T-Freq]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                                                                                                                                       Color Code /
+                T-Freq           Reserve(MyId) ParentId        Reserve               Reserve(Avoid)   Frequency       LCN
+                                                                                                                                       RAN / Area
+
+     Parameter :
+            Reserve(MyId)        xxId=xx
+            ParentId             xxId=xx
+            Reserve
+            Reserve(Avoid)       Off
+            Frequency            Frequency(1=1Hz)
+            LCN                  number(0,1-30 / 1-20 / 1-4094 / 1-1023)
+            Color Code /
+                                 0-15, RAN=0-63, Area=0-1, Srch
+            RAN / Area
+
+     Note :
+                Reserve(MyId) is always "TFreqId=0".
+                Reserve(Avoid) is always Off.
+Scaner.info
+------------------------------------------------------------------------------------------------
+Scanner
+------------------------------------------------------------------------------------------------
+
+     Description :
+           HomePatrol Information
+
+     Format :
+           Scanner                Model          ESN           F_Ver         R_Ver           Reserve   ->>
+                               ->> Zip_Ver       City_Ver      WiFi_Ver      SCPU_Ver
+
+     Parameter :
+            Model            Model name
+            ESN              ESN
+            F_Ver            Firmware Version
+            R_Ver            Registry Version
+            Zip_Ver          zip table version
+            City_Ver         city table version
+            WiFi_Ver         WiFi Module version
+            SCPU_Ver         SUB CPU version
+     Note :
+            UB375Z Model = "BCD536HP"
+
+
+HPDB.config
+------------------------------------------------------------------------------------------------
+DateModified
+------------------------------------------------------------------------------------------------
+
+     Description :
+           HPDB Version (the generation time stamp)
+
+     Format :
+           DateModified           Time stamp
+
+     Parameter :
+          Time stamp
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+StateInfo
+------------------------------------------------------------------------------------------------
+
+     Description :
+           State information
+
+     Format :
+           StateInfo              StateId        CountryId     NameTag       ShortName
+
+     Parameter :
+          StateId                 StateId=xx
+          Country                 CountryId=xx
+          NameTag
+          ShortName
+
+     Note :
+              Character string of 2 characters like AL or Tx is registered with ShortName.
+
+------------------------------------------------------------------------------------------------
+CountyInfo
+------------------------------------------------------------------------------------------------
+
+     Description :
+           County Information
+
+     Format :
+           County                CountyId      StateId       NameTag
+
+     Parameter :
+          CountyId               CountyId=xx
+          StateId                StateId=xx
+          NameTag
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+LM
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Auto Locate's System-Site ID
+
+     Format :
+           LM                    StateId       CountyId      TruniId       SiteId           LM_SystemID LM_SiteID   latitude   longitude
+
+     Parameter :
+          StateId                StateId=xx
+          TruniId                TruniId=xx
+          CountyId               CountyId=xx
+          SiteId                 SiteId=xx
+          LM_SystemID            System ID(for Locate me)                  character data
+          LM_SiteID              Site ID(for Locate me)
+          latitude               latitude
+          longitude              longitude
+
+     Note :
+              first sort key=LM_SystemID/ second sort key=LM_SiteID
+
+------------------------------------------------------------------------------------------------
+LM_Frequency
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Auto Locate's Frequency Information
+                                             LmSystemType
+
+     Format :
+           LM_Frequency          Frequency     Reserve       LmTypeArray
+
+     Parameter :
+          Frequency
+          LmSystemType           Motorola/P25Standard/Both
+          LmTypeArray            xxx
+                                 ||+--- P25 X2-TDMA
+                                 |+---- P25 Standard
+                                 +----- Motorola
+                                 1= Detect/ 0=Not deteced
+
+     Note :
+
+
+Profile.config
+------------------------------------------------------------------------------------------------
+ProductName
+------------------------------------------------------------------------------------------------
+
+     Description :
+           HomePatrol Information
+
+     Format :
+           ProductName             Model
+
+     Parameter :
+            Model             Model name
+     Note :
+            UB383Z Model = "SDS100"
+
+
+
+------------------------------------------------------------------------------------------------
+GlobalSetting
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Global setting parameter
+
+     Format :
+           GlobalSetting           ScanHpdb           G-Attenuator    Reserve      Priority Scan mode   Close Call mode   WX Priority_mode   ->>
+                                                      Ppriority Max
+                       ->>        Priority Interval
+                                                      Channels
+                                                                      Srch Key 1   Srch Key 2           Srch Key 3              ->>
+                                                                                                        Scan           Search With
+                       ->>         Key Lock           Key Beep        Volume       Squelch              SearchWithScan Scan                  ->>
+                                                                                                        List           System Avoid
+                       ->>
+                                   Site NAC           Global Auto
+                                   Operation          Filter
+
+     Parameter :
+              ScanHpdb               Off/On
+              G-Attenuator           On/Off                         Global Attenuator
+              Priority Scan mode     Off/DND/Priority
+              Close Call mode        Off/DND/Priority
+              WX Priority_mode       Off/Priority
+              Priority Interval      1-10 (sec)
+              Ppriority Max Channels 1-100
+              Srch Key 1             Off, Custom0, Custom1,....... ,Custom9, ToneOut、CloseCall
+              Srch Key 2             Off, Custom0, Custom1,....... ,Custom9, ToneOut、CloseCall
+              Srch Key 3             Off, Custom0, Custom1,....... ,Custom9, ToneOut、CloseCall
+              Key Lock               Off/On
+              Key Beep               Off/1-15/Auto
+              Volume                 0-29 (Mobile) / 0-15 (Handy)
+              Squelch                0-19 (Mobile) / 0-15(Handy)
+              SearchWithScanList Off/On
+              SearchWithScan
+              System Avoid           Off/On
+              Site NAC Operation Ignore / Compare
+              Global Auto Filter Normal/Invert/Auto
+     Note :
+
+------------------------------------------------------------------------------------------------
+SearchCommon
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Search / Clsoe Call Search common setting
+
+     Format :
+                                                      Repeater
+              SearchCommon         Reserve                            Attenuator   Delay                Modulation        ->>
+                                                      Find
+                                ->> agc_analog
+                                                                Digital_waitin Digital_threshol Digital_thresh
+                                                  agc_digital                                                  Filter
+                                                                g_time         d_Mode           old_Level
+
+     Parameter :
+          Repeater Find        Off/On
+          Attenuator           Off/On
+          Delay                30,10,5,4,3,2,1,0,-5,-10
+          Modulation           Auto/AM/NFM/FM/WFM/FMB
+          agc_analog           Off/On
+          agc_digital          Off/On
+          Digital_waiting_time 0-1000
+          Digital_threshold_Mo Auto, Manual, Default
+          de
+          Digital_threshold_Le 5-13
+          vel
+          Filter               Global/Normal/Invert/Auto
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+PresetBroadcastScreen
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Preset Broadcast Screen Setting
+
+     Format :
+              PresetBroadcastScreen   Pager       FM            UHF TV         VHF TV           NOAA WX
+
+     Parameter :
+           Pager                      Off/On
+           FM                         Off/On
+           UHF TV                     Off/On
+           VHF TV                     Off/On
+           NOAA WX                    Off/On
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+CustomBroadcastScreen
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Custom Broadcast Screen Setting
+
+     Format :
+           CustomBroadcastS               Band 0                Band 0
+                            Band 0 Enable                                           ->>
+           creen                          Lower                 Upper
+                                          Band 1                Band 1
+                  ->>       Band 1 Enable                                           ->>
+                                          Lower                 Upper
+                  ->>             :             :                     :             ->>
+                  ->>             :             :                     :             ->>
+                                          Band 9                Band 9
+                  ->>       Band 9 Enable
+                                          Lower                 Upper
+
+     Parameter :
+          Band x Enable               Off/On
+          Band x Lower                0-1300MHz
+          Band x Upper                0-1300MHz
+          Band x: 0-9
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+CurrentLocation
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Current Location parameter
+
+     Format :
+           CurrentLocation      latitude       longitude    Range
+
+     Parameter :
+          latitude              latitude DEG format
+          longitude             longitude DEG format
+          Range                 0.0-50.0, 0.5miles step
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+GpsOption
+------------------------------------------------------------------------------------------------
+
+     Description :
+           GPS parameter
+
+     Format :
+           GpsOption            GpsFormat      BaudRate
+
+     Parameter :
+          GpsFormat             DMS/Decimal
+          BaudRate              Off/4800/9600/19200/38400/57600/115200
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+InterestingLocation
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Location parameter
+
+     Format :
+           InterestingLocation Name            latitude     longitude   Range
+
+     Parameter :
+          Name                  Name Tag
+          latitude              latitude decimal format
+          longitude             longitude decimal format
+          Range                 0-50, 0.5miles step
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+ServiceType
+------------------------------------------------------------------------------------------------
+
+     Description :
+           ServiceType On/Off parameter
+
+     Format :
+           ServiceType          Id01_state     Id02_state       ・・・     Id37_state
+
+     Parameter :
+          Id01_state            On/Off
+          Id02_state            On/Off
+          :
+          :
+          Id37_state            On/Off
+     Note :
+              ID = Function tag ID.
+
+------------------------------------------------------------------------------------------------
+Custom ServiceType
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Custom ServiceType On/Off parameter
+
+     Format :
+              CustomServiceType       Id01_state         Id02_state    ・・・          Id10_state
+
+     Parameter :
+          Id01_state                  On/Off             Cutom 1
+          Id02_state                  On/Off             Cutom 2
+          :
+          :
+          Id08_state                  On/Off             Cutom 8
+          Id09_state                  On/Off             Racing Officials
+          Id10_state                  On/Off             Racing Teams
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+Weather
+------------------------------------------------------------------------------------------------
+
+     Description :
+           enable Wx Counties list's Counties list name
+
+     Format :
+           Weather                    Reserve            Delay         Attenuator   agc_analog
+
+     Parameter :
+          Delay                       30,10,5,4,3,2,1,0,-5,-10
+          Attenuator                  Off/On
+          agc_analog                  Off/On
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+WxSameList
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Counties list (1-5)'s Name
+
+     Format :
+           WxSameList                 SameId             Name          FIPS 0       FIPS 1       FIPS 2   ->>
+                                             ->>         FIPS 3        FIPS 4       FIPS 5       FIPS 6   ->>
+                                             ->>         FIPS 7
+
+     Parameter :
+          SameId                      SameId=x (x=1-5)
+          Name                        Same Group Name
+          FIPS 0                      xxxxxx      "000000"-"999999" or "------"
+          FIPS 1                      xxxxxx      "------" is none.
+          FIPS 2                      xxxxxx
+          FIPS 3                      xxxxxx
+          FIPS 4                      xxxxxx
+          FIPS 5                      xxxxxx
+          FIPS 6                      xxxxxx
+          FIPS 7                      xxxxxx
+     Note :
+
+------------------------------------------------------------------------------------------------
+DisplayOption
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Display parameter
+
+     Format :
+           DisplayOption          Reserve         Reserve         Reserve         Reserve              ->>
+                        ->>       Reserve         MotTgidFormat   Reserve         Reserve              ->>
+                                  Reserve                         Simple mode
+                        ->>
+                                  (Upside_down)   Reserve         (3 Line mode)
+                                                                                  EdacTgidFormat   Color Mode
+
+     Parameter :
+              MotTgidFormat       DEC/HEX
+              ScnDisp Mode        Mode 1/Mode 2
+              Simple mode         Off / On
+              EdacTgidFormat      AFS/DEC
+              Color Mode          COLOR/BLACK/WHITE
+     Note:
+
+     Note 2:
+           Upside_down does not effect for SDS100
+
+
+------------------------------------------------------------------------------------------------
+Backlight
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Backlight settings
+
+     Format :                                0              1          2              3                         4
+           Backlight              Reserve      Reserve        Reserve    Reserve        Reserve                          ->>
+                        ->>       Brightness   Key_Backlight FlashLed    Ext_PWR_Light SQ Light                     Key Light
+                        ->>       Dimmer_mode Auto_Polarity Manual_Level      ->>
+                                  Dimmer_L     Dimmer_M       Dimmer_H   Key_Backlight2
+     Parameter :
+
+              Brightness          10/20/30/40/50/60/70/80/90/100                  Only SDS100
+              Key_Backlight       Off/On                                          Only SDS100
+              FlashLed            Off/On
+              Ext_PWR_Light       Off/On                                          Only SDS100
+              SQ Light            Off/5/10/15/OpenSquelch
+              Key Light           15/30/60/120/Infinite
+              Dimmer_mode         Auto/Manual                                     Only SDS200
+              Auto_Polarity       Auto+/Auto-                                     Only SDS200
+              Manual_Level        Low/Middle/High                                 Only SDS200
+              Dimmer_L            10/20/30/40/50/60/70/80/90/100                  Only SDS200
+              Dimmer_M            10/20/30/40/50/60/70/80/90/100                  Only SDS200
+              Dimmer_H            10/20/30/40/50/60/70/80/90/100                  Only SDS200
+              Key_Backlight2      Off/On                                          Only SDS200
+
+     Note :
+              If FlashLed is On, scanner flashes Alert LED, when LCD backlight turn off,
+
+
+------------------------------------------------------------------------------------------------
+QuickKeys
+------------------------------------------------------------------------------------------------
+
+     Description :
+              Favorites List Quick Status
+
+     Format :
+           QuickKeys               F-Qkey_00     F-Qkey_01        F-Qkey_02           ......   F-Qkey_99
+
+     Parameter :
+              F-Qkey_xx            Off/On
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+Battery
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Battery parameter
+
+     Format :
+           Battery                 Battery Save Reserve           Reserve     Alert Interval   ->>
+                               ->> Alert Tone    Alert Volume
+
+     Parameter :
+          Battery Save             Off/On
+              Alert Interval       1-60
+              Alert Tone           640,780,920,1060,1200
+              Alert Volume         Off/1-15/Auto
+
+     Note :
+              This sentence is effective only Handy model.
+
+------------------------------------------------------------------------------------------------
+OwnerInfo
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Owner Information
+
+     Format :
+           OwnerInfo               Msg1st        Msg2nd           Msg3rd      Msg4th
+
+     Parameter :
+          Msg1st
+          Msg2nd
+          Msg3rd
+          Msg4th
+
+     Note :
+              Msg xx th length is max 24 characters.
+
+
+------------------------------------------------------------------------------------------------
+ClockOption
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Clock parameter
+
+     Format :
+                                                                  Daylight
+              ClockOption          Reserve       TimeZone
+                                                                  Save
+
+     Parameter :
+          TimeZone                 -14.0 <-> 14.0      0.5 step               0.5 = 30min, 1=1hour
+          Daylight Save            On/Off
+     Note :
+
+------------------------------------------------------------------------------------------------
+RecordingOption
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Recording parameter
+
+     Format :
+                RecordingOption           Replay Duration    User Rec
+
+     Parameter :
+                Replay Duration           0, 30-240, 30 step ( 1=1sec , 0 means Off)
+                User Rec                  On/Off
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+LimitSearch
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Limit Search parameter
+
+     Format :
+           LimitSearch                    MyId               Name              Lower      Upper                  Modulation   Step          ->>
+                            ->>           Delay              Attenuator        BankStatus Avoid                  Reserve      Reserve       ->>
+                                                  ->>        Reserve           Reserve       Hold Time           Analog AGC   Digital AGC   ->>
+                                                             Digital Waiting   Digital       Digital Threshold
+                                                  ->>
+                                                             Time              Threshold     Level
+
+     Parameter :
+          MyId                            SrchId=xx
+          Name                            Name Tag
+          Lower                           Frequency format
+          Upper                           Frequency format
+          Modulation                      Auto/AM/NFM/FM/WFM/FMB
+          Step                            Auto/5000/6250/7500/8333/10000/12500/15000/20000/25000/50000/100000
+                Delay                     30,10,5,4,3,2,1,0,-5,-10
+                Attenuator                Off/On
+                BankStatus                Off/On
+                Avoid                     Off/On
+                Hold Time                 0-255
+                Analog AGC                Off/On
+                Digital AGC               Off/On
+                Digital Waiting Time      0-1000
+                Digital Threshold Mode    Auto, Manual, Default
+                Digital Threshold Level   5-13
+
+     Note :
+
+-----------------------------------------------------------------------------------------
+CloseCall
+-----------------------------------------------------------------------------------------
+
+     Description :
+             Motorola's Custom Band Plan parameter for C-Chan only Custom Search
+
+     Format :
+                CloseCall                 Reserve            Reserve           Avoid         pause_time               ->>
+                            ->>           Alert Type         Alert Volume      Alert Color   Alert Pattern            ->>
+                            ->>           band_vhf_l1        band_vhf_l2       band_air      band_vhf_h1
+                            ->>           band_vhf_h2        band_uhf          band_800              ->>
+                            ->>           Reserve            Reserve           Hold Time
+
+     Parameter :
+            Avoid                         Off/On                                             for search with scan
+                pause_time           3, 5, 10, 15, 30, 45, 60, Infinite
+                Alert Type           Alert Tone Type format.
+                Alert Volume         Alert Tone Volume format.
+                Alert Color          Alert Light Color format.
+                Alert Pattern        Alert Light Pattern format.
+                band_vhf_l1          Off/On
+                band_vhf_l2          Off/On
+                band_air             Off/On
+                band_vhf_h1          Off/On
+                band_vhf_h2          Off/On
+                band_uhf             Off/On
+                band_800             Off/On
+                Hold Time            0-255                                              for search with scan
+
+     Note :
+
+-----------------------------------------------------------------------------------------
+ToneOut
+-----------------------------------------------------------------------------------------
+
+     Description :
+             Toun out mode setting
+
+     Format :
+                ToneOut              MyId                 Name Tag        Reserve       Frequency                    ->>
+                          ->>        Modulation           Tone A          Tone B        Attenuator                   ->>
+                          ->>        Delay                agc_analog            ->>
+                          ->>        Alert Tone           Alert Volume    Alert Color   Alert Pattern
+
+     Parameter :
+            MyId                     ToneOutId=xx
+            Name Tag                 ASCII character strings
+            Frequency                Frequency(1=1Hz)
+            Modulation               AUTO/NFM/FM                                        It hasn't AM,WFM,FMB.
+            Tone A                   0, 2500-35000 (1=0.1Hz)                            It is illegal frequency format.
+            Tone B                   0, 2500-35000 (1=0.1Hz)                            It is illegal frequency format.
+            Attenuator               Off/On
+            delay                    0, 1, 2, 3, 4, 5, 10, 30, Infinite                 It hasn't negative delay.
+            agc_analog               Off, On
+            Alert Type               Alert Tone Type format.
+            Alert Volume             Alert Tone Volume format.
+            Alert Color              Alert Light Color format.
+            Alert Pattern            Alert Light Pattern format.
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+AvoidFreqs
+------------------------------------------------------------------------------------------------
+
+     Description :
+           Avoided frequencies list for Search and Close Call
+
+     Format :
+           AvoidFreqs                Reserve               Freq 1         Freq 2        …                    Freq 16
+
+     Parameter :
+          AvoidFreqs                 Frequency format
+
+     Note :
+
+------------------------------------------------------------------------------------------------
+IfxFreqs
+------------------------------------------------------------------------------------------------
+
+     Description :
+           IF Exchanger frequencies list
+
+     Format :
+           IfxFreqs                  Reserve               Freq 1         Freq 2        …                    Freq 16
+
+     Parameter :
+                IfxFreqs               Frequency format
+
+     Note :
+
+-----------------------------------------------------------------------------------------
+BandDefault
+-----------------------------------------------------------------------------------------
+
+     Description :
+             BandDefault
+
+     Format :
+                BandDefault            MyId              Modulation      Step
+
+     Parameter :
+            MyId                       BandId=xx
+            Modulation                 AM/NFM/FM/WFM/FMB
+            Step                       5000/6250/7500/8333/10000/12500/15000/20000/25000/50000/100000
+
+     Note :
+
+
+-----------------------------------------------------------------------------------------
+DispOptItems
+-----------------------------------------------------------------------------------------
+
+     Description :
+             Display Customize Option Item Settings
+
+     Format :
+                DispOptItems           DispOptId         DispLayoutId    OptItem1        OptItem2              ->>
+                                             ->>         OptItem3        …               OptItem n
+     Note :
+                see sheet "DiplsyCustomSDS100" and "Color, Item code" for detail
+
+-----------------------------------------------------------------------------------------
+DispColors
+-----------------------------------------------------------------------------------------
+
+     Description :
+             Display Customize Color Settings
+
+     Format :
+                DispColors             DispColorId       ColorLayoutId   TextColor1      BackColor1           ->>
+                          ->>          TextColor2        BackColor2      …               TextColor n     BackColor n
+
+     Note :
+                see sheet "DiplsyCustomSDS100" and "Color, Item code" for detail
+
+
+
+
+favorite_list.config
+------------------------------------------------------------------------------------------------
+F-List
+------------------------------------------------------------------------------------------------
+
+     Description :
+           favorite list parameter
+
+     Format :
+           F-List                      UserName          Filename        LocationControl Monitor         Quick key       ->>
+                           ->>         NumberTag               ->>
+                           ->>         Startup key 0     Startup key 1   Startup key 2   Startup key 3   Startup key 4   ->>
+                           ->>         Startup key 5     Startup key 6   Startup key 7   Startup key 8   Startup key 9   ->>
+                           ->>         S-Qkey_00         S-Qkey_01       ...             ....            S-Qkey_99
+
+     Parameter :
+          UserName                     Favorites List display name
+          Filename                     Favorites List file name(include extension)
+         LocationControl   On(=Yes) / Off(=No)
+         Monitor           On(=Monitor) / Off
+         Quick key         Off/0-99              favorites list quick key
+         NumberTag         Off/0-99              favorites list number tag
+         Startup key 0     Off / On              start up configuration key
+         Startup key 1     Off / On
+         Startup key 2     Off / On
+         Startup key 3     Off / On
+         Startup key 4     Off / On
+         Startup key 5     Off / On
+         Startup key 6     Off / On
+         Startup key 7     Off / On
+         Startup key 8     Off / On
+         Startup key 9     Off / On
+         S-Qkey_00         Off / On
+         S-Qkey_01         Off / On
+         S-Qkey_02         Off / On
+                     :
+                     :
+         S-Qkey_98         Off / On
+         S-Qkey_99         Off / On
+
+Note :
+【DispLayoutId and ColorLayoutId 】
+  DispLayoutId and ColorLayoutId means display mode.
+
+                                DispLayoutId ColorLayoutId
+       Simple Conventional Mode 1            1
+       Simple Trunk Mode        2            6
+       Detail Conventional Mode 3            2
+       Detail Trunk Mode        4            7
+       Search/CC Mode           5            3
+       Weather Mode             6            4
+       Tone Out Mode            7            5
+
+
+【DispOptItems】
+  DispOptItems stores Option Item. It is divided 4 groups by "DispOptId".
+  User can select followings:
+     DispOptId=1 Huge area option
+     DispOptId=2 Large area option
+     DispOptId=3 Small area option
+     DispOptId=4 Icon area option
+                   see to sheet "Color, Item code" for Detail.
+
+The items order is determined by "DispOptId" and "DispLayoutId".
+
+
+【DispColors】
+  DispColors stores customize color. It is divided same groups by "DispColorId".
+  Each item has 2 colors (Text and Back).
+  F, HOLD, Soft Key 1, Soft Key 2 and Soft Key 3 are reversed text color and back color.
+
+  The items order is determined by "DispColorId" and "ColorLayoutId".
+
+
+Simple Conventional Mode
+Simple Trunk Mode
+
+ F      Option_1      Option_2       Option_3         Option_4   SIG BAT
+SP0     Option_5      Option_6       Option_7         Option_8   KEY DIR                   DispOptItems
+                                                                                                    DispOptId=1 DispLayoutId=x System Option Dept Option Channel Option
+                                                                                                    DispOptId=2 DispLayoutId=x Option A_1 Option_B_1
+System Name                                                                                         DispOptId=3 DispLayoutId=x Option_1      Option_2    Option_3       Option_4           Option_5     Option_6     Option_7      Option_8
+                                                                                                    DispOptId=4 DispLayoutId=x ICON1         ICON2       ICON3          ICON4              ICON5        ICON6        ICON7         ICON8      ICON9       ICON10
+                       System Option                             AVOID
+                                                                                           DispColors
+                                                                                                     DispColorId=1 ColorLayoutId=x System Name System Avoid   Dept Name Dept Avoid Channel Name Channel Avoid
+Dept Name                                                                                            DispColorId=2 ColorLayoutId=x System Option Dept Option Channel Option
+                                                                                                     DispColorId=3 ColorLayoutId=x Option_1     Option_2   Option_3           Option_4     Option_5     Option_6     Option_7      Option_8
+                           Dept Option                           AVOID                               DispColorId=4 ColorLayoutId=x Option A_1   Option_B_1
+                                                                                                     DispColorId=5 ColorLayoutId=x ICON1      ICON2           ICON3      ICON4             ICON5      ICON6          ICON7         ICON8      ICON9       ICON10
+                                                                                                     DispColorId=6 ColorLayoutId=x F          SIG             BAT        SP0               KEY        DIR
+Channel Name                                                                                         DispColorId=7 ColorLayoutId=x Soft Key 1 SP1             Soft Key 2 SP2               Soft Key 3
+
+                  Channel Option                     AVOID                                           F, Soft Key 1, Soft Key 2 and Soft Key 3 are reversed text color and back color.
+          Option A_1                    Option_B_1                                                   Color item has TextColor and BackColor.
+ICON1 ICON2 ICON3 ICON4 ICON5 ICON6 ICON7 ICON8 ICON9 ICON10
+   Soft Key 1        SP1      Soft Key 2        SP2      Soft Key 3                                                                                 System Option       Dept Option         Channel Option
+                                                                                                        Ex
+                                                                                                        DispOptItems DispOptId=1           DispLayoutId=1 FL_Name              Empty          Frequency
+                                                                                                        DispOptItems DispOptId=2           DispLayoutId=1 ServiceType          CTCSS/DCS
+                                                                                                        DispOptItems DispOptId=3           DispLayoutId=1 ATT                  Empty          Day            Time               Volume        Squelch      P25Status     TdmaSlot
+                                                                                                        DispOptItems DispOptId=4           DispLayoutId=1 Modulation           P_Ch           IFX            LVL                Empty         REC          GPS           PRI        CC       WxPRI
+
+                                                                                                        DispColors      DispColorId=1     ColorLayoutId=1                      ff4600        000000          ff4600             000000        ff8800       000000        ff8800     000000   ffd600   000000   ffd600   000000
+                                                                                                        DispColors      DispColorId=2     ColorLayoutId=1                      ff4600        000000          ff8800             000000        ffd600       000000
+                                                                                                        DispColors      DispColorId=3     ColorLayoutId=1                      ffffff        000000          ffffff             000000        ffffff       000000        ffffff     000000   ffffff   000000   ffffff   000000   ffffff   000000   ffffff   000000
+                                                                                                        DispColors      DispColorId=4     ColorLayoutId=1                      e79473        000000          e79473             000000
+                                                                                                        DispColors      DispColorId=5     ColorLayoutId=1                      ffffff        000000          ffffff             000000        ffffff       000000        ffffff     000000   ffffff   000000   ffffff   000000   ffffff   000000   ffffff   000000   ffffff   000000   ffffff   000000
+                                                                                                        DispColors      DispColorId=6     ColorLayoutId=1                      ffffff        000000          ffffff             000000        ffffff       000000        ffffff     000000   ffffff   000000   ffffff   000000
+                                                                                                                                        System Name Text color                System Name Back color
+
+Detail Conventional Mode
+Detail Trunk Mode
+
+ F    Option_1        Option_2       Option_3         Option_4   SIG BAT                   DispOptItems
+Info area 1                          Option_7         Option_8   KEY DIR                            DispOptId=1 DispLayoutId=x System Option Dept Option Channel Option
+Info area 2                              Option C_1                                                 DispOptId=2 DispLayoutId=x Option A_1 Option_B_1 Option A_2 Option_B_2 Option A_3 Option_B_3 Option A_4 Option_B_4 Option A_5 Option_B_5 Option C_1 Option C_2
+Info area 3                              Option C_2                                                 DispOptId=3 DispLayoutId=x Option_1      Option_2    Option_3       Option_4 Option_7 Option_8
+                                                                                                    DispOptId=4 DispLayoutId=x ICON1         ICON2       ICON3          ICON4    ICON5    ICON6    ICON7    ICON8      ICON9      ICON10
+System Name
+                       System Option                             AVOID
+                                                                                           DispColors
+Dept Name                                                                                            DispColorId=1 ColorLayoutId=x System Name System Avoid Dept Name         Dept Avoid Channel Name Channel Avoid Info area 1 Info area 2 Info area 3
+                           Dept Option                           AVOID                               DispColorId=2 ColorLayoutId=x System Option Dept Option Channel Option
+                                                                                                     DispColorId=3 ColorLayoutId=x Option_1     Option_2   Option_3   Option_4   Option_5   Option_6   Option_7   Option_8
+Channel Name                                                                                         DispColorId=4 ColorLayoutId=x Option A_1   Option_B_1 Option A_2 Option_B_2 Option A_3 Option_B_3 Option A_4 Option_B_4 Option A_5 Option_B_5 Option C_1 Option C_2
+                  Channel option                     AVOID                                           DispColorId=5 ColorLayoutId=x ICON1        ICON2      ICON3      ICON4      ICON5      ICON6      ICON7      ICON8      ICON9      ICON10
+Option A_1                      Option B_1                                                           DispColorId=6 ColorLayoutId=x F            SIG           BAT        KEY               DIR
+Option A_2                      Option B_2                                                           DispColorId=7 ColorLayoutId=x Soft Key 1   SP1           Soft Key 2 SP2               Soft Key 3
+Option A_3                      Option B_3
+Option A_4                      Option B_4
+Option A_5                      Option B_5
+ICON1 ICON2 ICON3 ICON4 ICON5 ICON6 ICON7 ICON8 ICON9 ICON10                                         F, Soft Key 1, Soft Key 2 and Soft Key 3 are reversed text color and back color.
+   Soft Key 1        SP1      Soft Key 2        SP2      Soft Key 3
+
+
+
+
+Search/CC Mode
+Weather Mode
+Tone Out Mode
+ F    Option_1        Option_2       Option_3         Option_4   SIG BAT                   DispOptItems
+Info area 1                          Option_7         Option_8   KEY DIR                            DispOptId=2 DispColorId=x Option A_1 Option_B_1 Option A_2 Option_B_2 Option A_3 Option_B_3 Option C_1 Option C_2
+Info area 2                              Option C_1                                                 DispOptId=3 DispColorId=x Option_1   Option_2   Option_3   Option_4   Option_7   Option_8
+Info area 3                              Option C_2                                                 DispOptId=4 DispColorId=x ICON1      ICON2      ICON3      ICON4      ICON5      ICON6      ICON7      ICON8      ICON9                               ICON10
+
+Primary 1
+Primary 2                                                                                  DispColors
+                                                                                                     DispColorId=1 ColorLayoutId=x Primary 1  Primary 2       Primary 3       Sub Info     Mod          AVOID        HOLD       Detail info Info area 1 Info area 2 Info area 3
+Primary 3                                                                                            DispColorId=3 ColorLayoutId=x Option_1   Option_2        Option_3        Option_4     Option_5     Option_6     Option_7   Option_8
+Sub Info                                 Mod             AVOID    HOLD                               DispColorId=4 ColorLayoutId=x Option A_1 Option_B_1      Option A_2      Option_B_2   Option A_3   Option_B_3   Option C_1 Option C_2
+Detail info                                                                                          DispColorId=5 ColorLayoutId=x ICON1      ICON2           ICON3           ICON4        ICON5        ICON6        ICON7      ICON8       ICON9       ICON10
+                                                                                                     DispColorId=6 ColorLayoutId=x F          SIG             BAT             KEY          DIR
+                                                                                                     DispColorId=7 ColorLayoutId=x Soft Key 1 SP1             Soft Key 2      SP2          Soft Key 3
+
+Option A_1                      Option B_1
+Option A_2                      Option B_2                                                           F, HOLD, Soft Key 1, Soft Key 2 and Soft Key 3 are reversed text color and back color.
+Option A_3                      Option B_3
+ICON1 ICON2 ICON3 ICON4 ICON5 ICON6 ICON7 ICON8 ICON9 ICON10
+   Soft Key 1        SP1      Soft Key 2        SP2      Soft Key 3
+[Discovery]
+Conventional.config
+------------------------------------------------------------------------------------------------
+ConvDiscovery
+------------------------------------------------------------------------------------------------
+
+        Description :
+              Conventional Discovery parameter
+
+        Format :
+             ConvDiscovery               Reserve             Name                 Lower            Upper         Modulation    ->>
+                                                                     ->>          Step             Delay         Logginig      ->>
+                                                                                                   Compare DB    Duration   Time-Out      Auto Store
+
+        Parameter :
+             Name                        Max Length 32char
+             Lower                       Frequency format
+             Upper                       Frequency format
+             Modulation                  AUTO/AM/NFM/FM/WFM/FMB
+             Step                        Auto/5000/6250/7500/8333/10000/12500/15000/20000/25000/50000/100000
+             Delay                       5,4,3,2,1,0    (Not support "minus delay")
+             Logging                     All / New
+             Compare DB                  On/Off
+             Duration                    0/30/60/90/120/150/180/300/600 , ( 1=1sec( Recording Duration )
+             Time-Out                    0/10/30/60 ( 0=OFF)
+             Auto Store                  Off / On
+
+        Note :
+
+
+
+Trunk.config
+------------------------------------------------------------------------------------------------
+DiscoveryTrunk
+------------------------------------------------------------------------------------------------
+
+        Description :
+              Trunking Discovery parameter
+
+        Format :
+             TrunkDiscovery              Reverse    Name                          Delay            Logging           ->>
+                          ->>            Compare DB Duration                      Fav Name         System Name       ->>
+                          ->>            Trunk ID   System Type                   Site ID          Site Name      Time-Out   Auto Store
+
+        Parameter :
+             Name                        Max Length 32char
+             Delay                       5,4,3,2,1,0     (Not support "minus delay")
+             Logging                     All / New
+             Duration                    0/30/60/90/120/150/180/300/600 , ( 1=1sec( Recording Duration )
+             Compare DB                  On/Off
+             Fav Name                    Favorites List Name, ( this one is set NULL ,if Full Database)
+             System Name                 system name tag
+             Trunk ID                    TrunkId=xx (Database=HPDB), null (Database=Favorites List)
+         System Type     Conventional
+                         Motorola
+                         Edacs
+                         Scat                        (reserve parameter)
+                         Ltr
+                         P25Standard
+                         P25OneFrequency
+                         P25X2_TDMA
+                         MotoTRBO
+                         DmrOneFrequency
+                         Nxdn
+                         NxdnOneFrequency
+         SiteId          SiteId=xx (Database=HPDB), null (Database=Favorites List)
+         Site Name       site name tag
+         Time-Out        0/10/30/60 ( 0=OFF)
+         Auto Store      Off / On
+
+Note :
+         Fav Name,System Name,Trunk ID and System Type, SiteId, Site Name are set by HomePatrol only.
+         PC-App doesn't modify . It reads those one, then wrtes same value to file.
+         When PC-App creates new Trunking Discovery, those parameters are set NULL.
+*.avoid
+-----------------------------------------------------------------------------------------
+[Avoid]
+-----------------------------------------------------------------------------------------
+
+     Description :
+           Avoid Information
+
+     Format :
+     1.       Avoid        StateId       SystemId     DeptId        ChannelId
+     2.       Avoid        StateId       SystemId     DeptId
+     3.       Avoid        StateId       SystemId     SiteId
+     4.       Avoid        StateId       SystemId
+
+     Parameter :
+
+     Note :
+              1 channel(Conventional frequency/TGID) avoid format
+              2 department avoid format
+              3 Site avoid format
+              4 System avoid format
+------------------------------------------------------------------------------------------------
+ModeInfo
+------------------------------------------------------------------------------------------------
+
+     Description :
+                     Mode Information
+
+     Format :
+                     ModeInfo                   Mode             System Hold Dept Hold
+
+     Parameter :
+                     Mode                       Scan
+                                                ScanHold
+                                                ToneOut
+                                                ToneOutHold
+                                                CustomSearch
+                                                CustomSearchHold
+                                                QuickSearch
+                                                QuickSearchHold
+                                                IDsearch
+                                                IDsearchhold
+                                                IDscan
+                                                IDmanual
+                                                EdacsIDSearch
+                                                EdacsIDSearchHold
+                                                EdacsIDScan
+                                                EdacsIDManual
+                                                LTRIDSearch
+                                                LTRIDSearchHold
+                                                LTRIDScan
+                                                LTRIDManual
+                                                CloseCallOnly
+                                                WeatherScan
+                                                WeatherHold
+
+
+-----------------------------------------------------------------------------------------
+[ScanListType]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Scan List Type Parameter
+
+     Format :
+                     ScanListType               Type             Name
+
+     Parameter :
+                     Type                       FullDatabase
+                                                FavoritesList
+                                                SearchWithScan
+
+                     Name                       Favorites List Name
+
+
+
+-----------------------------------------------------------------------------------------
+[ScanConvSystem ]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Conventional System Parameter
+
+     Format :
+                     ScanConvSystem             System Hold      Conventional      MyId              ParentId            Name Tag      Avoid        Reserve       ->>
+                                                                                                                         System Hold
+                                                       ->>       System Type       Quick Key         Number tag                        Analog AGC   Digital AGC   ->>
+                                                                                                                         Time
+                                                                 Digital Waiting   Digital Threshold Digital Threshold
+                                                       ->>
+                                                                 Time              Mode              Level
+
+
+     Parameter :
+                     System Hold                On/Off
+                     MyId
+                                                CountyId=xx
+                                                AgencyId=xx
+                     ParentId                   StateId=xx
+                     Name Tag                   Name Tag
+                     Avoid                      On/Off
+                     System Type
+                     Quick Key                  Off/0-99
+                     Number tag                 Off/0-99
+                     System Hold Time           0-255
+                     Analog AGC                 Off/On
+                     Digital AGC                Off/On
+                     Digital Waiting Time       0-1000
+                     Digital Threshold Mode     Auto, Manual, Default
+                     Digital Threshold Level    5-13
+
+-----------------------------------------------------------------------------------------
+[ScanTrunkSystem]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Trunked System Parameter
+
+     Format :
+                     ScanTrunkSystem            System Hold     Trunk          MyId             ParentId         Name Tag        Avoid           Reserve        ->>
+                                                     ->>        System Type    ID Search        Alert Tone       Alert Volume    Status Bit      Reserve(NAC)   ->>
+                                                     ->>        Quick Key      Number tag       Site Hold Time   Analog AGC      Digital AGC         ->>
+                                                                End Code       Priority ID Scan Alert Color      Alert Pattern   TGID Format
+
+     Parameter :
+                     System Hold                On/Off
+                     MyId                       TrunkId=xx
+                     ParentId                   StateId=xx
+                     Name Tag                   ASCII character strings
+                     Avoid                      On/Off
+                     System Type
+                                                Conventional
+                                                Motorola
+                                                Edacs
+                                                Scat                           (reserve parameter)
+                                                Ltr
+                                                P25Standard                    it is P25 Phase I & II
+                                                P25OneFrequency
+                                                P25X2_TDMA
+                                                MotoTrbo
+                                                DmrOneFrequency
+                                                Nxdn
+                                                NxdnOneFrequency
+                     ID Search                  Off/On
+                     Alert Tone                 Off/0/1/…/9                    Emergency Alert Tone
+                     Alert Volume               Auto/1/…/15
+                     Status Bit                 Yes/Ignore
+                     Reserve (NAC)              Srch/0-FFF
+                     Quick Key                  Off/0-99
+                     Number tag                 Off/0-99
+                     System Hold Time           0-255
+                     Analog AGC                 Off/On
+                     Digital AGC                Off/On
+                     End Code                   Analog/Analog+Digital/Ignore
+                     Priority ID Scan           Off/On
+                     Alert Color                Alert Light Color format.
+                     Alert Pattern              Alert Light Pattern format.
+                     TGID Format                NEXEDGE/IDAS
+
+-----------------------------------------------------------------------------------------
+[ScanC-Group]
+[ScanT-Group]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Group Parameter
+
+     Format :
+                     ScanC-Group                Group Hold      C-Group        MyId              ParentId        Name Tag        Avoid                 ->>
+                                                                     ->>       Latitude          Longitude       Range           Location Type   Filter
+                     ScanT-Group              Group Hold       T-Group        MyId             ParentId        Name Tag        Avoid                ->>
+                                                                    ->>       Latitude         Longitude       Range           Location Type
+
+     Parameter :
+                     Group Hold               On/Off
+                     MyId                     xxId=xx
+                     ParentId                 xxId=xx
+                     Name Tag                 ASCII character strings
+                     Avoid                    On/Off
+                     Latitude
+                     Longitude
+                     Range
+                     Location Type            Circle/Rectangles
+                     Filter                   Global/Normal/Invert/Auto
+
+-----------------------------------------------------------------------------------------
+[ScanC-Freq]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Channel Frequency Parameter
+
+     Format :
+                     ScanC-Freq               C-Freq           MyId           ParentId         Name Tag        Avoid           Frequency        Modulation   ->>
+                                                   ->>         Audio Option   FuncTagId        Attenuator      Delay           Volume Offset        ->>
+                                                   ->>         Alert Tone     Alert Volume     Alert Color     Alert Pattern                        ->>
+                                                   ->>         Number tag     Priority Channel
+
+     Parameter :
+                     MyId                     xxId=xx
+                     ParentId                 xxId=xx
+                     Name Tag                 ASCII character strings
+                     Avoid                    On/Off
+                     Frequency                Frequency(1=1Hz)
+                     Modulation               AUTO/AM/NFM/FM
+                     Audio Option             null(All),Tone=xxxx,NAC=xxx, ColorCode=xx, RAN=xx, Area=x to see sheet "Sub Audio" for Detail.
+                     FuncTagId                1-37,208-218
+                     Attenuator               On/Off
+                     Delay                    30,10,5,4,3,2,1,0,-5,-10
+                     Volume Offset            -3/-2/-1/0/1/2/3
+                     Alert Tone               Off/1-9
+                     Alert Volume             Auto/1-15
+                     Alert Color              Alert Light Color format.
+                     Alert Pattern            Alert Light Pattern format.
+                     Number tag               Off/0-999
+                     Priority Channel         Off/On
+
+-----------------------------------------------------------------------------------------
+[ScanTGID]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     TGID Parameter
+
+     Format :
+                     ScanTGID                 TGID             MyId           ParentId         Name Tag        Avoid            TGID            Audio Type   ->>
+                                                                                    ->>        FuncTagId       Delay            Volume Offset        ->>
+                                                                      ->>     Alert Tone       Alert Volume    Alert Color      Alert Pattern        ->>
+                                                                                    ->>        Number tag      Priority Channel TDMA Slot
+
+     Parameter :
+                     MyId                     xxId=xx
+                     ParentId                 xxId=xx
+                     Name Tag                 ASCII character strings
+                     Avoid                    On/Off
+                     TGID                     TGID character strings
+                     Audio Type               ALL/ANALOG/DIGITAL
+                     FuncTagId                1-37,208-218
+                     Delay                    30,10,5,4,3,2,1,0,-5,-10
+                     Volume Offset            -3/-2/-1/0/1/2/3
+                     Alert Tone               Off/1-9
+                     Alert Volume             Auto/1-15
+                     Alert Color              Alert Light Color format.
+                     Alert Pattern             Alert Light Pattern format.
+                     Number tag                Off/0-999
+                     Priority Channel          Off/On
+                     TDMA Slot                 1/2/Any
+
+-----------------------------------------------------------------------------------------
+ScanSite
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                     ScanSite                  Site Hold        Site             MyId         ParentId          Name Tag       Avoid           Latitude     Longitude               ->>
+                                                                                                                                               Edacs Band
+                                                                                        ->>   Range             Modulation     Mot Band Type                      ->>
+                                                                                                                                               Type
+                                                                                        ->>   Location Type     Attenuator             ->>
+                                                                                              Digital Waiting   Digital        Digital
+                                                                                        ->>                                                    Quick Key    NAC            Filter
+                                                                                              Time              Threshold Mode Threshold Level
+
+     Parameter :
+                     MyId                      SiteId=xx
+                     ParentId                  TrunkId=xx
+                     Name Tag                  ASCII character strings
+                     Avoid                     On/Off
+                     Latitude                  According to basic rules.
+                     Longitude                 According to basic rules.
+                     Range                     1=1mile, Up to the 1 decimal point figure.
+                     Modulation                AUTO
+                                               NFM
+                                               FM
+
+                     Mot Band Type             Standard
+                                               Sprinter
+                                               Custom
+
+                     Edacs Band Type           Wide
+                                               Narrow
+
+                     Location Type             Circle/Rectangles
+
+                     Attenuator                On/Off
+
+                     Digital Waiting Time      0-1000
+                     Digital Threshold Mode    Auto, Manual, Default
+                     Digital Threshold Level   5-13
+                     Quick Key                 Off/0-99
+                     NAC                       Srch/0-FFF
+                     Filter                    Global/Normal/Invert/Auto
+
+-----------------------------------------------------------------------------------------
+[ScanT-Freq]
+-----------------------------------------------------------------------------------------
+
+     Description :
+
+     Format :
+                                                                                                                                                            Color Code /
+                     ScanT-Freq                T-Freq           Reserve(MyId)    ParentId     Reserve           Reserve(Avoid) Frequency       LCN
+                                                                                                                                                            RAN / Area
+
+     Parameter :
+                     Reserve(MyId)             xxId=xx
+                     ParentId                  xxId=xx
+                     Reserve
+                     Reserve(Avoid)            Off
+                     Frequency                 Frequency(1=1Hz)
+                     LCN                       number(0,1-30 / 1-20 / 1-4094 / 1-1023)
+                     Color Code / RAN / Area   0-15, RAN=0-63, Area=0-1, Srch
+
+-----------------------------------------------------------------------------------------
+[SearchWithScan]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Sesarch With Scan parameter
+     Format :
+                     SearchWithScan            System Index
+
+     Parameter :
+
+-----------------------------------------------------------------------------------------
+[CustomSearch]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Custom Serach Parameter
+
+     Format :
+                     CustomSearch              Bank           Frequency
+
+     Parameter :
+                     Bank                      0-9
+                     Frequency                 0x00250000 - 0x13000000
+
+-----------------------------------------------------------------------------------------
+[QuickSearch]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Quick Search parameter
+
+     Format :
+                     QuickSearch               Frequency
+
+     Parameter :
+                     Frequency                 0x00250000 - 0x13000000
+
+-----------------------------------------------------------------------------------------
+[ToneOut]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     ToneOut Parameter
+
+     Format :
+                     ToneOut                   Channel
+
+     Parameter :
+                     Channel                   1 - 32
+
+-----------------------------------------------------------------------------------------
+[CloseCall]
+-----------------------------------------------------------------------------------------
+
+     Description :
+                     Close Call Parameter
+
+     Format :
+                     CloseCall
+
+     Parameter :
+    【Conventional】                                               【Trunking】
+    logging            summary                                   logging           summary
+    time                  ---                                    time                  ---
+    Frequency              o                                     TGID                   o
+    Modulation             o                                     Site Name             ---
+    Audio Option           o                                     Audio Mode             o
+    Hits                   o                                     Hits                   o
+    Duration               o                                     Duration               o
+    Name                   o                                     Unit ID               ---
+    Known                  o                                     Known                  o
+    Type                   o                                     Name                   o
+
+
+
+
+【Run Info】
+
+    Description:   There is Run Info sentence in first line on summary.log.
+                   It is recorded information to resume discovery (ex Location Limit Frequencies, Trunk System).
+
+    Format(Conventional):
+                  RunInfo_C          Latitude       Longitude    Range           Lower         Upper      Modulation    Step       ->>
+                                                         ->>     Delay           Logginig      Compare DB Duration      Time-Out
+
+    Parameter:
+                   Latitude          latitude decimal fomat
+                   Longitude         longitude decimal fomat
+                   Range             0-50 , 0.5miles step
+                   Lower:            Frequency(1=1Hz)
+                   Upper:            Frequency(1=1Hz)
+                   Modulation:       AUTO/AM/NFM/FM/WFM/FMB
+                   Step              Auto/5000/6250/7500/8333/10000/12500/15000/20000/25000/50000/100000
+                   Delay:            0,1,2,3,4,5
+                   Logging:          All, New
+                   Compare DB:       On/Off
+                   Duration:         0,30,60,90,120,150,180,300,600
+                   Time-Out          0/10/30/60 ( 0=OFF)
+
+    Format(Trunking):
+                   RunInfo_T         Latitude       Longitude    Range           Delay      Logging          Compare DB Duration   ->>
+                                                         ->>     Fav Name        System NameTrunkId          System Type SiteId    ->>
+                                                         ->>     Site Name       Time-Out
+
+    Parameter:
+                   Latitude          latitude decimal fomat
+                   Longitude         longitude decimal fomat
+                   Range             0-50 , 0.5miles step
+                   Delay:            0,2,5
+                   Logging:          All, New
+                   Duration:         0,30,60,90,120,150,180,300,600
+                   Compare DB:       On/Off
+                   Fav Name:         Favorites List name (Database=Favorites List), null (Database=HPDB)
+                   System Name:      system name tag
+                   TrunkId           TrunkId=xx (Database=HPDB), null (Database=Favorites List)
+                   System Type:
+                                     Conventional
+                                     Motorola
+                                     Edacs
+                                     Scat                        (reserve parameter)
+                                     Ltr
+                                     P25Standard
+             P25OneFrequency
+             P25X2_TDMA
+             MotoTRBO
+             DmrOneFrequency
+             Nxdn
+             NxdnOneFrequency
+SiteId       SiteId=xx (Database=HPDB), null (Database=Favorites List)
+Site Name:   site name tag
+Time-Out     0/10/30/60 ( 0=OFF)
+【Conventional】
+
+    Description:
+
+    Format:
+                   Summary_C_Log Freq         Audio Option Modulation     Duration   Hits         Name     Type    ->>
+                                                                                            ->>   Known    Avoid
+
+    Parameter:
+                   Freq           Frequency(1=1Hz)
+                   Audio Option   TONE=Cxxx.x, TONE=Dxxx, NAC=xxxx, ColorCode=xx, RAN=xx, Area=x, "None"
+                   Modulation     AM/NFM/FM/WFM/FMB
+                   Duration       0-600
+                   Hits           1-65535
+                   Name           channel name (if it detetced on Database)
+                   Type           S(site freq), C(conventional freq)
+                   Known          1(known), 0(new found)
+                   Avoid          1(avoid), 0(unavoid)
+
+
+
+【Trunking】
+
+    Description:
+
+    Format:
+                   Summary_T_Log TGID         Audio Mode    Duration      Hits       Name         Known    Avoid
+
+    Parameter:
+                   TGID           TGID character strings
+                   Audio Mode     ANALOG/DIGITAL
+                   Duration       0-600
+                   Hits           1-65535
+                   Name           TGID name(if it detetced on Database)
+                   Known          1(known), 0(new found)
+                   Avoid          1(avoid), 0(unavoid)
+    【Conventional】                                        【Trunking】
+    logging                 detail                        logging                detail
+    time                      o                           time                      o
+    Frequency                 o                           TGID                      o
+    Modulation                o                           Site Name                 o
+    Audio Option              o                           Audio Mode                o
+    Hits                     ---                          Hits                     ---
+    Duration                  o                           Duration                  o
+    Name                      o                           Unit ID                   o
+    Known                    ---                          Known                    ---
+    Type                      o                           Name                      o
+                                                          NAC / Color Code /
+                                                                                   o
+                                                          RAN / Area
+                                                          TDMA Slot                o
+
+
+
+
+【Conventional】
+
+    Description:
+
+    Format:
+                     Detail_C_Log        Time      Freq Audio Option           Modulation Duration Name       Type
+
+    Parameter:
+                     Time                MM/DD/YYYY hh:mm:ss
+                     Freq                Frequency(1=1Hz)
+                     Audio Option        "None", "TONE=Cxxx.x", "TONE=Dxxx", "NAC=xxxx", "Color Code=xx", "RAN=xx", "Area=x"
+                     Modulation          AM/NFM/FM
+                     Duration            0-600
+                     Name                channel name ( if channel is detected on DB)
+                     Type                S(site frequency), C(conventional frequency)
+
+
+
+
+【Trunking】
+
+    Description:
+
+    Format:
+                                                                                                                   NAC / Color Code /
+                     Detail_T_Log        Time      TGID Audio Mode             Duration     Unit ID   Reserve Name RAN / Area         TDMA Slot
+
+    Parameter:
+                     Time               MM/DD/YYYY hh:mm:ss
+                     TGID               TGID character strings
+                     Audio Mode         ANALOG/DIGITAL
+                     Duration           0-600
+                     Unit ID            1-16777215 , 0 (if HP-1 did not detected Unit ID)
+                     Reserve
+                     Name               channel name ( if channel is detected on DB)
+                     NAC / Color Code /
+                     RAN / Area         xxxh / 0-15 / 0-63 / 0-1, None
+                     TDMA Slot          1, 2, None
+Service Type
+
+FuncTagId   Service Type
+          1 Multi-Dispatch
+          2 Law Dispatch
+          3 Fire Dispatch
+          4 EMS Dispatch
+          5 non
+          6 Multi-Tac
+          7 Law Tac
+          8 Fire-Tac
+          9 EMS-Tac
+         10 non
+         11 Interop
+         12 Hospital
+         13 Ham
+         14 Public Works
+         15 Aircraft
+         16 Federal
+         17 Business
+         18 non
+         19 non
+         20 Railroad
+         21 Other
+         22 Multi-Talk
+         23 Law Talk
+         24 Fire-Talk
+         25 EMS-Talk
+         26 Transportation
+         27 non
+         28 non
+         29 Emergency Ops
+         30 Military
+         31 Media
+         32 Schools
+         33 Security
+         34 Utilities
+         35 non
+         36 non
+         37 Corrections
+
+
+
+
+Custom Service Type
+       208 Custom 1
+       209 Custom 2
+       210 Custom 3
+       211 Custom 4
+       212 Custom 5
+       213 Custom 6
+       214 Custom 7
+       215 Custom 8
+       216 Racing Officials
+217 Racing Teams
+                                                                                                                            DMR Frequency Option      NXDN Frequency Option &
+                Conventional channel Option & Discovery Detail/Summary                          P25 Frequency Option                                                                                     Discovery folder name String
+                                                                                                                             & Discovery Detail          Discovery Detail
+
+
+All            Analog ( CTCSS/DCS )                    Digital (P25 NAC/Color Code/RAN/Area)   Digital (P25 NAC)            Digital (Color Code)      Digital (RAN/Area)          Analog ( CTCSS/DCS )                     Digital (P25 NAC/RAN/Area)
+      File                         File                                  File                                      File                        File                        File                                            If Digital, always exists NAC or RA
+      (null)   Tone Search         TONE=Srch           NAC Search        NAC=Srch              NAC Search           Srch    Color Code Search Srch    RAN/Area Search Srch        None               None                  None               (Nothing)
+               CTCSS 67.0Hz        TONE=C67.0          NAC 000           NAC=0                 NAC 000                  0   Color Code 0         0    Area 0          Area=0      CTCSS 67.0Hz       C67.0                 NAC 000            N0
+               CTCSS 69.3Hz        TONE=C69.3          NAC 001           NAC=1                 NAC 001                  1   Color Code 1         1    Area 1          Area=1      CTCSS 69.3Hz       C69.3                 NAC 001            N1
+               CTCSS 71.9Hz        TONE=C71.9          NAC 002           NAC=2                 NAC 002                  2   Color Code 2         2    RAN 0           RAN=0       CTCSS 71.9Hz       C71.9                 NAC 002            N2
+               CTCSS 74.4Hz        TONE=C74.4          NAC 003           NAC=3                 NAC 003                  3   Color Code 3         3    RAN 1           RAN=1       CTCSS 74.4Hz       C74.4                 NAC 003            N3
+               CTCSS 77.0Hz        TONE=C77.0          NAC 004           NAC=4                 NAC 004                  4   Color Code 4         4    RAN 2           RAN=2       CTCSS 77.0Hz       C77.0                 NAC 004            N4
+               CTCSS 79.7Hz        TONE=C79.7          NAC 005           NAC=5                 NAC 005                  5   Color Code 5         5    RAN 3           RAN=3       CTCSS 79.7Hz       C79.7                 NAC 005            N5
+               CTCSS 82.5Hz        TONE=C82.5          NAC 006           NAC=6                 NAC 006                  6   Color Code 6         6    RAN 4           RAN=4       CTCSS 82.5Hz       C82.5                 NAC 006            N6
+               CTCSS 85.4Hz        TONE=C85.4          NAC 007           NAC=7                 NAC 007                  7   Color Code 7         7    RAN 5           RAN=5       CTCSS 85.4Hz       C85.4                 NAC 007            N7
+               CTCSS 88.5Hz        TONE=C88.5          NAC 008           NAC=8                 NAC 008                  8   Color Code 8         8    RAN 6           RAN=6       CTCSS 88.5Hz       C88.5                 NAC 008            N8
+               CTCSS 91.5Hz        TONE=C91.5          NAC 009           NAC=9                 NAC 009                  9   Color Code 9         9    RAN 7           RAN=7       CTCSS 91.5Hz       C91.5                 NAC 009            N9
+               CTCSS 94.8Hz        TONE=C94.8          NAC 00A           NAC=A                 NAC 00A                  A   Color Code 10       10    RAN 8           RAN=8       CTCSS 94.8Hz       C94.8                 NAC 00A            NA
+               CTCSS 97.4Hz        TONE=C97.4          NAC 00B           NAC=B                 NAC 00B                  B   Color Code 11       11    RAN 9           RAN=9       CTCSS 97.4Hz       C97.4                 NAC 00B            NB
+               CTCSS 100.0Hz       TONE=C100.0         NAC 00C           NAC=C                 NAC 00C                  C   Color Code 12       12    RAN 10          RAN=10      CTCSS 100.0Hz      C100.0                NAC 00C            NC
+               CTCSS 103.5Hz       TONE=C103.5         NAC 00D           NAC=D                 NAC 00D                  D   Color Code 13       13    RAN 11          RAN=11      CTCSS 103.5Hz      C103.5                NAC 00D            ND
+               CTCSS 107.2Hz       TONE=C107.2         NAC 00E           NAC=E                 NAC 00E                  E   Color Code 14       14    RAN 12          RAN=12      CTCSS 107.2Hz      C107.2                NAC 00E            NE
+               CTCSS 110.9Hz       TONE=C110.9         NAC 00F           NAC=F                 NAC 00F                  F   Color Code 15       15    RAN 13          RAN=13      CTCSS 110.9Hz      C110.9                NAC 00F            NF
+               CTCSS 114.8Hz       TONE=C114.8         NAC 010           NAC=10                NAC 010                 10                             RAN 14          RAN=14      CTCSS 114.8Hz      C114.8                NAC 010            N10
+               CTCSS 118.8Hz       TONE=C118.8         NAC 011           NAC=11                NAC 011                 11                             RAN 15          RAN=15      CTCSS 118.8Hz      C118.8                NAC 011            N11
+               CTCSS 123.0Hz       TONE=C123.0         NAC 012           NAC=12                NAC 012                 12                             RAN 16          RAN=16      CTCSS 123.0Hz      C123.0                NAC 012            N12
+               CTCSS 127.3Hz       TONE=C127.3                 :               :                      :              :                                RAN 17          RAN=17      CTCSS 127.3Hz      C127.3                        :                 :
+               CTCSS 131.8Hz       TONE=C131.8                 :               :                      :              :                                RAN 18          RAN=18      CTCSS 131.8Hz      C131.8                        :                 :
+               CTCSS 136.5Hz       TONE=C136.5                 :               :                      :              :                                RAN 19          RAN=19      CTCSS 136.5Hz      C136.5                        :                 :
+               CTCSS 141.3Hz       TONE=C141.3         NAC FFF           NAC=FFF               NAC FFF              FFF                               RAN 20          RAN=20      CTCSS 141.3Hz      C141.3                NAC FFF            NFFF
+               CTCSS 146.2Hz       TONE=C146.2         Color Code 0      ColorCode=0                                                                  RAN 21          RAN=21      CTCSS 146.2Hz      C146.2                Color Code 0       ColorCode0
+               CTCSS 151.4Hz       TONE=C151.4         Color Code 1      ColorCode=1                                                                  RAN 22          RAN=22      CTCSS 151.4Hz      C151.4                Color Code 1       ColorCode1
+               CTCSS 156.7Hz       TONE=C156.7         Color Code 2      ColorCode=2                                                                  RAN 23          RAN=23      CTCSS 156.7Hz      C156.7                Color Code 2       ColorCode2
+               CTCSS 159.8Hz       TONE=C159.8         Color Code 3      ColorCode=3                                                                  RAN 24          RAN=24      CTCSS 159.8Hz      C159.8                Color Code 3       ColorCode3
+               CTCSS 162.2Hz       TONE=C162.2         Color Code 4      ColorCode=4                                                                  RAN 25          RAN=25      CTCSS 162.2Hz      C162.2                Color Code 4       ColorCode4
+               CTCSS 165.5Hz       TONE=C165.5         Color Code 5      ColorCode=5                                                                  RAN 26          RAN=26      CTCSS 165.5Hz      C165.5                Color Code 5       ColorCode5
+               CTCSS 167.9Hz       TONE=C167.9         Color Code 6      ColorCode=6                                                                  RAN 27          RAN=27      CTCSS 167.9Hz      C167.9                Color Code 6       ColorCode6
+               CTCSS 171.3Hz       TONE=C171.3         Color Code 7      ColorCode=7                                                                  RAN 28          RAN=28      CTCSS 171.3Hz      C171.3                Color Code 7       ColorCode7
+               CTCSS 173.8Hz       TONE=C173.8         Color Code 8      ColorCode=8                                                                  RAN 29          RAN=29      CTCSS 173.8Hz      C173.8                Color Code 8       ColorCode8
+               CTCSS 177.3Hz       TONE=C177.3         Color Code 9      ColorCode=9                                                                  RAN 30          RAN=30      CTCSS 177.3Hz      C177.3                Color Code 9       ColorCode9
+               CTCSS 179.9Hz       TONE=C179.9         Color Code 10     ColorCode=10                                                                 RAN 31          RAN=31      CTCSS 179.9Hz      C179.9                Color Code 10      ColorCode10
+               CTCSS 183.5Hz       TONE=C183.5         Color Code 11     ColorCode=11                                                                 RAN 32          RAN=32      CTCSS 183.5Hz      C183.5                Color Code 11      ColorCode11
+               CTCSS 186.2Hz       TONE=C186.2         Color Code 12     ColorCode=12                                                                 RAN 33          RAN=33      CTCSS 186.2Hz      C186.2                Color Code 12      ColorCode12
+               CTCSS 189.9Hz       TONE=C189.9         Color Code 13     ColorCode=13                                                                 RAN 34          RAN=34      CTCSS 189.9Hz      C189.9                Color Code 13      ColorCode13
+               CTCSS 192.8Hz       TONE=C192.8         Color Code 14     ColorCode=14                                                                 RAN 35          RAN=35      CTCSS 192.8Hz      C192.8                Color Code 14      ColorCode14
+               CTCSS 196.6Hz       TONE=C196.6         Color Code 15     ColorCode=15                                                                 RAN 36          RAN=36      CTCSS 196.6Hz      C196.6                Color Code 15      ColorCode15
+               CTCSS 199.5Hz       TONE=C199.5                 :               :                                                                      RAN 37          RAN=37      CTCSS 199.5Hz      C199.5                        :                :
+               CTCSS 203.5Hz       TONE=C203.5                 :               :                                                                      RAN 38          RAN=38      CTCSS 203.5Hz      C203.5                        :                :
+               CTCSS 206.5Hz       TONE=C206.5                 :               :                                                                      RAN 39          RAN=39      CTCSS 206.5Hz      C206.5                        :                :
+               CTCSS 210.7Hz       TONE=C210.7         RAN 0             RAN=0                                                                        RAN 40          RAN=40      CTCSS 210.7Hz      C210.7                RAN 0              RAN0
+               CTCSS 218.1Hz       TONE=C218.1         RAN 1             RAN=1                                                                        RAN 41          RAN=41      CTCSS 218.1Hz      C218.1                RAN 1              RAN1
+               CTCSS 225.7Hz       TONE=C225.7         RAN 2             RAN=2                                                                        RAN 42          RAN=42      CTCSS 225.7Hz      C225.7                RAN 2              RAN2
+               CTCSS 229.1Hz       TONE=C229.1         RAN 3             RAN=3                                                                        RAN 43          RAN=43      CTCSS 229.1Hz      C229.1                RAN 3              RAN3
+               CTCSS 233.6Hz       TONE=C233.6         RAN 4             RAN=4                                                                        RAN 44          RAN=44      CTCSS 233.6Hz      C233.6                RAN 4              RAN4
+               CTCSS 241.8Hz       TONE=C241.8         RAN 5             RAN=5                                                                        RAN 45          RAN=45      CTCSS 241.8Hz      C241.8                RAN 5              RAN5
+               CTCSS 250.3Hz       TONE=C250.3         RAN 6             RAN=6                                                                        RAN 46          RAN=46      CTCSS 250.3Hz      C250.3                RAN 6              RAN6
+               CTCSS 254.1Hz       TONE=C254.1         RAN 7             RAN=7                                                                        RAN 47          RAN=47      CTCSS 254.1Hz      C254.1                RAN 7              RAN7
+               DCS 006             TONE=D006           RAN 8             RAN=8                                                                        RAN 48          RAN=48      DCS 006            TONE=D006             RAN 8              RAN8
+               DCS 007             TONE=D007           RAN 9             RAN=9                                                                        RAN 49          RAN=49      DCS 007            TONE=D007             RAN 9              RAN9
+               DCS 015             TONE=D015           RAN 10            RAN=10                                                                       RAN 50          RAN=50      DCS 015            TONE=D015             RAN 10             RAN10
+               DCS 017             TONE=D017           RAN 11            RAN=11                                                                       RAN 51          RAN=51      DCS 017            TONE=D017             RAN 11             RAN11
+               DCS 021             TONE=D021           RAN 12            RAN=12                                                                       RAN 52          RAN=52      DCS 021            TONE=D021             RAN 12             RAN12
+               DCS 023             TONE=D023           RAN 13            RAN=13                                                                       RAN 53          RAN=53      DCS 023            D023                  RAN 13             RAN13
+               DCS 025             TONE=D025           RAN 14            RAN=14                                                                       RAN 54          RAN=54      DCS 025            D025                  RAN 14             RAN14
+               DCS 026             TONE=D026           RAN 15            RAN=15                                                                       RAN 55          RAN=55      DCS 026            D026                  RAN 15             RAN15
+               DCS 031             TONE=D031           RAN 16            RAN=16                                                                       RAN 56          RAN=56      DCS 031            D031                  RAN 16             RAN16
+               DCS 032             TONE=D032           RAN 17            RAN=17                                                                       RAN 57          RAN=57      DCS 032            D032                  RAN 17             RAN17
+               DCS 036             TONE=D036           RAN 18            RAN=18                                                                       RAN 58          RAN=58      DCS 036            D036                  RAN 18             RAN18
+               DCS 043             TONE=D043           RAN 19            RAN=19                                                                       RAN 59          RAN=59      DCS 043            D043                  RAN 19             RAN19
+               DCS 047             TONE=D047           RAN 20            RAN=20                                                                       RAN 60          RAN=60      DCS 047            D047                  RAN 20             RAN20
+               DCS 050             TONE=D050           RAN 21            RAN=21                                                                       RAN 61          RAN=61      DCS 050            TONE=D050             RAN 21             RAN21
+               DCS 051             TONE=D051           RAN 22            RAN=22                                                                       RAN 62          RAN=62      DCS 051            D051                  RAN 22             RAN22
+               DCS 053             TONE=D053           RAN 23            RAN=23                                                                       RAN 63          RAN=63      DCS 053            D053                  RAN 23             RAN23
+               DCS 054             TONE=D054           RAN 24            RAN=24                                                                                                   DCS 054            D054                  RAN 24             RAN24
+               DCS 065             TONE=D065           RAN 25            RAN=25                                                                                                   DCS 065            D065                  RAN 25             RAN25
+               DCS 071             TONE=D071           RAN 26            RAN=26                                                                                                   DCS 071            D071                  RAN 26             RAN26
+               DCS 072             TONE=D072           RAN 27            RAN=27                                                                                                   DCS 072            D072                  RAN 27             RAN27
+               DCS 073             TONE=D073           RAN 28            RAN=28                                                                                                   DCS 073            D073                  RAN 28             RAN28
+               DCS 074             TONE=D074           RAN 29            RAN=29                                                                                                   DCS 074            D074                  RAN 29             RAN29
+               DCS 114             TONE=D114           RAN 30            RAN=30                                                                                                   DCS 114            D114                  RAN 30             RAN30
+               DCS 115             TONE=D115           RAN 31            RAN=31                                                                                                   DCS 115            D115                  RAN 31             RAN31
+               DCS 116             TONE=D116           RAN 32            RAN=32                                                                                                   DCS 116            D116                  RAN 32             RAN32
+               DCS 122             TONE=D122           RAN 33            RAN=33                                                                                                   DCS 122            D122                  RAN 33             RAN33
+               DCS 125             TONE=D125           RAN 34            RAN=34                                                                                                   DCS 125            D125                  RAN 34             RAN34
+               DCS 131             TONE=D131           RAN 35            RAN=35                                                                                                   DCS 131            D131                  RAN 35             RAN35
+               DCS 132             TONE=D132           RAN 36            RAN=36                                                                                                   DCS 132            D132                  RAN 36             RAN36
+               DCS 134             TONE=D134           RAN 37            RAN=37                                                                                                   DCS 134            D134                  RAN 37             RAN37
+               DCS 141             TONE=D141           RAN 38            RAN=38                                                                                                   DCS 141            TONE=D141             RAN 38             RAN38
+               DCS 143             TONE=D143           RAN 39            RAN=39                                                                                                   DCS 143            D143                  RAN 39             RAN39
+               DCS 145             TONE=D145           RAN 40            RAN=40                                                                                                   DCS 145            D145                  RAN 40             RAN40
+               DCS 152             TONE=D152           RAN 41            RAN=41                                                                                                   DCS 152            D152                  RAN 41             RAN41
+               DCS 155             TONE=D155           RAN 42            RAN=42                                                                                                   DCS 155            D155                  RAN 42             RAN42
+               DCS 156             TONE=D156           RAN 43            RAN=43                                                                                                   DCS 156            D156                  RAN 43             RAN43
+               DCS 162             TONE=D162           RAN 44            RAN=44                                                                                                   DCS 162            D162                  RAN 44             RAN44
+               DCS 165             TONE=D165           RAN 45            RAN=45                                                                                                   DCS 165            D165                  RAN 45             RAN45
+               DCS 172             TONE=D172           RAN 46            RAN=46                                                                                                   DCS 172            D172                  RAN 46             RAN46
+               DCS 174             TONE=D174           RAN 47            RAN=47                                                                                                   DCS 174            D174                  RAN 47             RAN47
+               DCS 205             TONE=D205           RAN 48            RAN=48                                                                                                   DCS 205            D205                  RAN 48             RAN48
+               DCS 212             TONE=D212           RAN 49            RAN=49                                                                                                   DCS 212            D212                  RAN 49             RAN49
+               DCS 214             TONE=D214           RAN 50            RAN=50                                                                                                   DCS 214            TONE=D214             RAN 50             RAN50
+               DCS 223             TONE=D223           RAN 51            RAN=51                                                                                                   DCS 223            D223                  RAN 51             RAN51
+               DCS 225             TONE=D225           RAN 52            RAN=52                                                                                                   DCS 225            D225                  RAN 52             RAN52
+               DCS 226             TONE=D226           RAN 53            RAN=53                                                                                                   DCS 226            D226                  RAN 53             RAN53
+               DCS 243             TONE=D243           RAN 54            RAN=54                                                                                                   DCS 243            D243                  RAN 54             RAN54
+               DCS 244             TONE=D244           RAN 55            RAN=55                                                                                                   DCS 244            D244                  RAN 55             RAN55
+               DCS 245             TONE=D245           RAN 56            RAN=56                                                                                                   DCS 245            D245                  RAN 56             RAN56
+               DCS 246             TONE=D246           RAN 57            RAN=57                                                                                                   DCS 246            D246                  RAN 57             RAN57
+               DCS 251             TONE=D251           RAN 58            RAN=58                                                                                                   DCS 251            D251                  RAN 58             RAN58
+               DCS 252             TONE=D252           RAN 59            RAN=59                                                                                                   DCS 252            D252                  RAN 59             RAN59
+               DCS 255             TONE=D255           RAN 60            RAN=60                                                                                                   DCS 255            D255                  RAN 60             RAN60
+DCS 261   TONE=D261   RAN 61        RAN=61                                 DCS 261   D261   RAN 61       RAN61
+DCS 263   TONE=D263   RAN 62        RAN=62                                 DCS 263   D263   RAN 62       RAN62
+DCS 265   TONE=D265   RAN 63        RAN=63                                 DCS 265   D265   RAN 63       RAN63
+DCS 266   TONE=D266            :          :                                DCS 266   D266            :         :
+DCS 271   TONE=D271            :          :                                DCS 271   D271            :         :
+DCS 274   TONE=D274            :          :                                DCS 274   D274            :         :
+DCS 306   TONE=D306   Area 0        Area=0                                 DCS 306   D306   Area 0       Area0
+DCS 311   TONE=D311   Area 1        Area=1                                 DCS 311   D311   Area 1       Area1
+DCS 315   TONE=D315                                                        DCS 315   D315
+DCS 325   TONE=D325                                                        DCS 325   D325
+DCS 331   TONE=D331                                                        DCS 331   D331
+DCS 332   TONE=D332                                                        DCS 332   D332
+DCS 343   TONE=D343                                                        DCS 343   D343
+DCS 346   TONE=D346                                                        DCS 346   D346
+DCS 351   TONE=D351                                                        DCS 351   D351
+DCS 356   TONE=D356                                                        DCS 356   D356
+DCS 364   TONE=D364                                                        DCS 364   D364
+DCS 365   TONE=D365                                                        DCS 365   D365
+DCS 371   TONE=D371                                                        DCS 371   D371
+DCS 411   TONE=D411                                                        DCS 411   D411
+DCS 412   TONE=D412    Note :                                              DCS 412   D412
+DCS 413   TONE=D413                                                        DCS 413   D413
+DCS 423   TONE=D423    Ｄｉｓｃｏｖｅｒｙ Ｄｅｔａｉｌ/Ｓｕｍｍａｒｙ                            DCS 423   D423
+DCS 431   TONE=D431                                                        DCS 431   D431
+                       If None CTCSS/DCS/NAC/RAN/Area is Ａｎａｌｏｇ.
+DCS 432   TONE=D432                                                        DCS 432   D432
+DCS 445   TONE=D445
+                       "None".                                             DCS 445   D445
+DCS 446   TONE=D446                                                        DCS 446   D446
+DCS 452   TONE=D452    (Ｄｉｇｉｔａｌ, Always exists NAC or RAN or Area code.)   DCS 452   D452
+DCS 454   TONE=D454                                                        DCS 454   D454
+DCS 455   TONE=D455     Note : Tone L/O                                    DCS 455   D455
+DCS 462   TONE=D462                                                        DCS 462   D462
+DCS 464   TONE=D464     ",L/O" is appended after ctcss/dcs                 DCS 464   D464
+DCS 465   TONE=D465                                                        DCS 465   D465
+                        When channel is set Tone L/O
+DCS 466   TONE=D466                                                        DCS 466   D466
+DCS 503   TONE=D503
+                        setting.                                           DCS 503   D503
+DCS 506   TONE=D506                                                        DCS 506   D506
+DCS 516   TONE=D516     Ex.                                                DCS 516   D516
+DCS 523   TONE=D523                                                        DCS 523   D523
+DCS 526   TONE=D526                                                        DCS 526   D526
+DCS 532   TONE=D532                                                        DCS 532   D532
+DCS 546   TONE=D546                                                        DCS 546   D546
+DCS 565   TONE=D565                                                        DCS 565   D565
+DCS 606   TONE=D606                                                        DCS 606   D606
+DCS 612   TONE=D612                                                        DCS 612   D612
+DCS 624   TONE=D624                                                        DCS 624   D624
+DCS 627   TONE=D627                                                        DCS 627   D627
+DCS 631   TONE=D631                                                        DCS 631   D631
+DCS 632   TONE=D632                                                        DCS 632   D632
+DCS 654   TONE=D654                                                        DCS 654   D654
+DCS 662   TONE=D662                                                        DCS 662   D662
+DCS 664   TONE=D664                                                        DCS 664   D664
+DCS 703   TONE=D703                                                        DCS 703   D703
+DCS 712   TONE=D712                                                        DCS 712   D712
+DCS 723   TONE=D723                                                        DCS 723   D723
+DCS 731   TONE=D731                                                        DCS 731   D731
+DCS 732   TONE=D732                                                        DCS 732   D732
+DCS 734   TONE=D734                                                        DCS 734   D734
+DCS 743   TONE=D743                                                        DCS 743   D743
+DCS 754   TONE=D754                                                        DCS 754   D754
+AN or Area code.
+Text/Back Color                 Huge area option                          Large area option                         Small area option                Icon area option
+
+color name             File     Item                     File             Item                     File             Item                File         Item       File
+Aliceblue              eff7ff   (Empty)                  Empty            (Empty)                  Empty            (Empty)             Empty        (Empty) Empty
+Antiquewhite           f7ebd6   CTCSS/DCS/NAC            CTCSS/DCS        Battery Voltage          BattVoltage      Attenuator          ATT          Broadcast SCR
+Aqua                   00fbf7   Favorites List Name      FL_Name          CTCSS/DCS/NAC            CTCSS/DCS        Broadcast Screen    SCR          Close Call CC
+Aquamarine             7bffce   Frequency                Frequency        Digital Error Count      D_ErrorCount     Close Call          CC           GPS        GPS
+Azure                  efffff   Number Tag               NumberTag        Favorites List Name      FL_Name          Date                Day          IF ExchangIFX
+Beige                  eff3d6   RF Sub System(RFSS) ID   SysSubID         Frequency                Frequency        Digital Status      P25Status    ModulationModulation
+Bisque                 ffe3bd   Service Type             ServiceType      Latitude                 latitude         GPS                 GPS          P-channel P_Ch
+Black                  000000   Site ID                  SiteId           LCN                      Lcn              IF Exchange         IFX          Priority ScPRI
+Blanchedalmond         ffebc6   Site Name                SiteName         Longitude                longitude        Modulation          Modulation   REC        REC
+Blue                   0000ff   System Type              SystemType       Noise                    Noise            P-Channel           P_Ch         Repeater FREP
+Blueviolet             8429de   System/Network ID        SystemId         Number Tag               NumberTag        Priority Scan       PRI          Volume OfLVL
+Brass                  b5a542   TGID                     TGID             RF Sub System(RFSS) ID   SysSubID         REC                 REC          WX PriorityWxPRI
+Brown                  a52929   Unit ID                  UnitId           RSSI                     Rssi             Repeater Find       REP
+Burlywood              d6b584   Unit ID Name             UnitIdName       RSSI Graph               Rssi Bar         Squelch             Squelch
+Cadetblue              5a9c9c   Volume & Squelch         Volume&Squelch   Service Type             ServiceType      TDMA Slot           TdmaSlot
+Chartreuse             7bff00   WACN                     WACN             Site ID                  SiteId           Time                Time
+Chocolate              ce6718                                             Site Name                SiteName         Volume              Volume
+Coolcopper             d68418                                             System Type              SystemType       Volume Offset       LVL
+Copper                 bd00de                                             System/Network ID        SystemId         WX Priority         WxPRI
+Coral                  ff7f4a                                             TDMA Slot                TdmaSlot
+Cornflower             bdefde                                             TGID                     TGID
+Cornflowerblue         6390e7                                             Unit ID                  UnitId
+Cornsilk               fff7d6                                             Unit ID Name             UnitIdName
+Crimson                d61039                                             USB1 Vbus Voltage        USB1_vbus
+Cyan                   00ffff                                             USB2 Vbus Voltage        USB2_vbus
+Darkblue               000084                                             Volume & Squelch         Volume&Squelch
+Darkbrown              d60800                                             WACN                     WACN
+Darkcyan               008884
+Darkgoldenrod          b58408
+Darkgray               a5a5a5
+Darkgreen              006300
+Darkkhaki              b5b56b
+Darkmagenta            840084
+Darkolivegreen         526b29
+Darkorange             ff8800
+Darkorchid             9431c6
+Darkred                840000
+Darksalmon             e79473
+Darkseagreen           8cb98c
+Darkslateblue          423d84
+Darkslategray          294e4a
+Darkturquoise          00cace
+Darkviolet             8c00ce
+Deeppink               ff108c
+Deepskyblue            00bdff
+Dimgray                636763
+Dodgerblue             188cff
+Feldspar               f7cede
+Firebrick              ad2121
+Floralwhite            fff7ef
+Forestgreen            218821
+Fuchsia                f700f7
+Gainsboro              d6dad6
+Ghostwhite             f7f7ff
+Gold                   ffd600
+Goldenrod              d6a118
+Gray                   7b7f7b
+Green                  007f00
+Greenyellow            adff29
+Honeydew               efffef
+Hotpink                ff67ad
+Indianred              c65a5a
+Indigo                 4a007b
+Ivory                  ffffef
+Khaki                  efe38c
+Lavender               dee3f7
+Lavenderblush          ffefef
+Lawngreen              7bfb00
+Lemonchiffon           fff7c6
+Lightblue              add6de
+Lightcoral             ef7f7b
+Lightcyan              deffff
+Lightgoldenrodyellow   f7f7ce
+Lightgreen             8ceb8c
+Lightgray              ced2ce
+Lightpink              ffb1bd
+Lightsalmon            ff9c73
+Lightseagreen          18ada5
+Lightskyblue           84caf7
+Lightslategray         738494
+Lightsteelblue         adc2d6
+Lightyellow            ffffde
+Lime                   00ff00
+Limegreen              31ca31
+Linen                  f7efde
+Magenta                ff00ff
+Maroon                 7b0000
+Mediumaquamarine       63caa5
+Mediumblue             0000c6
+Mediumorchid           b556ce
+Mediumpurple           8c6fd6
+Mediumseagreen         39b16b
+Mediumslateblue        7367e7
+Mediumspringgreen      00f794
+Mediumturquoise        42cec6
+Mediumvioletred        c61484
+Midnightblue           18186b
+Mintcream              effff7
+Mistyrose              ffe3de
+Moccasin               ffe3b5
+Navajowhite            ffdaad
+Navy            00007b
+Oldlace         f7f3de
+Olive           7b7f00
+Olivered        6b8c21
+Orange          ffa100
+Orangered       ff4600
+Orchid          d66fd6
+Palegoldenrod   e7e7a5
+Palegreen       94fb94
+Paleturquoise   adebe7
+Palevioletred   d66f8c
+Papayawhip      ffefce
+Peachpuff       ffd6b5
+Peru            c68039
+Pink            ffbdc6
+Plum            d69cd6
+Powderblue      addede
+Purple          7b007b
+Red             ff0000
+Richblue        08adde
+Rosybrown       b58c8c
+Royalblue       3967de
+Saddlebrown     844610
+Salmon          f77f6b
+Sandybrown      efa15a
+Seagreen        298852
+Seashell        fff3e7
+Sienna          9c5229
+Silver          bdbdbd
+Skyblue         84cae7
+Slateblue       635ac6
+Slategray       6b7f8c
+Snow            fff7f7
+Springgreen     00ff7b
+Steelblue       4280ad
+Tan             ceb18c
+Teal            007f7b
+Thistle         d6bdd6
+Tomato          ff6342
+Turquoise       39dece
+Violet          e780e7
+Wheat           efdaad
+White           ffffff
+Whitesmoke      eff3ef
+Yellow          ffff00
+Yellowgreen     94ca31
+n
+

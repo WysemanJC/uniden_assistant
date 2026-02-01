@@ -4,13 +4,25 @@ from .models import (
 )
 
 
+class ObjectIdField(serializers.Field):
+    """Custom field to handle MongoDB ObjectId"""
+    def to_representation(self, value):
+        return str(value)
+    
+    def to_internal_value(self, data):
+        return data
+
+
 class CountrySerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+    
     class Meta:
         model = Country
         fields = ['id', 'country_id', 'name', 'code']
 
 
 class StateSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     country_name = serializers.CharField(source='country.name', read_only=True)
     
     class Meta:
@@ -19,6 +31,7 @@ class StateSerializer(serializers.ModelSerializer):
 
 
 class CountySerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     state_name = serializers.CharField(source='state.name', read_only=True)
     state_code = serializers.CharField(source='state.code', read_only=True)
     
@@ -28,12 +41,15 @@ class CountySerializer(serializers.ModelSerializer):
 
 
 class HPDBFrequencySerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+    
     class Meta:
         model = HPDBFrequency
-        fields = ['id', 'cfreq_id', 'name', 'enabled', 'frequency', 'modulation', 'tone', 'delay']
+        fields = ['id', 'cfreq_id', 'name', 'description', 'enabled', 'frequency', 'modulation', 'tone', 'delay']
 
 
 class HPDBChannelGroupSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     frequencies = HPDBFrequencySerializer(many=True, read_only=True)
     frequency_count = serializers.IntegerField(source='frequencies.count', read_only=True)
     
@@ -43,6 +59,7 @@ class HPDBChannelGroupSerializer(serializers.ModelSerializer):
 
 
 class HPDBAgencySerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     states = StateSerializer(many=True, read_only=True)
     counties = CountySerializer(many=True, read_only=True)
     channel_groups = HPDBChannelGroupSerializer(many=True, read_only=True)
@@ -55,7 +72,7 @@ class HPDBAgencySerializer(serializers.ModelSerializer):
 
 class HPDBTreeSerializer(serializers.Serializer):
     """Serializer for hierarchical tree view of HPDB data"""
-    id = serializers.IntegerField()
+    id = serializers.CharField()  # Changed from IntegerField to CharField for ObjectId compatibility
     type = serializers.CharField()
     name = serializers.CharField()
     code = serializers.CharField(required=False)

@@ -1,8 +1,9 @@
 """
 Parser for Uniden scanner configuration files
 """
+import os
 import re
-from .models import Frequency, ChannelGroup, Agency
+from .models import Frequency, ChannelGroup, Agency, ScannerFileRecord
 
 
 class UnidenFileParser:
@@ -10,8 +11,13 @@ class UnidenFileParser:
 
     def parse(self, file, profile):
         """Parse a Uniden file and populate the profile"""
-        content = file.read().decode('utf-8')
+        content = file.read().decode('utf-8', errors='ignore')
         lines = content.split('\n')
+
+        file_name = os.path.basename(getattr(file, 'name', '') or 'unknown')
+        file_path = getattr(file, 'name', '') or ''
+
+        self._store_records(lines, file_name, file_path)
 
         current_group = None
 
@@ -34,6 +40,62 @@ class UnidenFileParser:
                 self._parse_agency(parts)
 
         profile.save()
+
+    def _infer_file_path(self, file_path: str, file_name: str) -> str:
+        """Infer relative file path for reconstruction."""
+        if not file_path:
+            return file_name
+
+        normalized = file_path.replace('\\', '/')
+        if '/favorites_lists/' in normalized:
+            return 'favorites_lists/' + file_name
+        if '/HPDB/' in normalized:
+            return 'HPDB/' + file_name
+        if normalized.endswith('/scanner.inf') or normalized.endswith('scanner.inf'):
+            return 'scanner.inf'
+        if normalized.endswith('/profile.cfg') or normalized.endswith('profile.cfg'):
+            return 'profile.cfg'
+        if normalized.endswith('/app_data.cfg') or normalized.endswith('app_data.cfg'):
+            return 'app_data.cfg'
+        if normalized.endswith('/discvery.cfg') or normalized.endswith('discvery.cfg'):
+            return 'discvery.cfg'
+        return file_name
+
+    def _store_records(self, lines, file_name: str, file_path: str) -> None:
+        records_buffer = []
+        for idx, raw_line in enumerate(lines, start=1):
+            raw_line = raw_line.rstrip('\r')
+            if not raw_line:
+                continue
+
+            trailing_empty = len(raw_line) - len(raw_line.rstrip('\t'))
+            parts = raw_line.split('\t')
+            record_type = parts[0] if parts else ''
+            fields = parts[1:] if len(parts) > 1 else []
+
+            records_buffer.append(ScannerFileRecord(
+                file_name=file_name,
+                file_path=self._infer_file_path(file_path, file_name),
+                record_type=record_type,
+                fields=fields,
+                trailing_empty_fields=trailing_empty,
+                line_number=idx,
+            ))
+
+            if len(records_buffer) >= 2000:
+                ScannerFileRecord.objects.bulk_create(records_buffer)
+                records_buffer.clear()
+
+        if records_buffer:
+            ScannerFileRecord.objects.bulk_create(records_buffer)
+
+    def store_records_only(self, file):
+        """Store structured records for a file without parsing into models."""
+        content = file.read().decode('utf-8', errors='ignore')
+        lines = content.split('\n')
+        file_name = os.path.basename(getattr(file, 'name', '') or 'unknown')
+        file_path = getattr(file, 'name', '') or ''
+        self._store_records(lines, file_name, file_path)
 
     def _parse_frequency(self, parts, profile, group=None):
         """Parse a frequency line (C-Freq)"""

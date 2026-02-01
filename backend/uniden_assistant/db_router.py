@@ -7,6 +7,10 @@ HPDB_MODELS = {
     'hpdbagency',
     'hpdbchannelgroup',
     'hpdbfrequency',
+    'hpdbfilerecord',
+    'hpdbrawfile',
+    'hpdbrawline',
+    'hpdbimportjob',
 }
 
 FAVORITES_MODELS = {
@@ -15,6 +19,7 @@ FAVORITES_MODELS = {
     'channelgroup',
     'agency',
     'favoriteslist',
+    'scannerfilerecord',
 }
 
 APPCONFIG_MODELS = {

@@ -2,7 +2,7 @@
 import os
 import logging
 from typing import Dict, List, Optional
-from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency
+from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, ScannerFileRecord
 
 logger = logging.getLogger(__name__)
 
@@ -374,11 +374,32 @@ class FavoritesListParser:
         logger.info(f"Parsing favorites list: {file_path}")
         
         FavoritesList.objects.all().delete()  # Clear existing
-        
+
+        records_buffer = []
         order = 0
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                line = line.strip()
+            for line_number, raw_line in enumerate(f, start=1):
+                raw_line = raw_line.rstrip('\n').rstrip('\r')
+                if raw_line:
+                    trailing_empty = len(raw_line) - len(raw_line.rstrip('\t'))
+                    parts_all = raw_line.split('\t')
+                    record_type = parts_all[0] if parts_all else ''
+                    fields = parts_all[1:] if len(parts_all) > 1 else []
+
+                    records_buffer.append(ScannerFileRecord(
+                        file_name=os.path.basename(file_path),
+                        file_path='favorites_lists/f_list.cfg',
+                        record_type=record_type,
+                        fields=fields,
+                        trailing_empty_fields=trailing_empty,
+                        line_number=line_number,
+                    ))
+
+                    if len(records_buffer) >= 2000:
+                        ScannerFileRecord.objects.bulk_create(records_buffer)
+                        records_buffer.clear()
+
+                line = raw_line.strip()
                 if not line or line.startswith('TargetModel') or line.startswith('FormatVersion'):
                     continue
                 
@@ -420,4 +441,7 @@ class FavoritesListParser:
                 except (IndexError, ValueError) as e:
                     logger.warning(f"Error parsing favorites list: {parts} - {e}")
         
+        if records_buffer:
+            ScannerFileRecord.objects.bulk_create(records_buffer)
+
         logger.info(f"Parsed {order} favorites lists")

@@ -59,4 +59,20 @@ class Command(BaseCommand):
             except Exception as exc:
                 self.stderr.write(self.style.WARNING(f"Failed to import {hpd_file}: {exc}"))
 
+        if not options["favorites_only"]:
+            config_files = [
+                data_dir / "ubcdx36" / "profile.cfg",
+                data_dir / "ubcdx36" / "app_data.cfg",
+                data_dir / "ubcdx36" / "scanner.inf",
+                data_dir / "ubcdx36" / "discvery.cfg",
+            ]
+            for cfg_path in config_files:
+                if not cfg_path.exists():
+                    continue
+                try:
+                    with open(cfg_path, "rb") as f:
+                        parser.store_records_only(f)
+                except Exception as exc:
+                    self.stderr.write(self.style.WARNING(f"Failed to record {cfg_path}: {exc}"))
+
         self.stdout.write(self.style.SUCCESS(f"Imported {imported} profile(s)."))

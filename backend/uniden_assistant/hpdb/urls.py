@@ -3,7 +3,8 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CountryViewSet, StateViewSet, CountyViewSet,
     HPDBAgencyViewSet, HPDBChannelGroupViewSet, HPDBFrequencyViewSet,
-    HPDBTreeViewSet, HPDBImportViewSet, HPDBStatsView,
+    HPDBTreeViewSet, HPDBImportViewSet, HPDBStatsView, ClearHPDBDataView,
+    HPDBImportProgressView, HPDBReloadFromRawView,
 )
 
 router = DefaultRouter()
@@ -18,5 +19,8 @@ router.register(r'import-files', HPDBImportViewSet, basename='hpdb-import')
 
 urlpatterns = [
     path('stats/', HPDBStatsView.as_view()),
+    path('clear-data/', ClearHPDBDataView.as_view()),
+    path('reload-from-raw/', HPDBReloadFromRawView.as_view()),
+    path('import-progress/', HPDBImportProgressView.as_view()),
     path('', include(router.urls)),
 ]

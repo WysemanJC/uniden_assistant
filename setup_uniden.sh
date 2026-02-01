@@ -240,7 +240,7 @@ setup_env_frontend() {
     if [ ! -f "$SCRIPT_DIR/frontend/.env.local" ]; then
         print_status "Creating .env.local file..."
         cat > "$SCRIPT_DIR/frontend/.env.local" << EOF
-VITE_API_URL=http://localhost:8000/api
+VITE_API_URL=http://localhost:8001/api
 EOF
         print_success ".env.local file created"
     else
@@ -349,7 +349,7 @@ main() {
     echo -e "     ${BLUE}./uniden_assistant logs${NC}"
     echo ""
     echo "  4. Open in browser:"
-    echo -e "     ${BLUE}http://localhost:3000${NC}"
+    echo -e "     ${BLUE}http://localhost:9001${NC}"
     echo ""
     echo "For more commands, run: ${BLUE}./uniden_assistant help${NC}"
     echo ""

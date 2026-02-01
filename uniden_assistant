@@ -14,8 +14,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
+BACKEND_PORT=8001
+FRONTEND_PORT=9001
 PID_DIR="$SCRIPT_DIR/.pids"
 BACKEND_PID_FILE="$PID_DIR/backend.pid"
 FRONTEND_PID_FILE="$PID_DIR/frontend.pid"
@@ -52,6 +52,45 @@ load_env_file() {
         # shellcheck disable=SC1090
         . "$env_file"
         set +a
+    fi
+}
+
+# Function to determine FQDN and set backend URL
+set_backend_url() {
+    # Load config to get BACKEND_URL
+    load_env_file
+    
+    # Get FQDN for use in configuration
+    local fqdn=$(hostname -f 2>/dev/null || hostname)
+    export FQDN="$fqdn"
+    
+    # If BACKEND_URL is not set or empty, auto-detect
+    if [ -z "${BACKEND_URL:-}" ]; then
+        BACKEND_URL="http://${fqdn}:${BACKEND_PORT}"
+        print_info "Auto-detected backend URL: $BACKEND_URL"
+    else
+        print_info "Using configured backend URL: $BACKEND_URL"
+    fi
+    
+    # Export for use by backend and frontend
+    export BACKEND_URL
+    
+    # Set frontend URL for CORS
+    FRONTEND_URL="http://${fqdn}:${FRONTEND_PORT}"
+    export FRONTEND_URL
+    
+    # Update CORS_ALLOWED_ORIGINS to include detected URLs
+    if [ -n "${CORS_ALLOWED_ORIGINS:-}" ]; then
+        export CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS},${FRONTEND_URL}"
+    else
+        export CORS_ALLOWED_ORIGINS="http://localhost:9001,http://localhost:3000,http://localhost:8080,http://127.0.0.1:9001,http://127.0.0.1:3000,${FRONTEND_URL}"
+    fi
+    
+    # Update ALLOWED_HOSTS to include detected hostname
+    if [ -n "${ALLOWED_HOSTS:-}" ]; then
+        export ALLOWED_HOSTS="${ALLOWED_HOSTS},${fqdn}"
+    else
+        export ALLOWED_HOSTS="localhost,127.0.0.1,${fqdn}"
     fi
 }
 
@@ -188,6 +227,9 @@ prepare_databases() {
 start_backend() {
     print_status "Starting backend (Django)..."
     
+    # Set backend URL before starting
+    set_backend_url
+    
     # Check if port is in use by another process
     if is_port_in_use $BACKEND_PORT; then
         kill_port_process $BACKEND_PORT "backend"
@@ -281,6 +323,11 @@ start_backend() {
 start_frontend() {
     print_status "Starting frontend (Vue/Quasar)..."
     
+    # Ensure backend URL is set
+    if [ -z "${BACKEND_URL:-}" ]; then
+        set_backend_url
+    fi
+    
     # Check if port is in use by another process
     if is_port_in_use $FRONTEND_PORT; then
         kill_port_process $FRONTEND_PORT "frontend"
@@ -301,8 +348,17 @@ start_frontend() {
     # Start frontend
     cd "$SCRIPT_DIR/frontend"
     
+    # Create/update .env.local with backend URL
+    cat > .env.local <<EOF
+VITE_API_URL=${BACKEND_URL}/api
+EOF
+    
     # Clear old log
     > "$FRONTEND_LOG"
+    
+    # Export variables for vite.config.js
+    export BACKEND_URL
+    export FQDN
     
     nohup npm run dev >> "$FRONTEND_LOG" 2>&1 &
     local pid=$!

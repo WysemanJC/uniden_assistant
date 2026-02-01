@@ -239,7 +239,7 @@ REST_FRAMEWORK = {
 # CORS settings
 CORS_ALLOWED_ORIGINS = get_setting(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://localhost:8080,http://127.0.0.1:3000',
+    default='http://localhost:9001,http://localhost:8080,http://127.0.0.1:9001',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 

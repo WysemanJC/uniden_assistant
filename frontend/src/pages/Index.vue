@@ -10,7 +10,7 @@
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
-      :width="250"
+      :width="280"
       :breakpoint="500"
       bordered
     >
@@ -31,47 +31,265 @@
           </q-item-section>
         </q-item>
 
-        <q-item 
-          clickable 
-          :active="activeSection === 'database'" 
-          @click="activeSection = 'database'"
-          active-class="bg-primary text-white"
+        <q-expansion-item
+          icon="folder"
+          label="Data Management"
+          default-opened
         >
-          <q-item-section avatar>
-            <q-icon name="storage" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Database</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item 
+            clickable 
+            :active="activeSection === 'database'" 
+            @click="activeSection = 'database'"
+            active-class="bg-primary text-white"
+            class="q-pl-lg"
+          >
+            <q-item-section avatar>
+              <q-icon name="storage" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Database</q-item-label>
+            </q-item-section>
+          </q-item>
 
-        <q-item 
-          clickable 
-          :active="activeSection === 'favorites'" 
-          @click="activeSection = 'favorites'"
-          active-class="bg-primary text-white"
-        >
-          <q-item-section avatar>
-            <q-icon name="star" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Favourites</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item 
+            clickable 
+            :active="activeSection === 'favorites'" 
+            @click="activeSection = 'favorites'"
+            active-class="bg-primary text-white"
+            class="q-pl-lg"
+          >
+            <q-item-section avatar>
+              <q-icon name="star" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Favourites</q-item-label>
+            </q-item-section>
+          </q-item>
 
-        <q-item 
-          clickable 
-          :active="activeSection === 'load-data'" 
-          @click="activeSection = 'load-data'"
-          active-class="bg-primary text-white"
+          <q-item 
+            clickable 
+            :active="activeSection === 'load-data'" 
+            @click="activeSection = 'load-data'"
+            active-class="bg-primary text-white"
+            class="q-pl-lg"
+          >
+            <q-item-section avatar>
+              <q-icon name="cloud_upload" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Load Data</q-item-label>
+            </q-item-section>
+          </q-item>
+        </q-expansion-item>
+
+        <q-expansion-item
+          icon="description"
+          label="File Specifications"
         >
-          <q-item-section avatar>
-            <q-icon name="cloud_upload" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Load Data</q-item-label>
-          </q-item-section>
-        </q-item>
+          <q-item 
+            clickable 
+            :active="activeSection === 'spec-readme'"
+            @click="loadSpec('Input_File_Specification/README.md', 'spec-readme')"
+            active-class="bg-primary text-white"
+            class="q-pl-lg"
+          >
+            <q-item-section>
+              <q-item-label>Overview</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-item 
+            clickable 
+            :active="activeSection === 'global-rules'"
+            @click="loadSpec('Input_File_Specification/global_parsing_rules.md', 'global-rules')"
+            active-class="bg-primary text-white"
+            class="q-pl-lg"
+          >
+            <q-item-section>
+              <q-item-label>Global Parsing Rules</q-item-label>
+            </q-item-section>
+          </q-item>
+
+          <q-expansion-item
+            icon="article"
+            label="Record Types"
+            header-class="q-pl-lg"
+          >
+            <q-item 
+              clickable 
+              :active="activeSection === 'hpdb-records'"
+              @click="loadSpec('Input_File_Specification/record_types/hpdb_records.md', 'hpdb-records')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>HPDB Records</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'system-records'"
+              @click="loadSpec('Input_File_Specification/record_types/system_records.md', 'system-records')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>System Records</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'favorites-records'"
+              @click="loadSpec('Input_File_Specification/record_types/favorites_records.md', 'favorites-records')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Favorites Records</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'scan-records'"
+              @click="loadSpec('Input_File_Specification/record_types/scan_records.md', 'scan-records')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Scan Records</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'profile-records'"
+              @click="loadSpec('Input_File_Specification/record_types/scanner_profile_records.md', 'profile-records')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Scanner/Profile Records</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'discovery-records'"
+              @click="loadSpec('Input_File_Specification/record_types/discovery_records.md', 'discovery-records')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Discovery Records</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-expansion-item>
+
+          <q-expansion-item
+            icon="table_chart"
+            label="Reference Tables"
+            header-class="q-pl-lg"
+          >
+            <q-item 
+              clickable 
+              :active="activeSection === 'service-types'"
+              @click="loadSpec('Input_File_Specification/reference_tables/service_types.md', 'service-types')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Service Types</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'freq-ctcss-dcs'"
+              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_ctcss_dcs.md', 'freq-ctcss-dcs')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>CTCSS/DCS Options</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'freq-p25'"
+              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_p25.md', 'freq-p25')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>P25 NAC Options</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'freq-dmr'"
+              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_dmr.md', 'freq-dmr')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>DMR Color Code</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'freq-nxdn'"
+              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_nxdn.md', 'freq-nxdn')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>NXDN RAN/Area</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'display-opts'"
+              @click="loadSpec('Input_File_Specification/reference_tables/display_options.md', 'display-opts')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Display Options</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'display-colors'"
+              @click="loadSpec('Input_File_Specification/reference_tables/display_colors.md', 'display-colors')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Display Colors</q-item-label>
+              </q-item-section>
+            </q-item>
+
+            <q-item 
+              clickable 
+              :active="activeSection === 'display-layouts'"
+              @click="loadSpec('Input_File_Specification/reference_tables/display_layouts.md', 'display-layouts')"
+              active-class="bg-primary text-white"
+              class="q-pl-xl"
+            >
+              <q-item-section>
+                <q-item-label>Display Layouts</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-expansion-item>
+        </q-expansion-item>
       </q-list>
     </q-drawer>
 
@@ -192,78 +410,191 @@
 
         <!-- Database Editor Section -->
         <div v-if="activeSection === 'database'">
-          <div class="text-h5 q-mb-md">HPDB Database Editor</div>
+          <div class="text-h5 q-mb-md">HomePatrol Database (HPDB)</div>
           <div class="text-body2 text-grey-7 q-mb-lg">
             Browse and search the Uniden Homepatrol database organized by Country &gt; State &gt; County
           </div>
 
-          <q-input
-            v-model="searchQuery"
-            label="Search agencies..."
-            outlined
-            dense
-            class="q-mb-md"
-            style="max-width: 500px"
-          >
-            <template #prepend>
-              <q-icon name="search" />
-            </template>
-          </q-input>
+          <div class="row q-col-gutter-md" style="height: calc(100vh - 280px);">
+            <!-- Left Pane: Country/State/County Tree -->
+            <div class="col-12 col-md-3">
+              <q-card flat bordered style="height: 100%;">
+                <q-card-section class="q-pa-sm">
+                  <q-input
+                    v-model="searchQuery"
+                    label="Search..."
+                    outlined
+                    dense
+                    class="q-mb-sm"
+                  >
+                    <template #prepend>
+                      <q-icon name="search" />
+                    </template>
+                  </q-input>
 
-          <q-tree
-            :nodes="hpdbTree"
-            node-key="id"
-            label-key="name"
-            children-key="children"
-            v-model:expanded="expandedNodes"
-            @lazy-load="onLazyLoad"
-            :filter="searchQuery"
-            :filter-method="filterMethod"
-          >
-            <template #default-header="prop">
-              <div 
-                class="row items-center q-gutter-sm" 
-                style="flex: 1;"
-                :class="{ 'cursor-pointer': prop.node.type === 'agency' }"
-                @click="prop.node.type === 'agency' ? openAgencyDetail(prop.node) : null"
-              >
-                <q-icon 
-                  :name="getNodeIcon(prop.node)" 
-                  :color="getNodeColor(prop.node)" 
-                />
-                <span>{{ prop.node.name }}</span>
-                
-                <!-- County info -->
-                <span v-if="prop.node.type === 'county'" class="text-caption text-grey-7">
-                  (County)
-                </span>
-                
-                <!-- Agency info -->
-                <q-badge 
-                  v-if="prop.node.type === 'agency' && prop.node.group_count" 
-                  :label="prop.node.group_count + ' groups'" 
-                  color="blue" 
-                />
-                <q-chip 
-                  v-if="prop.node.type === 'agency'" 
-                  :label="prop.node.system_type" 
-                  size="sm" 
-                  dense 
-                />
-                <q-toggle
-                  v-if="prop.node.type === 'agency'"
-                  v-model="prop.node.enabled"
-                  dense
-                  @click.stop
-                />
-                
-                <!-- Channel Group info -->
-                <span v-if="prop.node.type === 'group'" class="text-caption text-grey-7">
-                  ({{ prop.node.location_type || 'Location' }})
-                </span>
-              </div>
-            </template>
-          </q-tree>
+                  <div class="text-caption text-weight-bold q-mb-sm">Hierarchy</div>
+                  <div style="height: calc(100vh - 400px); overflow-y: auto;">
+                    <q-tree
+                      :nodes="hpdbTree"
+                      node-key="id"
+                      label-key="name"
+                      children-key="children"
+                      v-model:expanded="expandedNodes"
+                      v-model:selected="selectedNode"
+                      @lazy-load="onLazyLoad"
+                      :filter="searchQuery"
+                      :filter-method="filterMethod"
+                      selected-color="primary"
+                    >
+                      <template #default-header="prop">
+                        <div 
+                          class="row items-center q-gutter-xs" 
+                          style="flex: 1;"
+                          :class="{ 'cursor-pointer': prop.node.type === 'county' }"
+                          @click="prop.node.type === 'county' ? selectCounty(prop.node) : null"
+                        >
+                          <q-icon 
+                            :name="getNodeIcon(prop.node)" 
+                            :color="getNodeColor(prop.node)" 
+                            size="sm"
+                          />
+                          <span class="text-body2">{{ prop.node.name }}</span>
+                        </div>
+                      </template>
+                    </q-tree>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <!-- Middle Pane: County Systems/Departments -->
+            <div class="col-12 col-md-3">
+              <q-card flat bordered style="height: 100%;">
+                <q-card-section class="q-pa-sm">
+                  <div v-if="selectedCounty">
+                    <div class="text-subtitle2 q-mb-sm">{{ selectedCounty.name }}</div>
+                    <div class="text-caption text-grey-7 q-mb-md">Systems & Departments</div>
+                  </div>
+                  <div v-else class="text-caption text-grey-7 q-mb-md">
+                    Select a county
+                  </div>
+
+                  <div style="height: calc(100vh - 400px); overflow-y: auto;">
+                    <div v-if="selectedCounty && countyAgencies.length > 0">
+                      <q-list bordered separator>
+                        <q-item
+                          v-for="agency in countyAgencies"
+                          :key="agency.id"
+                          clickable
+                          :active="selectedAgency && selectedAgency.id === agency.id"
+                          active-class="bg-blue-1"
+                          @click="selectAgency(agency)"
+                        >
+                          <q-item-section avatar>
+                            <q-icon name="radio" color="primary" />
+                          </q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{ agency.name }}</q-item-label>
+                            <q-item-label caption>
+                              {{ agency.system_type }}
+                            </q-item-label>
+                          </q-item-section>
+                          <q-item-section side>
+                            <q-badge 
+                              v-if="agency.group_count" 
+                              :label="agency.group_count" 
+                              color="blue" 
+                            />
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </div>
+                    <div v-else-if="selectedCounty && !loadingAgencies && countyAgencies.length === 0" class="text-center q-pa-lg text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No systems in this county</div>
+                    </div>
+                    <div v-else-if="loadingAgencies" class="text-center q-pa-lg">
+                      <q-spinner color="primary" size="2em" />
+                    </div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <!-- Right Pane: Frequency List -->
+            <div class="col-12 col-md-6">
+              <q-card flat bordered style="height: 100%;">
+                <q-card-section class="q-pa-sm">
+                  <div v-if="selectedAgency">
+                    <div class="row items-center q-mb-md">
+                      <div class="col">
+                        <div class="text-h6">{{ selectedAgency.name }}</div>
+                        <div class="text-caption text-grey-7">
+                          {{ selectedAgency.system_type }} System
+                        </div>
+                      </div>
+                      <div class="col-auto">
+                        <q-btn 
+                          flat 
+                          color="primary" 
+                          icon="open_in_new" 
+                          size="sm"
+                          label="Details"
+                          @click="openAgencyDetail(selectedAgency)"
+                        />
+                      </div>
+                    </div>
+
+                    <q-separator class="q-mb-md" />
+
+                    <div v-if="loadingFrequencies" class="text-center q-pa-xl">
+                      <q-spinner color="primary" size="2em" />
+                      <div class="q-mt-md text-grey-7 text-caption">Loading frequencies...</div>
+                    </div>
+
+                    <div v-else-if="agencyFrequencies.length > 0">
+                      <div class="text-caption text-weight-bold q-mb-sm">Frequencies ({{ agencyFrequencies.length }})</div>
+                      <q-table
+                        :rows="agencyFrequencies"
+                        :columns="frequencyColumns"
+                        row-key="id"
+                        flat
+                        dense
+                        :rows-per-page-options="[0]"
+                        virtual-scroll
+                        style="max-height: calc(100vh - 480px);"
+                      >
+                        <template #body-cell-enabled="props">
+                          <q-td :props="props">
+                            <q-icon 
+                              :name="props.value ? 'check_circle' : 'cancel'" 
+                              :color="props.value ? 'positive' : 'grey'"
+                              size="xs"
+                            />
+                          </q-td>
+                        </template>
+                        <template #body-cell-frequency="props">
+                          <q-td :props="props">
+                            {{ (props.value / 1000000).toFixed(4) }} MHz
+                          </q-td>
+                        </template>
+                      </q-table>
+                    </div>
+
+                    <div v-else class="text-center q-pa-xl text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No frequencies found</div>
+                    </div>
+                  </div>
+
+                  <div v-else class="text-center q-pa-xl text-grey-7">
+                    <q-icon name="radio" size="3em" />
+                    <div class="q-mt-md">Select a system/department from the middle pane</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
         </div>
 
         <!-- Favourites Editor Section -->
@@ -305,12 +636,31 @@
             <div class="col-12 col-md-6">
               <q-card flat bordered>
                 <q-card-section>
-                  <div class="text-h6 q-mb-sm">
-                    <q-icon name="storage" color="primary" size="sm" class="q-mr-sm" />
-                    Load HPDB Database
-                  </div>
-                  <div class="text-body2">
-                    Select a directory containing hpdb.cfg and s_*.hpd files.
+                  <div class="row items-center">
+                    <div class="col">
+                      <div class="text-h6 q-mb-sm">
+                        <q-icon name="storage" color="primary" size="sm" class="q-mr-sm" />
+                        Load HPDB Database
+                      </div>
+                      <div class="text-body2">
+                        Select a directory containing hpdb.cfg and s_*.hpd files.
+                      </div>
+                    </div>
+                    <div class="col-auto q-gutter-sm">
+                      <q-btn
+                        outline
+                        color="primary"
+                        label="Re-parse From Last Loaded Data"
+                        :loading="hpdbImportLoading"
+                        @click="reloadHpdbFromRaw"
+                      />
+                      <q-btn
+                        outline
+                        color="negative"
+                        label="Clear Existing Data"
+                        @click="clearHpdbDataConfirm"
+                      />
+                    </div>
                   </div>
                   <q-file
                     ref="hpdbFilePicker"
@@ -324,19 +674,42 @@
                     :directory="true"
                     :webkitdirectory="true"
                   />
+                  <div v-if="hpdbImportProgress.status !== 'idle'" class="q-mt-md">
+                    <div class="text-caption text-grey-7">
+                      <span v-if="hpdbImportProgress.currentFile">
+                        Processing: {{ hpdbImportProgress.currentFile }}
+                      </span>
+                      <span v-else>
+                        Preparing HPDB import...
+                      </span>
+                    </div>
+                    <q-linear-progress
+                      :value="hpdbImportProgressPercent"
+                      color="primary"
+                      class="q-mt-xs"
+                    />
+                    <div class="text-caption text-grey-7 q-mt-xs">
+                      {{ hpdbImportProgress.processedFiles }} / {{ hpdbImportProgress.totalFiles }} files
+                    </div>
+                    <div v-if="hpdbImportProgress.status === 'processing'" class="text-caption text-primary q-mt-md">
+                      <q-icon name="info" size="xs" />
+                      Safe to navigate away - processing continues in background
+                    </div>
+                  </div>
                 </q-card-section>
                 <q-card-actions>
                   <q-btn
-                    flat
+                    outline
                     color="primary"
                     label="Choose Directory"
                     @click="openHpdbPicker"
                   />
                   <q-btn
-                    flat
+                    outline
                     color="primary"
                     label="Load HPDB"
                     :loading="hpdbImportLoading"
+                    :disable="!hasHpdbFiles"
                     @click="importHpdb"
                   />
                 </q-card-actions>
@@ -368,21 +741,41 @@
                 </q-card-section>
                 <q-card-actions>
                   <q-btn
-                    flat
+                    outline
                     color="primary"
                     label="Choose Directory"
                     @click="openFavoritesPicker"
                   />
                   <q-btn
-                    flat
+                    outline
                     color="primary"
                     label="Load Favourites"
                     :loading="favoritesImportLoading"
+                    :disable="!hasFavoritesFiles"
                     @click="importFavorites"
                   />
                 </q-card-actions>
               </q-card>
             </div>
+          </div>
+        </div>
+
+        <!-- Specifications Section -->
+        <div v-if="activeSection.startsWith('spec-') || activeSection.startsWith('global-') || 
+                   activeSection.endsWith('-records') || activeSection.startsWith('service-') || 
+                   activeSection.startsWith('freq-') || activeSection.startsWith('display-')">
+          <div v-if="specLoading" class="flex flex-center q-pa-xl">
+            <q-spinner color="primary" size="48px" />
+          </div>
+
+          <div v-else-if="specError" class="text-center q-pa-xl">
+            <q-icon name="error" size="48px" color="negative" />
+            <div class="text-h6 q-mt-md">{{ specError }}</div>
+          </div>
+
+          <div v-else-if="specContent" 
+               class="markdown-content"
+               v-html="specContent">
           </div>
         </div>
 
@@ -432,30 +825,77 @@
   </q-layout>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useScannerStore } from '../stores/scanner'
 import api, { sdAPI } from '../api'
-import { useQuasar } from 'quasar'
+import { useQuasar, QSeparator } from 'quasar'
+import { marked } from 'marked'
+import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
 const scanner = useScannerStore()
 const $q = useQuasar()
 
+// Configure marked for better rendering
+marked.setOptions({
+  gfm: true,
+  breaks: false,
+  headerIds: true,
+  mangle: false
+})
+
 // Navigation
 const leftDrawerOpen = ref(true)
 const activeSection = ref('home')
 
+// Specifications
+const specContent = ref('')
+const specLoading = ref(false)
+const specError = ref(null)
+
 // HPDB Tree
 const hpdbTree = ref([])
 const expandedNodes = ref([])
+const selectedNode = ref(null)
 const searchQuery = ref('')
 const hpdbImportLoading = ref(false)
 const favoritesImportLoading = ref(false)
 const statsLoading = ref(false)
 const hpdbStats = ref(null)
 const favoritesStats = ref(null)
+const hpdbImportProgress = ref({
+  status: 'idle',
+  stage: '',
+  currentFile: '',
+  processedFiles: 0,
+  totalFiles: 0
+})
+const hpdbImportProgressPercent = computed(() => {
+  const total = hpdbImportProgress.value.totalFiles || 0
+  if (!total) {
+    return 0
+  }
+  return Math.min(1, hpdbImportProgress.value.processedFiles / total)
+})
+
+// Agency Details and Frequencies
+const selectedCounty = ref(null)
+const selectedAgency = ref(null)
+const countyAgencies = ref([])
+const agencyFrequencies = ref([])
+const loadingAgencies = ref(false)
+const loadingFrequencies = ref(false)
+
+const frequencyColumns = [
+  { name: 'group_name', label: 'Channel Group', field: 'group_name', align: 'left', sortable: true },
+  { name: 'name', label: 'Name', field: 'name', align: 'left', sortable: true },
+  { name: 'frequency', label: 'Frequency', field: 'frequency', align: 'left', sortable: true },
+  { name: 'modulation', label: 'Modulation', field: 'modulation', align: 'left', sortable: true },
+  { name: 'tone', label: 'Tone/NAC', field: 'tone', align: 'left', sortable: true },
+  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center' }
+]
 
 // Favourites
 const favorites = ref([])
@@ -474,6 +914,18 @@ const hpdbFiles = ref([])
 const favoritesFiles = ref([])
 const hpdbFilePicker = ref(null)
 const favoritesFilePicker = ref(null)
+const hasHpdbFiles = computed(() => {
+  const files = Array.isArray(hpdbFiles.value)
+    ? hpdbFiles.value
+    : Array.from(hpdbFiles.value || [])
+  return files.length > 0
+})
+const hasFavoritesFiles = computed(() => {
+  const files = Array.isArray(favoritesFiles.value)
+    ? favoritesFiles.value
+    : Array.from(favoritesFiles.value || [])
+  return files.length > 0
+})
 const newProfile = ref({
   name: '',
   model: '',
@@ -493,12 +945,16 @@ onMounted(() => {
   loadStats()
 })
 
+onBeforeUnmount(() => {
+  stopHpdbImportPolling()
+})
+
 const loadStats = async () => {
   statsLoading.value = true
   try {
     const [hpdbResp, favResp] = await Promise.all([
-      api.get('/hpdb/stats/'),
-      api.get('/usersettings/stats/')
+      api.get('/uniden_manager/hpdb/stats/'),
+      api.get('/uniden_manager/usersettings/stats/')
     ])
     hpdbStats.value = hpdbResp.data
     favoritesStats.value = favResp.data
@@ -512,19 +968,7 @@ const loadStats = async () => {
 // HPDB Tree Methods
 const loadHPDBTree = async () => {
   try {
-    const { data } = await api.get('/hpdb/tree/tree/')
-    // Mark agencies as lazy-loadable for channel groups
-    const markLazy = (nodes) => {
-      nodes.forEach(node => {
-        if (node.type === 'agency' && node.group_count > 0) {
-          node.lazy = true
-        }
-        if (node.children) {
-          markLazy(node.children)
-        }
-      })
-    }
-    markLazy(data)
+    const { data } = await api.get('/uniden_manager/hpdb/tree/tree/')
     hpdbTree.value = data
   } catch (error) {
     console.error('Error loading HPDB tree:', error)
@@ -536,7 +980,7 @@ const expandAgencyGroups = async (agencyId) => {
   try {
     // Extract numeric ID from node ID (e.g., "agency-268" -> "268")
     const numericId = agencyId.toString().replace('agency-', '')
-    const { data } = await api.get(`/hpdb/channel-groups/?agency=${numericId}`)
+    const { data } = await api.get(`/uniden_manager/hpdb/channel-groups/?agency=${numericId}`)
     // Handle paginated response
     const groups = data.results || []
     return groups.map(group => ({
@@ -573,6 +1017,68 @@ const openFavoriteDetail = (evt, row) => {
   router.push(`/favorite/${row.id}`)
 }
 
+const selectCounty = async (node) => {
+  selectedCounty.value = node
+  selectedAgency.value = null
+  agencyFrequencies.value = []
+  loadingAgencies.value = true
+  countyAgencies.value = []
+  
+  try {
+    // Extract numeric ID from node ID (e.g., "county-268" -> "268")
+    const numericId = node.id.toString().replace('county-', '')
+    
+    // Load agencies for this county
+    const { data: agenciesResponse } = await api.get(`/uniden_manager/hpdb/tree/agencies/?county=county-${numericId}`)
+    countyAgencies.value = agenciesResponse
+  } catch (error) {
+    console.error('Error loading county agencies:', error)
+    $q.notify({ type: 'negative', message: 'Failed to load systems' })
+  } finally {
+    loadingAgencies.value = false
+  }
+}
+
+const selectAgency = async (node) => {
+  selectedAgency.value = node
+  loadingFrequencies.value = true
+  agencyFrequencies.value = []
+  
+  try {
+    // Extract numeric ID from node ID (e.g., "agency-268" -> "268")
+    const numericId = node.id.toString().replace('agency-', '')
+    
+    // Load channel groups for this agency
+    const { data: groupsResponse } = await api.get(`/uniden_manager/hpdb/channel-groups/?agency=${numericId}`)
+    const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
+    
+    // Load frequencies for each group
+    const allFrequencies = []
+    for (const group of groups) {
+      try {
+        const { data: freqData } = await api.get(`/uniden_manager/hpdb/frequencies/?channel_group=${group.id}`)
+        const frequencies = Array.isArray(freqData) ? freqData : (freqData.results || [])
+        // Add group name to each frequency for context
+        frequencies.forEach(freq => {
+          allFrequencies.push({
+            ...freq,
+            group_name: group.name
+          })
+        })
+      } catch (error) {
+        console.error(`Error loading frequencies for group ${group.id}:`, error)
+      }
+    }
+    
+    agencyFrequencies.value = allFrequencies
+  } catch (error) {
+    console.error('Error loading agency frequencies:', error)
+    $q.notify({ type: 'negative', message: 'Failed to load frequencies' })
+  } finally {
+    loadingFrequencies.value = false
+  }
+}
+
 const getNodeIcon = (node) => {
   switch (node.type) {
     case 'country': return 'public'
@@ -595,17 +1101,23 @@ const getNodeColor = (node) => {
   }
 }
 
-const onLazyLoad = (node) => {
-  // Lazy load channel groups when agency node is expanded
-  if (node.node.type === 'agency') {
-    return new Promise((resolve, reject) => {
-      expandAgencyGroups(node.node.id).then(children => {
-        node.done(children)
-      }).catch(error => {
-        node.fail()
-        $q.notify({ type: 'negative', message: 'Failed to load channel groups' })
+const onLazyLoad = ({ node, key, done, fail }) => {
+  // Only lazy load counties for states; counties are leaf nodes
+  if (node.type === 'state') {
+    // Load counties for the state
+    const stateId = node.id
+    api.get(`/uniden_manager/hpdb/tree/counties/?state=${stateId}`)
+      .then(({ data }) => {
+        done(data)
       })
-    })
+      .catch(error => {
+        console.error('Error loading counties:', error)
+        fail()
+        $q.notify({ type: 'negative', message: 'Failed to load counties' })
+      })
+  } else {
+    // No lazy loading for other node types in the tree
+    done([])
   }
 }
 
@@ -650,6 +1162,68 @@ const openFavoritesPicker = () => {
   triggerFilePicker(favoritesFilePicker)
 }
 
+let hpdbImportTimer = null
+
+const resetHpdbImportProgress = () => {
+  hpdbImportProgress.value = {
+    status: 'idle',
+    stage: '',
+    currentFile: '',
+    processedFiles: 0,
+    totalFiles: 0
+  }
+}
+
+const stopHpdbImportPolling = () => {
+  if (hpdbImportTimer) {
+    clearInterval(hpdbImportTimer)
+    hpdbImportTimer = null
+  }
+}
+
+const startHpdbImportPolling = (jobId) => {
+  stopHpdbImportPolling()
+
+  const poll = async () => {
+    try {
+      const { data } = await api.get('/hpdb/import-progress/', {
+        params: { job_id: jobId }
+      })
+
+      hpdbImportProgress.value = {
+        status: data.status || 'processing',
+        stage: data.stage || '',
+        currentFile: data.current_file || '',
+        processedFiles: data.processed_files || 0,
+        totalFiles: data.total_files || 0
+      }
+
+      if (data.status === 'completed') {
+        stopHpdbImportPolling()
+        hpdbImportLoading.value = false
+        if (data.result?.systems !== undefined) {
+          $q.notify({ type: 'positive', message: `HPDB import completed (${data.result.systems} files)` })
+        } else {
+          $q.notify({ type: 'positive', message: 'HPDB import completed' })
+        }
+        await loadHPDBTree()
+        setTimeout(resetHpdbImportProgress, 2000)
+      } else if (data.status === 'failed') {
+        stopHpdbImportPolling()
+        hpdbImportLoading.value = false
+        $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (data.error_message || 'Unknown error') })
+      }
+    } catch (error) {
+      stopHpdbImportPolling()
+      hpdbImportLoading.value = false
+      $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (error.response?.data?.error || error.message) })
+    }
+  }
+
+  poll()
+  hpdbImportTimer = setInterval(poll, 1000)
+}
+
 const importHpdb = async () => {
   const files = Array.isArray(hpdbFiles.value)
     ? hpdbFiles.value
@@ -665,22 +1239,89 @@ const importHpdb = async () => {
   }
 
   hpdbImportLoading.value = true
+  hpdbImportProgress.value = {
+    status: 'uploading',
+    stage: 'upload',
+    currentFile: '',
+    processedFiles: 0,
+    totalFiles: files.filter(file => file.name.toLowerCase().startsWith('s_') && file.name.toLowerCase().endsWith('.hpd')).length
+  }
   try {
     const formData = new FormData()
     files.forEach(file => formData.append('files', file))
     const { data } = await api.post('/hpdb/import-files/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    if (data.errors?.length) {
-      $q.notify({ type: 'warning', message: `HPDB import completed with ${data.errors.length} error(s)` })
-    } else {
-      $q.notify({ type: 'positive', message: `HPDB import completed (${data.imported} files)` })
+    if (!data.job_id) {
+      throw new Error('Missing job id from import response')
     }
+    startHpdbImportPolling(data.job_id)
+  } catch (error) {
+    stopHpdbImportPolling()
+    $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (error.response?.data?.error || error.message) })
+    hpdbImportLoading.value = false
+    resetHpdbImportProgress()
+  } finally {
+    // Loading state handled by progress polling
+  }
+}
+
+const reloadHpdbFromRaw = () => {
+  $q.dialog({
+    title: 'Re-parse HPDB From Last Loaded Data',
+    message: 'This will rebuild all HPDB data (countries, states, counties, agencies, channel groups, frequencies) from the most recently loaded raw files. The raw data itself will not be deleted. Continue?',
+    ok: {
+      label: 'Re-parse',
+      color: 'primary'
+    },
+    cancel: true,
+    persistent: true
+  }).onOk(async () => {
+    hpdbImportLoading.value = true
+    hpdbImportProgress.value = {
+      status: 'processing',
+      stage: 'systems',
+      currentFile: '',
+      processedFiles: 0,
+      totalFiles: 0
+    }
+    try {
+      const { data } = await api.post('/hpdb/reload-from-raw/')
+      if (!data.job_id) {
+        throw new Error('Missing job id from reload response')
+      }
+      startHpdbImportPolling(data.job_id)
+    } catch (error) {
+      stopHpdbImportPolling()
+      $q.notify({ type: 'negative', message: 'HPDB re-parse failed: ' + (error.response?.data?.error || error.message) })
+      hpdbImportLoading.value = false
+      resetHpdbImportProgress()
+    }
+  })
+}
+
+const clearHpdbDataConfirm = () => {
+  $q.dialog({
+    title: 'Clear HPDB Data',
+    message: 'Delete all HPDB database records? This cannot be undone.',
+    ok: {
+      label: 'Delete',
+      color: 'negative'
+    },
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    clearHpdbData()
+  })
+}
+
+const clearHpdbData = async () => {
+  try {
+    await api.post('/hpdb/clear-data/')
+    $q.notify({ type: 'positive', message: 'HPDB data cleared successfully' })
     await loadHPDBTree()
   } catch (error) {
-    $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (error.response?.data?.error || error.message) })
-  } finally {
-    hpdbImportLoading.value = false
+    $q.notify({ type: 'negative', message: 'Failed to clear HPDB data: ' + (error.response?.data?.error || error.message) })
   }
 }
 
@@ -755,4 +1396,155 @@ const deleteProfile = async (id) => {
     }
   }
 }
+
+// Specifications Methods
+const loadSpec = async (path, sectionId) => {
+  activeSection.value = sectionId
+  specLoading.value = true
+  specError.value = null
+  specContent.value = ''
+
+  try {
+    // Fetch markdown file from docs directory
+    const response = await axios.get(`/docs/${path}`, {
+      headers: { 'Accept': 'text/plain, text/markdown' }
+    })
+    
+    // Convert markdown to HTML
+    specContent.value = marked.parse(response.data)
+  } catch (err) {
+    console.error('Error loading documentation:', err)
+    specError.value = `Failed to load documentation: ${err.message}`
+  } finally {
+    specLoading.value = false
+  }
+}
 </script>
+
+<style scoped>
+.markdown-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.markdown-content :deep(h1) {
+  font-size: 2em;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.markdown-content :deep(h2) {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.markdown-content :deep(h3) {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.markdown-content :deep(h4) {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.markdown-content :deep(p) {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-content :deep(code) {
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  padding: 0.2em 0.4em;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 85%;
+}
+
+.markdown-content :deep(pre) {
+  background-color: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  overflow: auto;
+  margin-bottom: 16px;
+}
+
+.markdown-content :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+  font-size: 100%;
+}
+
+.markdown-content :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.markdown-content :deep(table th),
+.markdown-content :deep(table td) {
+  border: 1px solid #dfe2e5;
+  padding: 8px 13px;
+}
+
+.markdown-content :deep(table th) {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+.markdown-content :deep(table tr:nth-child(2n)) {
+  background-color: #f6f8fa;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  padding-left: 2em;
+  margin-bottom: 16px;
+}
+
+.markdown-content :deep(li) {
+  margin-top: 0.25em;
+}
+
+.markdown-content :deep(blockquote) {
+  border-left: 4px solid #dfe2e5;
+  color: #6a737d;
+  padding: 0 1em;
+  margin-bottom: 16px;
+}
+
+.markdown-content :deep(hr) {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: #e1e4e8;
+  border: 0;
+}
+
+.markdown-content :deep(a) {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.markdown-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.markdown-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+}
+</style>

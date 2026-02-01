@@ -89,4 +89,5 @@ htmlcov/
 *.tmp
 tmp/
 temp/
+SAMPLE_DATA/
 

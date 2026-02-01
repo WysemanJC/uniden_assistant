@@ -4,13 +4,25 @@ from .models import (
 )
 
 
+class ObjectIdField(serializers.Field):
+    """Custom field to handle MongoDB ObjectId"""
+    def to_representation(self, value):
+        return str(value)
+    
+    def to_internal_value(self, data):
+        return data
+
+
 class FrequencySerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+    
     class Meta:
         model = Frequency
         fields = ['id', 'name', 'frequency', 'modulation', 'nac', 'enabled', 'priority', 'created_at', 'updated_at']
 
 
 class ChannelGroupSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     frequencies = FrequencySerializer(many=True, read_only=True)
     frequency_ids = serializers.PrimaryKeyRelatedField(
         queryset=Frequency.objects.all(),
@@ -25,12 +37,15 @@ class ChannelGroupSerializer(serializers.ModelSerializer):
 
 
 class AgencySerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+    
     class Meta:
         model = Agency
         fields = ['id', 'name', 'agency_id', 'description']
 
 
 class ScannerProfileSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     frequencies = FrequencySerializer(many=True, read_only=True)
     channel_groups = ChannelGroupSerializer(many=True, read_only=True)
 
@@ -41,6 +56,7 @@ class ScannerProfileSerializer(serializers.ModelSerializer):
 
 
 class FavoritesListSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
     flags = serializers.SerializerMethodField()
     
     def get_flags(self, obj):

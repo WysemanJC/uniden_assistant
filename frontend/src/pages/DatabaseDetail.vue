@@ -204,18 +204,18 @@ const loadAgencyDetail = async () => {
   loading.value = true
   try {
     // Load agency details
-    const { data: agency } = await api.get(`/hpdb/agencies/${route.params.id}/`)
+    const { data: agency } = await api.get(`/uniden_manager/hpdb/agencies/${route.params.id}/`)
     agencyDetail.value = agency
     
     // Load channel groups for this agency
-    const { data: groupsResponse } = await api.get(`/hpdb/channel-groups/?agency=${route.params.id}`)
+    const { data: groupsResponse } = await api.get(`/uniden_manager/hpdb/channel-groups/?agency=${route.params.id}`)
     const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
     
     // Load frequencies for each group
     const groupsWithFrequencies = await Promise.all(
       groups.map(async (group) => {
         try {
-          const { data: frequencies } = await api.get(`/hpdb/frequencies/?channel_group=${group.id}`)
+          const { data: frequencies } = await api.get(`/uniden_manager/hpdb/frequencies/?channel_group=${group.id}`)
           return {
             ...group,
             frequencies: Array.isArray(frequencies) ? frequencies : (frequencies.results || [])
