@@ -597,37 +597,72 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
         
         # Process conventional systems and their groups
         for conv_sys in favorite.conventional_systems.using('favorites').all().order_by('order'):
-            for cgroup in conv_sys.cgroups.using('favorites').all().order_by('order'):
-                # Count frequencies in this group
-                freq_count = cgroup.cfreqs.using('favorites').count()
+            # Add an entry for the system itself (even if no groups exist)
+            cgroups = conv_sys.cgroups.using('favorites').all().order_by('order')
+            if cgroups.count() == 0:
+                # System with no groups - add a placeholder
                 groups.append({
-                    'id': str(cgroup.id),
-                    'name_tag': cgroup.name_tag,
-                    'frequency_count': freq_count,
-                    'freq_count': freq_count,
+                    'id': f"sys_{conv_sys.id}",
+                    'name_tag': f"[{conv_sys.name_tag}]",  # Marker that this is a system, not a group
+                    'frequency_count': 0,
+                    'freq_count': 0,
                     'system_type': 'Conventional',
                     'system_name': conv_sys.name_tag,
-                    'avoid': cgroup.avoid,
-                    'location_type': cgroup.location_type,
-                    'quick_key': cgroup.quick_key
+                    'avoid': 'Off',
+                    'location_type': 'Circle',
+                    'quick_key': 'Off',
+                    'is_system_placeholder': True
                 })
+            else:
+                # System with groups - add its groups
+                for cgroup in cgroups:
+                    # Count frequencies in this group
+                    freq_count = cgroup.cfreqs.using('favorites').count()
+                    groups.append({
+                        'id': str(cgroup.id),
+                        'name_tag': cgroup.name_tag,
+                        'frequency_count': freq_count,
+                        'freq_count': freq_count,
+                        'system_type': 'Conventional',
+                        'system_name': conv_sys.name_tag,
+                        'avoid': cgroup.avoid,
+                        'location_type': cgroup.location_type,
+                        'quick_key': cgroup.quick_key
+                    })
         
         # Process trunk systems and their groups (tgroups)
         for trunk_sys in favorite.trunk_systems.using('favorites').all().order_by('order'):
-            for tgroup in trunk_sys.tgroups.using('favorites').all().order_by('order'):
-                # Count TGIDs in this group
-                tgid_count = tgroup.tgids.using('favorites').count()
+            tgroups = trunk_sys.tgroups.using('favorites').all().order_by('order')
+            if tgroups.count() == 0:
+                # System with no groups - add a placeholder
                 groups.append({
-                    'id': str(tgroup.id),
-                    'name_tag': tgroup.name_tag,
-                    'frequency_count': tgid_count,
-                    'freq_count': tgid_count,
+                    'id': f"sys_{trunk_sys.id}",
+                    'name_tag': f"[{trunk_sys.name_tag}]",  # Marker that this is a system, not a group
+                    'frequency_count': 0,
+                    'freq_count': 0,
                     'system_type': 'Trunked',
                     'system_name': trunk_sys.name_tag,
-                    'avoid': tgroup.avoid,
-                    'location_type': tgroup.location_type,
-                    'quick_key': tgroup.quick_key
+                    'avoid': 'Off',
+                    'location_type': 'Circle',
+                    'quick_key': 'Off',
+                    'is_system_placeholder': True
                 })
+            else:
+                # System with groups - add its groups
+                for tgroup in tgroups:
+                    # Count TGIDs in this group
+                    tgid_count = tgroup.tgids.using('favorites').count()
+                    groups.append({
+                        'id': str(tgroup.id),
+                        'name_tag': tgroup.name_tag,
+                        'frequency_count': tgid_count,
+                        'freq_count': tgid_count,
+                        'system_type': 'Trunked',
+                        'system_name': trunk_sys.name_tag,
+                        'avoid': tgroup.avoid,
+                        'location_type': tgroup.location_type,
+                        'quick_key': tgroup.quick_key
+                    })
         
         return Response({
             'id': str(favorite.id),
@@ -870,6 +905,73 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['get'], url_path='export-json')
+    def export_json(self, request, pk=None):
+        """Export a single Favourite List to JSON format"""
+        try:
+            from .json_handler import FavoritesListJSONHandler
+            
+            favorites_list = self.get_object()
+            json_content = FavoritesListJSONHandler.export_to_json([favorites_list])
+            
+            response = HttpResponse(json_content, content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename="{favorites_list.user_name or "favorites"}.json"'
+            return response
+        except Exception as e:
+            logger.exception("Failed to export favourite list to JSON", exc_info=e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='export-json-multiple')
+    def export_json_multiple(self, request):
+        """Export multiple Favourite Lists to a single JSON file"""
+        try:
+            from .json_handler import FavoritesListJSONHandler
+            
+            list_ids = request.data.get('ids', [])
+            if not list_ids:
+                return Response({'error': 'No list IDs provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            favorites_lists = FavoritesList.objects.using('favorites').filter(id__in=list_ids)
+            json_content = FavoritesListJSONHandler.export_to_json(list(favorites_lists))
+            
+            response = HttpResponse(json_content, content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename="favorites_lists_export.json"'
+            return response
+        except Exception as e:
+            logger.exception("Failed to export favourite lists to JSON", exc_info=e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='import-json')
+    def import_json(self, request, pk=None):
+        """Import a Favourite List from JSON file"""
+        try:
+            from .json_handler import FavoritesListJSONHandler
+            
+            if 'file' not in request.FILES:
+                return Response({'error': 'No file provided'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            json_file = request.FILES['file']
+            json_content = json_file.read().decode('utf-8')
+            
+            imported_count, errors = FavoritesListJSONHandler.import_from_json(json_content)
+            
+            if errors:
+                return Response({
+                    'imported': imported_count,
+                    'errors': errors,
+                    'success': False
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'imported': imported_count,
+                'errors': [],
+                'message': f'Successfully imported {imported_count} favourite list(s)',
+                'success': True
+            })
+        except Exception as e:
+            logger.exception("Failed to import favourite list from JSON", exc_info=e)
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class FavoritesImportViewSet(viewsets.ViewSet):
     """Import favorites from uploaded files using new hierarchical structure"""
@@ -980,6 +1082,7 @@ class CGroupViewSet(viewsets.ModelViewSet):
                     'modulation': cfreq.modulation,
                     'avoid': cfreq.avoid,
                     'audio_option': cfreq.audio_option,
+                    'func_tag_id': cfreq.func_tag_id,
                     'attenuator': cfreq.attenuator,
                     'delay': cfreq.delay,
                     'volume_offset': cfreq.volume_offset,
