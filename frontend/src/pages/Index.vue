@@ -551,7 +551,7 @@
                             <div class="row items-center q-gutter-xs">
                               <span>{{ props.value }}</span>
                               <q-btn
-                                v-if="props.row.latitude && props.row.longitude"
+                                v-if="(props.row.latitude && props.row.longitude) || (Array.isArray(props.row.rectangles) && props.row.rectangles.length > 0)"
                                 flat
                                 dense
                                 size="sm"
@@ -651,30 +651,226 @@
 
         <!-- Favourites Editor Section -->
         <div v-if="activeSection === 'favorites'">
-          <div class="text-h5 q-mb-md">Favourites Editor</div>
+          <div class="text-h5 q-mb-md">Scanner Favourites</div>
           <div class="row q-mb-md q-gutter-sm">
             <q-btn
-              color="primary"
-              label="Export to SD Card Directory"
-              icon="save"
-              @click="exportToSd"
+              color="secondary"
+              label="New Favorites List"
+              icon="add"
+              @click="createNewFavoritesList"
             />
             <q-btn
-              color="secondary"
-              label="New Profile"
-              icon="add"
-              @click="showCreateDialog = true"
+              color="negative"
+              label="Delete Favorites List"
+              icon="delete"
+              @click="deleteFavoritesList"
             />
           </div>
 
-          <q-table
-            :rows="favorites"
-            :columns="favoritesColumns"
-            row-key="id"
-            :loading="favoritesLoading"
-            @row-click="openFavoriteDetail"
-            class="cursor-pointer"
-          />
+          <!-- Tree + Table Layout for Favorites -->
+          <div class="row q-col-gutter-md">
+            <!-- Left Pane: Favorites Lists Tree -->
+            <div class="col-12 col-md-3">
+              <q-card flat bordered style="height: 100%; min-height: 600px;">
+                <q-card-section class="q-pa-sm">
+                  <div class="text-subtitle2 q-mb-sm">Favourites Lists</div>
+                  <q-tree
+                    :nodes="favoritesTreeNodes"
+                    node-key="id"
+                    v-model:selected="selectedFavoritesNodeId"
+                  >
+                    <template v-slot:default-header="prop">
+                      <div 
+                        class="row items-center q-gutter-xs cursor-pointer" 
+                        style="flex: 1;"
+                        @click.stop="selectFavoritesNode(prop.node)"
+                      >
+                        <q-icon 
+                          :name="getFavoritesNodeIcon(prop.node)" 
+                          :color="getFavoritesNodeColor(prop.node)" 
+                          size="sm"
+                        />
+                        <span class="text-body2">{{ prop.node.label }}</span>
+                        <q-badge 
+                          v-if="prop.node.type === 'department' && prop.node.channel_count"
+                          :label="prop.node.channel_count"
+                          color="blue"
+                          class="q-ml-xs"
+                        />
+                      </div>
+                    </template>
+                  </q-tree>
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <!-- Right Pane: Channels Table -->
+            <div class="col-12 col-md-9">
+              <q-card flat bordered style="height: 100%; min-height: 600px;">
+                <q-card-section class="q-pa-sm">
+                  <!-- Department/Channel Details View -->
+                  <div v-if="selectedFavoritesNode && selectedFavoritesNode.type === 'department'">
+                    <div class="row items-center q-mb-md">
+                      <div class="col">
+                        <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
+                        <div class="text-caption text-grey-7">{{ selectedFavoritesList?.user_name || 'Favorites List' }}</div>
+                      </div>
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        icon="edit"
+                        color="primary"
+                        size="sm"
+                        @click="editDepartment(selectedFavoritesNode.groupData)"
+                        class="q-mr-sm"
+                      >
+                        <q-tooltip>Edit Department Name</q-tooltip>
+                      </q-btn>
+                      <q-btn
+                        color="secondary"
+                        label="Add Channel"
+                        icon="add"
+                        size="sm"
+                        @click="showAddChannelDialog = true"
+                      />
+                    </div>
+
+                    <div v-if="favoritesChannels.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
+                      <q-table
+                        :rows="favoritesChannels"
+                        :columns="favoritesChannelColumns"
+                        row-key="id"
+                        flat
+                        dense
+                        :rows-per-page-options="[0]"
+                        virtual-scroll
+                        style="max-height: calc(100vh - 380px);"
+                      >
+                        <template #body-cell-frequency="props">
+                          <q-td :props="props">
+                            <span v-if="selectedFavoritesNode.system_type === 'Conventional'">
+                              {{ (props.value / 1000000).toFixed(4) }} MHz
+                            </span>
+                            <span v-else>
+                              TGID: {{ props.value }}
+                            </span>
+                          </q-td>
+                        </template>
+                        <template #body-cell-enabled="props">
+                          <q-td :props="props">
+                            <q-icon 
+                              :name="props.value ? 'check_circle' : 'cancel'" 
+                              :color="props.value ? 'positive' : 'negative'"
+                              size="xs"
+                            />
+                          </q-td>
+                        </template>
+                        <template #body-cell-actions="props">
+                          <q-td :props="props">
+                            <q-btn
+                              flat
+                              round
+                              dense
+                              icon="edit"
+                              color="primary"
+                              size="sm"
+                              @click="editChannel(props.row)"
+                            >
+                              <q-tooltip>Edit Channel</q-tooltip>
+                            </q-btn>
+                          </q-td>
+                        </template>
+                      </q-table>
+                    </div>
+
+                    <div v-else class="text-center q-pa-xl text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No channels found</div>
+                    </div>
+                  </div>
+
+                  <!-- Departments List View (when Favorites List selected) -->
+                  <div v-else-if="selectedFavoritesNode && selectedFavoritesNode.type === 'favorites_list'">
+                    <div class="row items-center q-mb-md">
+                      <div class="col">
+                        <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
+                        <div class="text-caption text-grey-7">Departments</div>
+                      </div>
+                      <q-btn
+                        flat
+                        round
+                        dense
+                        icon="edit"
+                        color="primary"
+                        size="sm"
+                        @click="editFavoritesList(selectedFavoritesNode.favData)"
+                        class="q-mr-sm"
+                      >
+                        <q-tooltip>Edit Favorites List Name</q-tooltip>
+                      </q-btn>
+                      <q-btn
+                        color="secondary"
+                        label="Add Department"
+                        icon="add"
+                        size="sm"
+                        @click="showAddDepartmentDialog = true"
+                      />
+                    </div>
+
+                    <div v-if="selectedFavoritesNode.favData && selectedFavoritesNode.favData.groups && selectedFavoritesNode.favData.groups.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
+                      <q-table
+                        :rows="selectedFavoritesNode.favData.groups"
+                        :columns="favoritesListDepartmentColumns"
+                        row-key="id"
+                        flat
+                        dense
+                        :rows-per-page-options="[0]"
+                        virtual-scroll
+                        style="max-height: calc(100vh - 380px);"
+                      >
+                        <template #body-cell-actions="props">
+                          <q-td :props="props">
+                            <q-btn
+                              flat
+                              round
+                              dense
+                              icon="edit"
+                              color="primary"
+                              size="sm"
+                              @click="editDepartment(props.row)"
+                            >
+                              <q-tooltip>Edit Department</q-tooltip>
+                            </q-btn>
+                          </q-td>
+                        </template>
+                      </q-table>
+                    </div>
+
+                    <div v-else class="text-center q-pa-xl text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No departments found</div>
+                    </div>
+                  </div>
+
+                  <!-- Default Message -->
+                  <div v-else class="text-center q-pa-xl text-grey-7">
+                    <q-icon name="star" size="3em" />
+                    <div class="q-mt-md">Select a favorites list or department from the tree to view details</div>
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+
+          <div class="row justify-end q-mt-md">
+            <q-btn
+              color="primary"
+              label="Load Favourites"
+              icon="cloud_upload"
+              @click="loadFavourites"
+            />
+          </div>
         </div>
 
         <!-- Load Data Section -->
@@ -871,6 +1067,13 @@
               />
               <q-btn
                 outline
+                color="primary"
+                label="Export Favourites Folder"
+                icon="file_download"
+                @click="exportFavoritesFolder"
+              />
+              <q-btn
+                outline
                 color="warning"
                 label="Clear Raw Data"
                 @click="clearRawDataConfirm"
@@ -952,6 +1155,294 @@
       </q-card>
     </q-dialog>
 
+    <!-- Add Channel Dialog -->
+    <q-dialog v-model="showAddChannelDialog">
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Add Channel</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showAddChannelDialog = false" />
+        </q-card-section>
+
+        <q-card-section class="q-pt-none" style="max-height: 600px; overflow-y: auto;">
+          <!-- Basic Info -->
+          <div class="text-subtitle2 q-mb-md">Basic Information</div>
+          <q-input
+            v-model="newChannel.name_tag"
+            label="Channel Name (NameTag)"
+            hint="Max 64 characters"
+            maxlength="64"
+            counter
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newChannel.frequency"
+            label="Frequency (Hz)"
+            type="number"
+            hint="Enter frequency in Hz"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model="newChannel.modulation"
+            :options="['FM', 'NFM', 'AM', 'AUTO']"
+            label="Modulation"
+            class="q-mb-md"
+          />
+
+          <!-- Sub-Audio Options -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Sub-Audio Options</div>
+          <q-input
+            v-model="newChannel.audio_option"
+            label="Audio Option"
+            hint="e.g., TONE=67.0, NAC=293, ColorCode=1, RAN=12, Area=2"
+            class="q-mb-md"
+          />
+
+          <!-- Attenuator & Delay -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Signal Settings</div>
+          <q-select
+            v-model="newChannel.attenuator"
+            :options="['Off', 'On']"
+            label="Attenuator"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model.number="newChannel.delay"
+            :options="[30, 10, 5, 4, 3, 2, 1, 0, -5, -10]"
+            label="Delay (seconds)"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model.number="newChannel.volume_offset"
+            :options="['-3', '-2', '-1', '0', '1', '2', '3']"
+            label="Volume Offset (dB)"
+            class="q-mb-md"
+          />
+
+          <!-- Alert Settings -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Alert Settings</div>
+          <q-select
+            v-model="newChannel.alert_tone"
+            :options="['Off', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
+            label="Alert Tone"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model="newChannel.alert_light"
+            :options="['Off', 'On']"
+            label="Alert Light"
+            class="q-mb-md"
+          />
+
+          <!-- Priority & Flags -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Flags & Priority</div>
+          <q-select
+            v-model="newChannel.p_ch"
+            :options="['Off', 'On']"
+            label="P-CH (Priority Channel)"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newChannel.number_tag"
+            label="Number Tag"
+            type="number"
+            hint="Off or 0-999"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newChannel.priority"
+            label="Priority Channel"
+            type="number"
+            hint="0 = no priority"
+            class="q-mb-md"
+          />
+
+          <!-- Enabled -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Status</div>
+          <q-toggle
+            v-model="newChannel.enabled"
+            label="Enabled"
+            class="q-mb-md"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" @click="showAddChannelDialog = false" />
+          <q-btn
+            flat
+            label="Add Channel"
+            color="primary"
+            @click="addChannelToFavorites"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Add Department Dialog -->
+    <q-dialog v-model="showAddDepartmentDialog">
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Add Department</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showAddDepartmentDialog = false" />
+        </q-card-section>
+
+        <q-card-section class="q-pt-none" style="max-height: 600px; overflow-y: auto;">
+          <!-- Basic Info -->
+          <div class="text-subtitle2 q-mb-md">Basic Information</div>
+          <q-input
+            v-model="newDepartment.name_tag"
+            label="Department Name (NameTag)"
+            hint="Max 255 characters"
+            maxlength="255"
+            counter
+            class="q-mb-md"
+          />
+
+          <!-- Location Info -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Location Information</div>
+          <q-select
+            v-model="newDepartment.location_type"
+            :options="['Conventional', 'Trunked', 'Other']"
+            label="Location Type"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newDepartment.latitude"
+            label="Latitude"
+            type="number"
+            step="0.00001"
+            hint="Optional"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newDepartment.longitude"
+            label="Longitude"
+            type="number"
+            step="0.00001"
+            hint="Optional"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newDepartment.range_miles"
+            label="Range (miles)"
+            type="number"
+            hint="Optional"
+            class="q-mb-md"
+          />
+
+          <!-- Other Settings -->
+          <div class="text-subtitle2 q-mb-md q-mt-lg">Settings</div>
+          <q-toggle
+            v-model="newDepartment.enabled"
+            label="Enabled"
+            class="q-mb-md"
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" @click="showAddDepartmentDialog = false" />
+          <q-btn
+            flat
+            label="Add Department"
+            color="primary"
+            @click="addDepartmentToFavorites"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Edit Favorites List Dialog -->
+    <q-dialog v-model="showEditFavoritesDialog">
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Edit Favorites List Name</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showEditFavoritesDialog = false" />
+        </q-card-section>
+
+        <q-card-section>
+          <q-input
+            v-model="editingFavorites.user_name"
+            label="Favorites List Name"
+            hint="Display name only (filename unchanged)"
+            maxlength="255"
+            counter
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" @click="showEditFavoritesDialog = false" />
+          <q-btn
+            flat
+            label="Save"
+            color="primary"
+            @click="updateFavoritesList"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Edit Department Dialog -->
+    <q-dialog v-model="showEditDepartmentDialog">
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Edit Department Name</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showEditDepartmentDialog = false" />
+        </q-card-section>
+
+        <q-card-section>
+          <q-input
+            v-model="editingDepartment.name_tag"
+            label="Department Name"
+            maxlength="255"
+            counter
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" @click="showEditDepartmentDialog = false" />
+          <q-btn
+            flat
+            label="Save"
+            color="primary"
+            @click="updateDepartment"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Edit Channel Dialog -->
+    <q-dialog v-model="showEditChannelDialog">
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Edit Channel Name</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showEditChannelDialog = false" />
+        </q-card-section>
+
+        <q-card-section>
+          <q-input
+            v-model="editingChannel.name_tag"
+            label="Channel Name"
+            maxlength="64"
+            counter
+          />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" @click="showEditChannelDialog = false" />
+          <q-btn
+            flat
+            label="Save"
+            color="primary"
+            @click="updateChannel"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Import Confirmation Dialog -->
     <q-dialog v-model="showImportConfirm" persistent>
       <q-card style="min-width: 500px">
@@ -1018,6 +1509,83 @@
       </q-card>
     </q-dialog>
 
+    <!-- Favourites Import Dialog -->
+    <q-dialog v-model="showFavoritesImportDialog" persistent>
+      <q-card style="min-width: 520px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Load Favourites</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="closeFavoritesImportDialog" />
+        </q-card-section>
+
+        <q-card-section>
+          <div class="text-body2 q-mb-md">
+            Upload a favourites directory containing f_list.cfg and f_*.hpd files.
+          </div>
+
+          <q-file
+            ref="favoritesImportFilePicker"
+            v-model="favoritesImportFiles"
+            class="q-mt-md"
+            filled
+            multiple
+            use-chips
+            label="Select favourites directory (f_list.cfg + f_*.hpd files)"
+            accept=".cfg,.hpd"
+            :directory="true"
+            :webkitdirectory="true"
+          />
+
+          <div v-if="favoritesImportLoading && favoritesUploadProgress.totalBytes > 0" class="q-mt-md q-pa-md bg-primary-1 rounded-borders">
+            <div class="text-body2 text-weight-medium q-mb-sm">
+              <q-icon name="cloud_upload" color="primary" />
+              Uploading and importing files...
+            </div>
+            <q-linear-progress
+              :value="favoritesUploadProgressPercent / 100"
+              color="primary"
+              class="q-mt-xs"
+            />
+            <div class="row justify-between q-mt-xs">
+              <div class="text-caption text-grey-7">
+                {{ (favoritesUploadProgress.bytesUploaded / 1024 / 1024).toFixed(2) }} MB /
+                {{ (favoritesUploadProgress.totalBytes / 1024 / 1024).toFixed(2) }} MB
+              </div>
+              <div class="text-caption text-weight-medium">{{ favoritesUploadProgressPercent }}%</div>
+            </div>
+          </div>
+
+          <div class="q-mt-md q-pa-md bg-orange-1 rounded-borders">
+            <div class="text-caption text-weight-medium text-orange-9">
+              <q-icon name="warning" color="orange" />
+              <strong>Warning:</strong> Importing will overwrite all existing favourites data.
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancel" @click="closeFavoritesImportDialog" />
+          <q-btn
+            outline
+            label="Browse Files"
+            color="primary"
+            icon="folder_open"
+            @click="openFavoritesImportPicker"
+            :disable="favoritesImportLoading"
+          />
+          <q-btn
+            unelevated
+            label="Import & Replace"
+            color="primary"
+            icon="upload"
+            :loading="favoritesImportLoading"
+            :disable="!favoritesHasImportFiles"
+            @click="confirmFavoritesImport"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <!-- Channel Group Map Dialog -->
     <ChannelGroupMapDialog 
       v-model="showChannelGroupMap"
@@ -1063,7 +1631,6 @@ const expandedNodes = ref([])
 const selectedNode = ref(null)
 const searchQuery = ref('')
 const hpdbImportLoading = ref(false)
-const favoritesImportLoading = ref(false)
 const statsLoading = ref(false)
 const hpdbStats = ref(null)
 const favoritesStats = ref(null)
@@ -1143,16 +1710,136 @@ const agencyColumns = [
 // Favourites
 const favorites = ref([])
 const favoritesLoading = ref(false)
+const selectedFavoritesNodeId = ref(null)
+const selectedFavoritesNode = ref(null)
+const selectedFavoritesList = ref(null)
 const favoritesColumns = [
-  { name: 'name', label: 'Name', field: 'name', align: 'left' },
-  { name: 'filename', label: 'File', field: 'filename', align: 'left' },
-  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center' },
-  { name: 'disabled_on_power', label: 'Disable on Power Up', field: 'disabled_on_power', align: 'center' },
-  { name: 'quick_key', label: 'Quick Key', field: 'quick_key', align: 'center' },
-  { name: 'list_number', label: 'List #', field: 'list_number', align: 'center' }
+  { name: 'user_name', label: 'User Name', field: 'user_name', align: 'left', sortable: true },
+  { name: 'filename', label: 'Filename', field: 'filename', align: 'left', sortable: true },
+  { name: 'location_control', label: 'Location Control', field: 'location_control', align: 'center', sortable: true },
+  { name: 'monitor', label: 'Monitor', field: 'monitor', align: 'center', sortable: true },
+  { name: 'quick_key', label: 'Quick Key', field: 'quick_key', align: 'center', sortable: true },
+  { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
+  { name: 'startup_keys', label: 'Startup Keys', field: row => {
+    if (!row.startup_keys || !Array.isArray(row.startup_keys)) return 'None';
+    const onKeys = row.startup_keys.map((val, idx) => val === 'On' ? idx : null).filter(x => x !== null);
+    return onKeys.length > 0 ? onKeys.join(', ') : 'None';
+  }, align: 'center' }
 ]
 
+const favoritesChannelColumns = [
+  { name: 'name_tag', label: 'Channel Name', field: 'name_tag', align: 'left', sortable: true },
+  { name: 'frequency', label: 'Frequency', field: 'frequency', align: 'left', sortable: true },
+  { name: 'modulation', label: 'Modulation', field: 'modulation', align: 'left', sortable: true },
+  { name: 'audio_option', label: 'Audio Option', field: 'audio_option', align: 'left', sortable: true },
+  { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
+  { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center' },
+  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'center' },
+  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center' },
+  { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
+]
+
+const favoritesListDepartmentColumns = [
+  { name: 'name_tag', label: 'Department Name', field: 'name_tag', align: 'left', sortable: true },
+  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center', sortable: true },
+  { name: 'freq_count', label: 'Channels', field: 'freq_count', align: 'center', sortable: true },
+  { name: 'location_type', label: 'Location Type', field: 'location_type', align: 'left', sortable: true },
+  { name: 'latitude', label: 'Latitude', field: 'latitude', align: 'center', sortable: true },
+  { name: 'longitude', label: 'Longitude', field: 'longitude', align: 'center', sortable: true },
+  { name: 'range_miles', label: 'Range (mi)', field: 'range_miles', align: 'center', sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
+]
+
+const favoritesTreeNodes = computed(() => {
+  console.log('[favoritesTreeNodes] Computing tree nodes, favorites.value:', favorites.value)
+  
+  const favoritesList = favorites.value.map((fav, idx) => {
+    console.log(`[favoritesTreeNodes] Processing favorite #${idx}: ${fav.user_name}, has groups?`, !!fav.groups, 'groups count:', fav.groups?.length || 0)
+    
+    return {
+      id: `fav_${fav.id}`,
+      label: `${fav.user_name} (${fav.filename})`,
+      type: 'favorites_list',
+      favData: fav,
+      children: fav.groups ? fav.groups.map((group, gIdx) => ({
+        id: `dept_${fav.id}_${gIdx}`,
+        label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
+        type: 'department',
+        system_type: group.system_type,
+        favId: fav.id,
+        groupId: group.id,
+        channel_count: group.freq_count,
+        groupData: group
+      })) : []
+    }
+  })
+  
+  console.log('[favoritesTreeNodes] Computed list has', favoritesList.length, 'items')
+  
+  // Wrap all favorites in a top-level "Favourites" node
+  const result = [{
+    id: 'favorites_root',
+    label: 'Favourites',
+    type: 'root',
+    children: favoritesList
+  }]
+  
+  console.log('[favoritesTreeNodes] Final tree structure:', result)
+  return result
+})
+
+const favoritesChannels = computed(() => {
+  if (!selectedFavoritesNode.value || !selectedFavoritesNode.value.groupData) return []
+  return selectedFavoritesNode.value.groupData.channels || []
+})
+
 const showCreateDialog = ref(false)
+const showAddChannelDialog = ref(false)
+const newChannel = ref({
+  name_tag: '',
+  description: '',
+  frequency: '',
+  modulation: 'FM',
+  audio_option: '',
+  enabled: true,
+  delay: 15,
+  attenuator: 'Off',
+  alert_tone: 'Off',
+  alert_light: 'Off',
+  volume_offset: '0',
+  p_ch: 'Off',
+  number_tag: null,
+  priority: 0
+})
+
+const showAddDepartmentDialog = ref(false)
+const newDepartment = ref({
+  name_tag: '',
+  location_type: 'Conventional',
+  latitude: null,
+  longitude: null,
+  range_miles: null,
+  enabled: true
+})
+
+const showEditFavoritesDialog = ref(false)
+const editingFavorites = ref({
+  id: null,
+  user_name: ''
+})
+
+const showEditDepartmentDialog = ref(false)
+const editingDepartment = ref({
+  id: null,
+  name_tag: ''
+})
+
+const showEditChannelDialog = ref(false)
+const editingChannel = ref({
+  id: null,
+  name_tag: ''
+})
+
 const importFiles = ref([])
 const importFilePicker = ref(null)
 const hasImportFiles = computed(() => {
@@ -1164,6 +1851,7 @@ const hasImportFiles = computed(() => {
 const importDetection = ref(null)
 const importSession = ref(null)
 const importTempPath = ref(null)
+const importFocus = ref(null)
 const showImportConfirm = ref(false)
 const importLoading = ref(false)
 const uploadProgress = ref({
@@ -1172,6 +1860,26 @@ const uploadProgress = ref({
   percent: 0
 })
 const uploadProgressPercent = computed(() => uploadProgress.value.percent)
+
+const favoritesImportFiles = ref([])
+const favoritesImportFilePicker = ref(null)
+const favoritesHasImportFiles = computed(() => {
+  const files = Array.isArray(favoritesImportFiles.value)
+    ? favoritesImportFiles.value
+    : Array.from(favoritesImportFiles.value || [])
+  return files.length > 0
+})
+const favoritesImportDetection = ref(null)
+const favoritesImportSession = ref(null)
+const favoritesImportTempPath = ref(null)
+const showFavoritesImportDialog = ref(false)
+const favoritesImportLoading = ref(false)
+const favoritesUploadProgress = ref({
+  bytesUploaded: 0,
+  totalBytes: 0,
+  percent: 0
+})
+const favoritesUploadProgressPercent = computed(() => favoritesUploadProgress.value.percent)
 const newProfile = ref({
   name: '',
   model: '',
@@ -1260,7 +1968,7 @@ const expandAgencyGroups = async (agencyId) => {
     return groups.map(group => ({
       id: `group-${group.id}`,
       type: 'group',
-      name: group.name,
+      name_tag: group.name_tag,
       location_type: group.location_type,
       latitude: group.latitude,
       longitude: group.longitude,
@@ -1278,7 +1986,30 @@ const loadFavoritesList = async () => {
   try {
     const { data } = await api.get('/usersettings/favorites-lists/')
     // Handle paginated response
-    favorites.value = Array.isArray(data) ? data : (data.results || [])
+    let favList = Array.isArray(data) ? data : (data.results || [])
+    console.log('[DEBUG] Loaded', favList.length, 'favorites from API')
+    
+    // Sort by filename
+    favList.sort((a, b) => (a.filename || '').localeCompare(b.filename || ''))
+    
+    // Load detailed info (groups/channels) for each favorite
+    const favListsWithDetails = await Promise.all(
+      favList.map(async (fav) => {
+        try {
+          const { data: detailData } = await api.get(`/usersettings/favorites-lists/${fav.id}/detail/`)
+          const merged = { ...fav, ...detailData }
+          console.log('[DEBUG] Loaded details for', fav.user_name, '- groups:', merged.groups?.length || 0)
+          return merged
+        } catch (err) {
+          console.error(`Error loading details for favorite ${fav.id}:`, err)
+          return fav
+        }
+      })
+    )
+    
+    console.log('[DEBUG] Final favorites with details:', favListsWithDetails.length)
+    favorites.value = favListsWithDetails
+    console.log('[DEBUG] Set favorites.value, tree nodes count:', favoritesTreeNodes.value.length)
   } catch (error) {
     console.error('Error loading favorites list:', error)
     $q.notify({ type: 'negative', message: 'Failed to load favourites list' })
@@ -1289,6 +2020,72 @@ const loadFavoritesList = async () => {
 
 const openFavoriteDetail = (evt, row) => {
   router.push(`/favorite/${row.id}`)
+}
+
+const selectFavoritesNode = async (node) => {
+  selectedFavoritesNode.value = node
+  selectedFavoritesNodeId.value = node.id
+  
+  if (node.type === 'department') {
+    // Find the parent favorites list
+    const favId = node.favId
+    selectedFavoritesList.value = favorites.value.find(f => f.id === favId)
+    
+    // Fetch frequencies or TGIDs for this department
+    try {
+      const groupId = node.groupId
+      const systemType = node.system_type
+      
+      console.log('[selectFavoritesNode] Loading channels for:', node.label, 'groupId:', groupId, 'systemType:', systemType)
+      
+      if (systemType === 'Conventional') {
+        const { data } = await api.get(`/usersettings/cgroups/${groupId}/`)
+        // Store frequencies in the node's groupData
+        node.groupData.channels = data.frequencies || []
+        console.log('[selectFavoritesNode] Loaded', data.frequencies?.length || 0, 'frequencies')
+      } else if (systemType === 'Trunked') {
+        const { data } = await api.get(`/usersettings/tgroups/${groupId}/`)
+        // Store TGIDs as channels in the node's groupData
+        node.groupData.channels = (data.tgids || []).map(tgid => ({
+          id: tgid.id,
+          name_tag: tgid.name_tag,
+          frequency: tgid.tgid,  // Use TGID value as "frequency" for display
+          modulation: tgid.audio_type,
+          avoid: tgid.avoid,
+          delay: tgid.delay,
+          volume_offset: tgid.volume_offset,
+          alert_tone: tgid.alert_tone,
+          alert_volume: tgid.alert_volume,
+          enabled: tgid.avoid !== 'On'
+        }))
+        console.log('[selectFavoritesNode] Loaded', data.tgids?.length || 0, 'TGIDs')
+      }
+    } catch (error) {
+      console.error('[selectFavoritesNode] Error loading channels:', error)
+      $q.notify({ type: 'negative', message: 'Failed to load channels' })
+    }
+  } else if (node.type === 'favorites_list') {
+    // Set the favorites list directly
+    selectedFavoritesList.value = node.favData
+  }
+}
+
+const getFavoritesNodeIcon = (node) => {
+  switch (node.type) {
+    case 'root': return 'star'
+    case 'favorites_list': return 'bookmark'
+    case 'department': return 'radio'
+    default: return 'circle'
+  }
+}
+
+const getFavoritesNodeColor = (node) => {
+  switch (node.type) {
+    case 'root': return 'amber'
+    case 'favorites_list': return 'orange'
+    case 'department': return 'blue'
+    default: return 'grey'
+  }
 }
 
 const selectCounty = async (node) => {
@@ -1543,9 +2340,54 @@ const getNodeColor = (node) => {
 
 const onLazyLoad = async ({ node, key, done, fail }) => {
   console.log('[LAZY-LOAD] Triggered for node:', { node, key })
+  console.log('[LAZY-LOAD] Node type:', node.type)
+  console.log('[LAZY-LOAD] Node properties:', Object.keys(node))
   
   try {
-    if (node.type === 'state') {
+    if (node.type === 'department') {
+      // Load frequencies or TGIDs for this department/group
+      const groupId = node.groupId
+      const systemType = node.system_type
+      
+      console.log('[LAZY-LOAD] Loading frequencies for department:', node.label, 'groupId:', groupId, 'systemType:', systemType)
+      
+      if (systemType === 'Conventional') {
+        // Fetch CFreqs for conventional group
+        console.log('[LAZY-LOAD] Fetching from:', `/usersettings/cgroups/${groupId}/`)
+        const { data } = await api.get(`/usersettings/cgroups/${groupId}/`)
+        console.log('[LAZY-LOAD] Got data:', data)
+        const freqNodes = (data.frequencies || []).map(freq => ({
+          id: `freq_${freq.id}`,
+          label: `${freq.name_tag || 'Unnamed'} - ${(freq.frequency / 1000000).toFixed(4)} MHz`,
+          type: 'frequency',
+          frequency: freq.frequency,
+          modulation: freq.modulation,
+          avoid: freq.avoid,
+          lazy: false
+        }))
+        console.log('[LAZY-LOAD] Created', freqNodes.length, 'frequency nodes')
+        done(freqNodes)
+      } else if (systemType === 'Trunked') {
+        // Fetch TGIDs for trunk group
+        console.log('[LAZY-LOAD] Fetching from:', `/usersettings/tgroups/${groupId}/`)
+        const { data } = await api.get(`/usersettings/tgroups/${groupId}/`)
+        console.log('[LAZY-LOAD] Got data:', data)
+        const tgidNodes = (data.tgids || []).map(tgid => ({
+          id: `tgid_${tgid.id}`,
+          label: `${tgid.name_tag || 'Unnamed'} - TGID: ${tgid.tgid}`,
+          type: 'tgid',
+          tgid: tgid.tgid,
+          audio_type: tgid.audio_type,
+          avoid: tgid.avoid,
+          lazy: false
+        }))
+        console.log('[LAZY-LOAD] Created', tgidNodes.length, 'TGID nodes')
+        done(tgidNodes)
+      } else {
+        console.log('[LAZY-LOAD] Unknown system type:', systemType)
+        done([])
+      }
+    } else if (node.type === 'state') {
       // Load counties for the state
       const { data } = await api.get(`/hpdb/tree/counties/?state=${node.id}`)
       done(data)
@@ -1620,6 +2462,14 @@ const openImportPicker = () => {
   triggerFilePicker(importFilePicker)
 }
 
+const loadFavourites = () => {
+  showFavoritesImportDialog.value = true
+}
+
+const openFavoritesImportPicker = () => {
+  triggerFilePicker(favoritesImportFilePicker)
+}
+
 const analyzeImport = async () => {
   const files = Array.isArray(importFiles.value)
     ? importFiles.value
@@ -1653,7 +2503,19 @@ const analyzeImport = async () => {
         }
       }
     )
-    
+
+    if (importFocus.value === 'favorites' && data.detection?.type !== 'favorites') {
+      $q.notify({
+        type: 'negative',
+        message: 'Please upload a Favourites directory (f_list.cfg + f_*.hpd files)'
+      })
+      importDetection.value = null
+      importSession.value = null
+      importTempPath.value = null
+      importFocus.value = null
+      return
+    }
+
     importSession.value = data.session_id
     importDetection.value = data.detection
     importTempPath.value = data.temp_path
@@ -1669,16 +2531,46 @@ const analyzeImport = async () => {
   }
 }
 
+const analyzeFavoritesImport = async () => {
+  // Simplified - just trigger the import directly
+  const files = Array.isArray(favoritesImportFiles.value)
+    ? favoritesImportFiles.value
+    : Array.from(favoritesImportFiles.value || [])
+
+  if (files.length === 0) {
+    openFavoritesImportPicker()
+    return
+  }
+
+  // Check for required files and proceed with import
+  await confirmFavoritesImport()
+}
+
 const closeImportDialog = () => {
   showImportConfirm.value = false
   importDetection.value = null
   importSession.value = null
   importTempPath.value = null
+  importFocus.value = null
+}
+
+const closeFavoritesImportDialog = () => {
+  showFavoritesImportDialog.value = false
+  favoritesImportDetection.value = null
+  favoritesImportSession.value = null
+  favoritesImportTempPath.value = null
+  favoritesImportFiles.value = []
 }
 
 const confirmImport = async (mode) => {
   if (!importSession.value || !importDetection.value) {
     $q.notify({ type: 'negative', message: 'Import session expired' })
+    return
+  }
+
+  if (importFocus.value === 'favorites' && importDetection.value.type !== 'favorites') {
+    $q.notify({ type: 'negative', message: 'Only Favourites imports are allowed from this action' })
+    closeImportDialog()
     return
   }
 
@@ -1793,6 +2685,100 @@ const confirmImport = async (mode) => {
     importDetection.value = null
     importSession.value = null
     importTempPath.value = null
+    importFocus.value = null
+  }
+}
+
+const confirmFavoritesImport = async () => {
+  const files = Array.isArray(favoritesImportFiles.value)
+    ? favoritesImportFiles.value
+    : Array.from(favoritesImportFiles.value || [])
+
+  if (files.length === 0) {
+    $q.notify({ type: 'negative', message: 'No files selected' })
+    return
+  }
+
+  // Check for required files (f_list.cfg and at least one f_*.hpd)
+  const hasListCfg = files.some(f => f.name.toLowerCase() === 'f_list.cfg')
+  const hasHpd = files.some(f => f.name.toLowerCase().endsWith('.hpd'))
+
+  if (!hasListCfg || !hasHpd) {
+    $q.notify({
+      type: 'negative',
+      message: 'Required files missing. Please select f_list.cfg and at least one f_*.hpd file'
+    })
+    return
+  }
+
+  // Ask for confirmation before replacing
+  $q.dialog({
+    title: 'Confirm Import',
+    message: 'This will replace all existing favourites data. Continue?',
+    cancel: true,
+    persistent: true
+  }).onOk(async () => {
+    await performFavoritesImport(files)
+  })
+}
+
+const performFavoritesImport = async (files) => {
+  favoritesImportLoading.value = true
+
+  try {
+    // First, clear existing data
+    console.log('[DEBUG] Clearing existing favorites data...')
+    await api.post('/usersettings/clear-data/')
+    console.log('[DEBUG] Data cleared')
+
+    // Prepare form data
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+
+    // Upload and import
+    console.log('[DEBUG] Starting import upload...')
+    const { data } = await axios.post(
+      api.defaults.baseURL + '/usersettings/import-files/',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000,
+        onUploadProgress: (progressEvent) => {
+          favoritesUploadProgress.value.bytesUploaded = progressEvent.loaded
+          favoritesUploadProgress.value.totalBytes = totalBytes
+          favoritesUploadProgress.value.percent = Math.round((progressEvent.loaded / totalBytes) * 100)
+        }
+      }
+    )
+
+    console.log('[DEBUG] Import response:', data)
+
+    if (data.errors?.length > 0) {
+      $q.notify({
+        type: 'warning',
+        message: `Imported ${data.imported} file(s) with ${data.errors.length} error(s)`
+      })
+    } else {
+      $q.notify({
+        type: 'positive',
+        message: `Successfully imported ${data.imported} file(s)`
+      })
+    }
+
+    // Reload favorites to show imported data
+    console.log('[DEBUG] Import complete, reloading favorites...')
+    await loadFavoritesList()
+    console.log('[DEBUG] Favorites reloaded, tree should now show data')
+  } catch (error) {
+    console.error('[ERROR] Import failed:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Import failed: ' + (error.response?.data?.error || error.message)
+    })
+  } finally {
+    favoritesImportLoading.value = false
+    closeFavoritesImportDialog()
   }
 }
 
@@ -2065,6 +3051,25 @@ const cleanupTempUploads = async () => {
   }
 }
 
+const exportFavoritesFolder = async () => {
+  try {
+    const response = await api.get('/usersettings/export-favorites/', { responseType: 'blob' })
+    const blob = new Blob([response.data], { type: 'application/zip' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'favorites_lists_export.zip'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    $q.notify({ type: 'positive', message: 'Favourites export started' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Export failed: ' + (error.response?.data?.error || error.message) })
+  }
+}
+
 const exportToSd = async () => {
   try {
     const { data } = await sdAPI.exportToSd()
@@ -2085,6 +3090,337 @@ const createNewProfile = async () => {
     newProfile.value = { name: '', model: '', firmware_version: '' }
   } catch (error) {
     console.error('Error creating profile:', error)
+  }
+}
+
+const createNewFavoritesList = async () => {
+  const userName = prompt('Enter Favorites List Name:')
+  if (!userName) return
+  
+  try {
+    // Find the highest existing file number
+    let maxNum = 0
+    favorites.value.forEach(fav => {
+      const match = fav.filename.match(/f_(\d+)\.hpd/)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        if (num > maxNum) maxNum = num
+      }
+    })
+    
+    // Create filename with next sequential number
+    const nextNum = maxNum + 1
+    const filename = `f_${String(nextNum).padStart(6, '0')}.hpd`
+    
+    const response = await api.post('/usersettings/favorites-lists/', {
+      user_name: userName,
+      filename: filename
+    })
+    
+    $q.notify({ type: 'positive', message: 'Favorites list created successfully!' })
+    await loadFavoritesList()
+  } catch (error) {
+    console.error('Error creating favorites list:', error)
+    $q.notify({ type: 'negative', message: 'Failed to create favorites list' })
+  }
+}
+
+const deleteFavoritesList = () => {
+  // Check if a favorites list is selected
+  if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'favorites_list') {
+    $q.notify({ type: 'warning', message: 'Please select a favorites list to delete' })
+    return
+  }
+  
+  const selectedFav = selectedFavoritesNode.value.favData
+  const departmentCount = selectedFav.groups ? selectedFav.groups.length : 0
+  let channelCount = 0
+  if (selectedFav.groups) {
+    selectedFav.groups.forEach(group => {
+      channelCount += group.freq_count || 0
+    })
+  }
+  
+  // Show confirmation dialog with warning
+  $q.dialog({
+    title: 'Delete Favorites List',
+    message: `<strong style="color: #c41c3b;">⚠️ Warning: This action cannot be undone!</strong><br><br>
+              You are about to delete:<br>
+              <strong>${selectedFav.user_name}</strong> (${selectedFav.filename})<br><br>
+              This will permanently delete:<br>
+              • <strong>${departmentCount}</strong> department(s)<br>
+              • <strong>${channelCount}</strong> channel(s)<br><br>
+              Continue?`,
+    html: true,
+    ok: {
+      label: 'Delete',
+      color: 'negative'
+    },
+    cancel: true,
+    persistent: true
+  }).onOk(async () => {
+    try {
+      await api.delete(`/usersettings/favorites-lists/${selectedFav.id}/`)
+      $q.notify({ type: 'positive', message: 'Favorites list deleted successfully!' })
+      selectedFavoritesNode.value = null
+      selectedFavoritesNodeId.value = null
+      await loadFavoritesList()
+    } catch (error) {
+      console.error('Error deleting favorites list:', error)
+      $q.notify({ type: 'negative', message: 'Failed to delete favorites list' })
+    }
+  })
+}
+
+const addChannelToFavorites = async () => {
+  // Validate frequency is a positive integer (Hz)
+  if (!newChannel.frequency || newChannel.frequency <= 0) {
+    $q.notify({ type: 'negative', message: 'Frequency must be a positive integer (Hz)' })
+    return
+  }
+
+  // Validate NameTag is not empty if required
+  if (!newChannel.name_tag || newChannel.name_tag.trim() === '') {
+    $q.notify({ type: 'negative', message: 'Channel name tag is required' })
+    return
+  }
+
+  // Validate NameTag length (max 64 characters per spec)
+  if (newChannel.name_tag.length > 64) {
+    $q.notify({ type: 'negative', message: 'Channel name tag must be 64 characters or less' })
+    return
+  }
+
+  // Validate modulation is selected
+  if (!newChannel.modulation) {
+    $q.notify({ type: 'negative', message: 'Modulation must be selected' })
+    return
+  }
+
+  // Validate number tag if not "Off"
+  if (newChannel.number_tag && (newChannel.number_tag < 0 || newChannel.number_tag > 999)) {
+    $q.notify({ type: 'negative', message: 'Number tag must be between 0 and 999' })
+    return
+  }
+
+  // Validate volume offset if selected
+  if (newChannel.volume_offset && !['-3', '-2', '-1', '0', '1', '2', '3'].includes(String(newChannel.volume_offset))) {
+    $q.notify({ type: 'negative', message: 'Volume offset must be between -3 and +3 dB' })
+    return
+  }
+
+  try {
+    // Get the selected department (channel group)
+    if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'department') {
+      $q.notify({ type: 'negative', message: 'Please select a department to add channel to' })
+      return
+    }
+
+    const channelGroup = selectedFavoritesNode.value.groupData
+    if (!channelGroup || !channelGroup.id) {
+      $q.notify({ type: 'negative', message: 'Invalid department selected' })
+      return
+    }
+
+    // Create payload for API
+    const payload = {
+      name_tag: newChannel.name_tag,
+      description: newChannel.description || '',
+      frequency: parseInt(newChannel.frequency),
+      modulation: newChannel.modulation,
+      audio_option: newChannel.audio_option || '',
+      delay: newChannel.delay || 15,
+      attenuator: newChannel.attenuator || 'Off',
+      alert_tone: newChannel.alert_tone || 'Off',
+      alert_light: newChannel.alert_light || 'Off',
+      volume_offset: newChannel.volume_offset || '0',
+      p_ch: newChannel.p_ch || 'Off',
+      number_tag: newChannel.number_tag || null,
+      priority: newChannel.priority ? 'On' : 'Off',
+      enabled: newChannel.enabled ? true : false,
+      reserved: 'Off',
+      channel_group: channelGroup.id // ForeignKey reference
+    }
+
+    // POST to API to create new frequency
+    const response = await api.post('/usersettings/frequencies/', payload)
+    
+    $q.notify({ type: 'positive', message: `Channel "${newChannel.name_tag}" added successfully!` })
+    
+    // Reset form
+    newChannel.name_tag = ''
+    newChannel.description = ''
+    newChannel.frequency = null
+    newChannel.modulation = ''
+    newChannel.audio_option = ''
+    newChannel.enabled = true
+    newChannel.delay = 15
+    newChannel.attenuator = 'Off'
+    newChannel.alert_tone = 'Off'
+    newChannel.alert_light = 'Off'
+    newChannel.volume_offset = '0'
+    newChannel.p_ch = 'Off'
+    newChannel.number_tag = null
+    newChannel.priority = false
+    
+    // Close dialog
+    showAddChannelDialog.value = false
+    
+    // Reload the favorites list to show the new channel
+    await loadFavoritesList()
+    
+  } catch (error) {
+    console.error('Error adding channel:', error)
+    const errorMsg = error.response?.data?.detail || error.message || 'Failed to add channel'
+    $q.notify({ type: 'negative', message: errorMsg })
+  }
+}
+
+const addDepartmentToFavorites = async () => {
+  // Validate department name
+  if (!newDepartment.value.name_tag || newDepartment.value.name_tag.trim() === '') {
+    $q.notify({ type: 'negative', message: 'Department name is required' })
+    return
+  }
+
+  // Validate name length (max 255 characters)
+  if (newDepartment.value.name_tag.length > 255) {
+    $q.notify({ type: 'negative', message: 'Department name must be 255 characters or less' })
+    return
+  }
+
+  try {
+    // Get the selected favorites list
+    if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'favorites_list') {
+      $q.notify({ type: 'negative', message: 'Please select a favorites list to add department to' })
+      return
+    }
+
+    const favoritesList = selectedFavoritesNode.value.favData
+    if (!favoritesList || !favoritesList.id) {
+      $q.notify({ type: 'negative', message: 'Invalid favorites list selected' })
+      return
+    }
+
+    // Create payload for API - use favorites_list FK now
+    const payload = {
+      name_tag: newDepartment.value.name_tag,
+      location_type: newDepartment.value.location_type || 'Conventional',
+      latitude: newDepartment.value.latitude || null,
+      longitude: newDepartment.value.longitude || null,
+      range_miles: newDepartment.value.range_miles || null,
+      enabled: newDepartment.value.enabled ? true : false,
+      cgroup_id: `CG_${Date.now()}`, // Generate a unique ID
+      favorites_list: favoritesList.id // Link directly to FavoritesList
+    }
+
+    // POST to API to create new channel group (department)
+    const response = await api.post('/usersettings/channel-groups/', payload)
+    
+    $q.notify({ type: 'positive', message: `Department "${newDepartment.value.name_tag}" added successfully!` })
+    
+    // Reset form
+    newDepartment.value.name_tag = ''
+    newDepartment.value.location_type = 'Conventional'
+    newDepartment.value.latitude = null
+    newDepartment.value.longitude = null
+    newDepartment.value.range_miles = null
+    newDepartment.value.enabled = true
+    
+    // Close dialog
+    showAddDepartmentDialog.value = false
+    
+    // Reload the favorites list to show the new department
+    await loadFavoritesList()
+    
+  } catch (error) {
+    console.error('Error adding department:', error)
+    const errorMsg = error.response?.data?.detail || error.message || 'Failed to add department'
+    $q.notify({ type: 'negative', message: errorMsg })
+  }
+}
+
+const editFavoritesList = (favoritesList) => {
+  editingFavorites.value = {
+    id: favoritesList.id,
+    user_name: favoritesList.user_name
+  }
+  showEditFavoritesDialog.value = true
+}
+
+const updateFavoritesList = async () => {
+  if (!editingFavorites.value.user_name || editingFavorites.value.user_name.trim() === '') {
+    $q.notify({ type: 'negative', message: 'Favorites list name is required' })
+    return
+  }
+
+  try {
+    await api.patch(`/usersettings/favorites-lists/${editingFavorites.value.id}/`, {
+      user_name: editingFavorites.value.user_name
+    })
+    
+    $q.notify({ type: 'positive', message: 'Favorites list name updated successfully!' })
+    showEditFavoritesDialog.value = false
+    await loadFavoritesList()
+  } catch (error) {
+    console.error('Error updating favorites list:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update favorites list name' })
+  }
+}
+
+const editDepartment = (department) => {
+  editingDepartment.value = {
+    id: department.id,
+    name_tag: department.name_tag
+  }
+  showEditDepartmentDialog.value = true
+}
+
+const updateDepartment = async () => {
+  if (!editingDepartment.value.name_tag || editingDepartment.value.name_tag.trim() === '') {
+    $q.notify({ type: 'negative', message: 'Department name is required' })
+    return
+  }
+
+  try {
+    await api.patch(`/usersettings/channel-groups/${editingDepartment.value.id}/`, {
+      name_tag: editingDepartment.value.name_tag
+    })
+    
+    $q.notify({ type: 'positive', message: 'Department name updated successfully!' })
+    showEditDepartmentDialog.value = false
+    await loadFavoritesList()
+  } catch (error) {
+    console.error('Error updating department:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update department name' })
+  }
+}
+
+const editChannel = (channel) => {
+  editingChannel.value = {
+    id: channel.id,
+    name_tag: channel.name_tag
+  }
+  showEditChannelDialog.value = true
+}
+
+const updateChannel = async () => {
+  if (!editingChannel.value.name_tag || editingChannel.value.name_tag.trim() === '') {
+    $q.notify({ type: 'negative', message: 'Channel name is required' })
+    return
+  }
+
+  try {
+    await api.patch(`/usersettings/frequencies/${editingChannel.value.id}/`, {
+      name_tag: editingChannel.value.name_tag
+    })
+    
+    $q.notify({ type: 'positive', message: 'Channel name updated successfully!' })
+    showEditChannelDialog.value = false
+    await loadFavoritesList()
+  } catch (error) {
+    console.error('Error updating channel:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update channel name' })
   }
 }
 

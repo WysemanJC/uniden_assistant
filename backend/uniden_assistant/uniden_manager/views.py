@@ -351,6 +351,18 @@ class UnifiedImportViewSet(viewsets.ViewSet):
         if not any(name.endswith('.hpd') for name in filenames):
             raise Exception('Missing .hpd files')
         
+        # Parse f_list.cfg first to create FavoritesList records
+        flist_path = next((f for f in files if f.name.lower() == 'f_list.cfg'), None)
+        if flist_path:
+            import_progress_store[job_id]['message'] = 'Parsing f_list.cfg...'
+            from uniden_assistant.usersettings.hpdb_parser import FavoritesListParser
+            try:
+                FavoritesListParser.parse_favorites_list(str(flist_path))
+                import_progress_store[job_id]['message'] = '✓ f_list.cfg parsed'
+            except Exception as exc:
+                logger.exception(f"Failed to parse f_list.cfg", exc_info=exc)
+                import_progress_store[job_id]['message'] = f"✗ f_list.cfg failed: {str(exc)}"
+        
         hpd_files = [f for f in files if f.name.lower().endswith('.hpd')]
         import_progress_store[job_id]['total_files'] = len(hpd_files)
         
@@ -566,6 +578,15 @@ class UnifiedImportViewSet(viewsets.ViewSet):
             return {'type': 'favorites', 'error': 'Missing .hpd files'}
         
         try:
+            # Parse f_list.cfg first to create FavoritesList records
+            flist_path = next((f for f in files if f.name.lower() == 'f_list.cfg'), None)
+            if flist_path:
+                from uniden_assistant.usersettings.hpdb_parser import FavoritesListParser
+                try:
+                    FavoritesListParser.parse_favorites_list(str(flist_path))
+                except Exception as exc:
+                    logger.exception(f"Failed to parse f_list.cfg", exc_info=exc)
+            
             parser = UnidenFileParser()
             imported = 0
             errors = []

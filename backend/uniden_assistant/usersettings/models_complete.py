@@ -43,8 +43,6 @@ class FavoritesList(models.Model):
     # Startup quick keys (100 keys)
     s_qkeys = models.JSONField(default=list)  # S-Qkey_00 to S-Qkey_99 (100 On/Off values)
     
-    raw_data = models.TextField(blank=True)  # Raw tab-delimited data line (for audit/reconstruction)
-
     # Metadata
     user_id = models.IntegerField(null=True, blank=True, db_index=True)
     order = models.IntegerField(default=0)  # Preserve order from f_list.cfg
@@ -90,7 +88,6 @@ class ConventionalSystem(models.Model):
     digital_threshold_level = models.IntegerField(default=8)  # 5-13
     
     # DQKs_Status (inline - 100 D-Qkey flags)
-    dqks_my_id = models.CharField(max_length=100, blank=True)
     dqks_status = models.JSONField(default=list)  # 100 On/Off values
     
     # Metadata
@@ -220,7 +217,6 @@ class TrunkSystem(models.Model):
     tgid_format = models.CharField(max_length=20, blank=True)  # NEXEDGE/IDAS
     
     # DQKs_Status (inline - 100 D-Qkey flags)
-    dqks_my_id = models.CharField(max_length=100, blank=True)
     dqks_status = models.JSONField(default=list)  # 100 On/Off values
     
     # Metadata
@@ -233,66 +229,6 @@ class TrunkSystem(models.Model):
 
     class Meta:
         ordering = ['favorites_list', 'order']
-        app_label = 'usersettings'
-
-
-class FleetMap(models.Model):
-    """FleetMap (Motorola Type I) from f_*.hpd
-
-    Format: FleetMap\tMyId\tB0\tB1\tB2\tB3\tB4\tB5\tB6\tB7
-    """
-    trunk_system = models.ForeignKey(TrunkSystem, on_delete=models.CASCADE, related_name='fleet_maps')
-
-    my_id = models.CharField(max_length=100, blank=True)  # TrunkId=xx
-    blocks = models.JSONField(default=list)  # 8 block size values
-    order = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
-
-
-class UnitId(models.Model):
-    """UnitIds record from f_*.hpd
-
-    Format: UnitIds\tReserve\tReserve\tNameTag\tUnitId\tAlertTone\tAlertVolume\tAlertColor\tAlertPattern
-    """
-    trunk_system = models.ForeignKey(TrunkSystem, on_delete=models.CASCADE, related_name='unit_ids')
-
-    reserve1 = models.CharField(max_length=100, blank=True)
-    reserve2 = models.CharField(max_length=100, blank=True)
-    name_tag = models.CharField(max_length=64)
-    unit_id = models.BigIntegerField()
-    alert_tone = models.CharField(max_length=10, default='Off')
-    alert_volume = models.CharField(max_length=10, default='Auto')
-    alert_color = models.CharField(max_length=20, default='Off')
-    alert_pattern = models.CharField(max_length=20, default='On')
-    order = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
-
-
-class AvoidTgid(models.Model):
-    """AvoidTgids record from f_*.hpd
-
-    Format: AvoidTgids\tMyId\tTGID1\t...\tTGID16
-    """
-    trunk_system = models.ForeignKey(TrunkSystem, on_delete=models.CASCADE, related_name='avoid_tgids')
-
-    my_id = models.CharField(max_length=100, blank=True)
-    tgids = models.JSONField(default=list)  # up to 16 TGIDs
-    order = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['trunk_system', 'order']
         app_label = 'usersettings'
 
 

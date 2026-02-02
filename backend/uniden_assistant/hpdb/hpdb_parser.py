@@ -705,16 +705,40 @@ class HPDBParser:
                     latitude_2 = float(coords[2])
                     longitude_2 = float(coords[3])
                     
-                    # Cache rectangle for later association with channel group
-                    if my_id not in self._rectangles_cache:
-                        self._rectangles_cache[my_id] = []
-                    
-                    self._rectangles_cache[my_id].append({
+                    rectangle_payload = {
                         'latitude_1': latitude_1,
                         'longitude_1': longitude_1,
                         'latitude_2': latitude_2,
                         'longitude_2': longitude_2,
-                    })
+                    }
+
+                    # If the referenced channel group already exists, attach immediately.
+                    # Otherwise, cache for later association when the group is parsed.
+                    attached = False
+                    if my_id.startswith('CGroupId='):
+                        try:
+                            cgroup_id = int(my_id.split('=')[1])
+                        except (IndexError, ValueError):
+                            cgroup_id = None
+
+                        if cgroup_id is not None:
+                            group = self.channel_groups.get(cgroup_id)
+                            if group is None:
+                                group = HPDBChannelGroup.objects.using('hpdb').filter(cgroup_id=cgroup_id).first()
+                                if group:
+                                    self.channel_groups[cgroup_id] = group
+
+                            if group:
+                                HPDBRectangle.objects.using('hpdb').create(
+                                    channel_group=group,
+                                    **rectangle_payload
+                                )
+                                attached = True
+
+                    if not attached:
+                        if my_id not in self._rectangles_cache:
+                            self._rectangles_cache[my_id] = []
+                        self._rectangles_cache[my_id].append(rectangle_payload)
                     
                     association = None
                     if self._current_group is not None:

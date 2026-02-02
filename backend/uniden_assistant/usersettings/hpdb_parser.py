@@ -2,7 +2,8 @@
 import os
 import logging
 from typing import Dict, List, Optional
-from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, ScannerFileRecord
+from uniden_assistant.hpdb.models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency
+from .models import ScannerFileRecord
 from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
 
 logger = logging.getLogger(__name__)
@@ -376,6 +377,9 @@ class FavoritesListParser:
         
         FavoritesList.objects.all().delete()  # Clear existing
 
+        target_model = 'BCDx36HP'
+        format_version = '1.00'
+
         records_buffer = []
         order = 0
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -404,7 +408,17 @@ class FavoritesListParser:
                         records_buffer.clear()
 
                 line = raw_line.strip()
-                if not line or line.startswith('TargetModel') or line.startswith('FormatVersion'):
+                if not line:
+                    continue
+
+                parts = parts_all
+
+                if line.startswith('TargetModel'):
+                    target_model = parts[1].strip() if len(parts) > 1 else target_model
+                    continue
+
+                if line.startswith('FormatVersion'):
+                    format_version = parts[1].strip() if len(parts) > 1 else format_version
                     continue
                 
                 parts = line.split('\t')
@@ -416,31 +430,36 @@ class FavoritesListParser:
                     continue
                 
                 try:
-                    name = parts[1].strip() if len(parts) > 1 else ''
+                    user_name = parts[1].strip() if len(parts) > 1 else ''
                     filename = parts[2].strip() if len(parts) > 2 else ''
-                    enabled = (parts[3].strip() == 'On') if len(parts) > 3 else False
-                    disabled_on_power = (parts[4].strip() == 'On') if len(parts) > 4 else False
-                    quick_key = parts[5].strip() if len(parts) > 5 else ''
-                    list_number = int(parts[6].strip()) if len(parts) > 6 and parts[6].strip().isdigit() else 0
+                    location_control = parts[3].strip() if len(parts) > 3 else 'Off'
+                    monitor = parts[4].strip() if len(parts) > 4 else 'Off'
+                    quick_key = parts[5].strip() if len(parts) > 5 else 'Off'
+                    number_tag = parts[6].strip() if len(parts) > 6 else 'Off'
                     
-                    # Store all remaining flags
-                    flags = [p.strip() for p in parts[7:]] if len(parts) > 7 else []
-                    flags_json = json.dumps(flags)
+                    # StartupKey0-9 (10 fields at parts[7:17])
+                    startup_keys = [parts[i].strip() if len(parts) > i else 'Off' for i in range(7, 17)]
                     
-                    FavoritesList.objects.create(
-                        name=name,
+                    # S-Qkey_00 to S-Qkey_99 (100 fields at parts[17:117])
+                    s_qkeys = [parts[i].strip() if len(parts) > i else 'Off' for i in range(17, 117)]
+                    
+                    FavoritesList.objects.using('favorites').create(
+                        user_name=user_name,
                         filename=filename,
-                        enabled=enabled,
-                        disabled_on_power=disabled_on_power,
+                        scanner_model=target_model,
+                        format_version=format_version,
+                        location_control=location_control,
+                        monitor=monitor,
                         quick_key=quick_key,
-                        list_number=list_number,
+                        number_tag=number_tag,
                         order=order,
-                        flags=flags_json,
+                        startup_keys=startup_keys,
+                        s_qkeys=s_qkeys,
                         raw_data=line
                     )
                     
                     order += 1
-                    logger.debug(f"Created favorites list: {name} ({filename})")
+                    logger.debug(f"Created favorites list: {user_name} ({filename})")
                 
                 except (IndexError, ValueError) as e:
                     logger.warning(f"Error parsing favorites list: {parts} - {e}")

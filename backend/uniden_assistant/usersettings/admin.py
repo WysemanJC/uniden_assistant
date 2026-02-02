@@ -11,16 +11,16 @@ class ScannerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Frequency)
 class FrequencyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'frequency', 'modulation', 'nac', 'enabled', 'profile']
+    list_display = ['name_tag', 'frequency', 'modulation', 'audio_option', 'enabled', 'profile']
     list_filter = ['modulation', 'enabled']
-    search_fields = ['name', 'nac']
+    search_fields = ['name_tag', 'audio_option']
 
 
 @admin.register(ChannelGroup)
 class ChannelGroupAdmin(admin.ModelAdmin):
-    list_display = ['name', 'profile', 'enabled']
+    list_display = ['name_tag', 'profile', 'enabled']
     list_filter = ['enabled']
-    search_fields = ['name']
+    search_fields = ['name_tag']
 
 
 @admin.register(Agency)
@@ -31,6 +31,6 @@ class AgencyAdmin(admin.ModelAdmin):
 
 @admin.register(FavoritesList)
 class FavoritesListAdmin(admin.ModelAdmin):
-    list_display = ['name', 'filename', 'scanner_model', 'enabled', 'list_number', 'order']
-    list_filter = ['scanner_model', 'enabled']
-    search_fields = ['name', 'filename']
+    list_display = ['user_name', 'filename', 'location_control', 'monitor', 'number_tag', 'order']
+    list_filter = ['location_control', 'monitor']
+    search_fields = ['user_name', 'filename']

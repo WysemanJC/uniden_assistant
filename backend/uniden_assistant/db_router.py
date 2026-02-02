@@ -20,6 +20,21 @@ FAVORITES_MODELS = {
     'agency',
     'favoriteslist',
     'scannerfilerecord',
+    # New hierarchical favorites models
+    'conventionalsystem',
+    'trunksystem',
+    'cgroup',
+    'cfreq',
+    'site',
+    'bandplanp25',
+    'bandplanmot',
+    'tfreq',
+    'tgroup',
+    'tgid',
+    'rectangle',
+    'fleetmap',
+    'unitid',
+    'avoidtgid',
 }
 
 APPCONFIG_MODELS = {
