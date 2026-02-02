@@ -744,7 +744,8 @@
                         { name: 'location_control', label: 'Location Control', field: 'location_control', align: 'left', style: 'width: 120px' },
                         { name: 'monitor', label: 'Monitor', field: 'monitor', align: 'left', style: 'width: 100px' },
                         { name: 'quick_key', label: 'Quick Key', field: 'quick_key', align: 'left', style: 'width: 100px' },
-                        { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'left', style: 'width: 100px' }
+                        { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'left', style: 'width: 100px' },
+                        { name: 'actions', label: 'Actions', field: 'actions', align: 'center', style: 'width: 120px' }
                       ]"
                       row-key="id"
                       :pagination="{ rowsPerPage: 0 }"
@@ -766,6 +767,33 @@
                             :model-value="selectedFavoritesListIds.includes(props.row.id)"
                             @update:model-value="toggleFavoritesListSelection(props.row.id)"
                           />
+                        </q-td>
+                      </template>
+                      <template #body-cell-actions="props">
+                        <q-td :props="props">
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="edit"
+                            color="primary"
+                            size="sm"
+                            @click="editFavoritesList(props.row)"
+                          >
+                            <q-tooltip>Edit Favorites List</q-tooltip>
+                          </q-btn>
+                          <q-btn
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            color="negative"
+                            size="sm"
+                            class="q-ml-xs"
+                            @click="deleteSingleFavoritesList(props.row)"
+                          >
+                            <q-tooltip>Delete Favorites List</q-tooltip>
+                          </q-btn>
                         </q-td>
                       </template>
                     </q-table>
@@ -917,6 +945,18 @@
                               @click="editSystem(props.row)"
                             >
                               <q-tooltip>Edit System</q-tooltip>
+                            </q-btn>
+                            <q-btn
+                              flat
+                              round
+                              dense
+                              icon="delete"
+                              color="negative"
+                              size="sm"
+                              class="q-ml-xs"
+                              @click="deleteSystem(props.row)"
+                            >
+                              <q-tooltip>Delete System</q-tooltip>
                             </q-btn>
                           </q-td>
                         </template>
@@ -1363,9 +1403,15 @@
               class="q-mb-md"
             />
             <q-select
-              v-model="newChannel.alert_light"
-              :options="['Off', 'On']"
-              label="Alert Light"
+              v-model="newChannel.alert_color"
+              :options="['Off', 'Blue', 'Red', 'Magenta', 'Green', 'Cyan', 'Yellow', 'White']"
+              label="Alert Light Color"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.alert_pattern"
+              :options="['On', 'Slow Blink', 'Fast Blink']"
+              label="Alert Light Pattern"
               class="q-mb-md"
             />
             <q-select
@@ -1469,9 +1515,15 @@
               class="q-mb-md"
             />
             <q-select
-              v-model="newChannel.alert_light"
-              :options="['Off', 'On']"
-              label="Alert Light"
+              v-model="newChannel.alert_color"
+              :options="['Off', 'Blue', 'Red', 'Magenta', 'Green', 'Cyan', 'Yellow', 'White']"
+              label="Alert Light Color"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.alert_pattern"
+              :options="['On', 'Slow Blink', 'Fast Blink']"
+              label="Alert Light Pattern"
               class="q-mb-md"
             />
 
@@ -1504,16 +1556,16 @@
       </q-card>
     </q-dialog>
 
-    <!-- Create Favorites List Dialog -->
+    <!-- Create/Edit Favorites List Dialog -->
     <q-dialog v-model="showCreateFavoritesListDialog">
-      <q-card style="min-width: 500px">
+      <q-card style="min-width: 700px; max-width: 900px">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Create New Favorites List</div>
+          <div class="text-h6">{{ isEditFavoritesListMode ? 'Edit Favorites List' : 'Create New Favorites List' }}</div>
           <q-space />
           <q-btn icon="close" flat round dense @click="showCreateFavoritesListDialog = false" />
         </q-card-section>
 
-        <q-card-section>
+        <q-card-section style="max-height: 70vh; overflow-y: auto;">
           <q-input
             v-model="newFavoritesList.user_name"
             label="Favorite List Name"
@@ -1568,15 +1620,53 @@
               />
             </div>
           </div>
+
+          <!-- Startup Keys Section -->
+          <q-separator class="q-my-md" />
+          <div class="row items-center q-mb-sm">
+            <div class="text-subtitle2">Startup Keys Status</div>
+            <q-space />
+            <q-btn flat dense size="sm" label="Select All" @click="selectAllStartupKeys(true)" />
+            <q-btn flat dense size="sm" label="Clear All" @click="selectAllStartupKeys(false)" />
+          </div>
+          <div class="row q-gutter-sm q-mb-md">
+            <div v-for="i in 10" :key="i" class="col-auto">
+              <q-checkbox
+                v-model="newFavoritesList.startup_keys[i - 1]"
+                :label="String(i - 1)"
+                dense
+                style="min-width: 60px;"
+              />
+            </div>
+          </div>
+
+          <!-- System Quick Keys Section -->
+          <q-separator class="q-my-md" />
+          <div class="row items-center q-mb-sm">
+            <div class="text-subtitle2">System Quick Keys Status (S-Qkey)</div>
+            <q-space />
+            <q-btn flat dense size="sm" label="Select All" @click="selectAllSQkeys(true)" />
+            <q-btn flat dense size="sm" label="Clear All" @click="selectAllSQkeys(false)" />
+          </div>
+          <div class="row q-gutter-sm" style="max-height: 300px; overflow-y: auto;">
+            <div v-for="i in 100" :key="i" class="col-auto">
+              <q-checkbox
+                v-model="newFavoritesList.s_qkeys[i - 1]"
+                :label="String(i - 1).padStart(2, '0')"
+                dense
+                style="min-width: 70px;"
+              />
+            </div>
+          </div>
         </q-card-section>
 
         <q-card-actions align="right">
           <q-btn flat label="Cancel" @click="showCreateFavoritesListDialog = false" />
           <q-btn
             flat
-            label="Create"
+            :label="isEditFavoritesListMode ? 'Save' : 'Create'"
             color="primary"
-            @click="submitCreateFavoritesList"
+            @click="isEditFavoritesListMode ? updateFavoritesList() : submitCreateFavoritesList()"
           />
         </q-card-actions>
       </q-card>
@@ -2133,7 +2223,8 @@ const favoritesChannelColumnsConventional = [
   { name: 'attenuator', label: 'Attenuator', field: 'attenuator', align: 'center', sortable: true },
   { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
   { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center', sortable: true },
-  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'center', sortable: true },
+  { name: 'alert_color', label: 'Alert Color', field: 'alert_color', align: 'center', sortable: true },
+  { name: 'alert_pattern', label: 'Alert Pattern', field: 'alert_pattern', align: 'center', sortable: true },
   { name: 'volume_offset', label: 'Volume Offset', field: 'volume_offset', align: 'center', sortable: true },
   { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
   { name: 'p_ch', label: 'P-Ch', field: row => row.p_ch || row.priority_channel || 'Off', align: 'center', sortable: true },
@@ -2148,7 +2239,8 @@ const favoritesChannelColumnsTrunk = [
   { name: 'func_tag_id', label: 'Service Type', field: 'func_tag_id', align: 'center', sortable: true },
   { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
   { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center', sortable: true },
-  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'center', sortable: true },
+  { name: 'alert_color', label: 'Alert Color', field: 'alert_color', align: 'center', sortable: true },
+  { name: 'alert_pattern', label: 'Alert Pattern', field: 'alert_pattern', align: 'center', sortable: true },
   { name: 'volume_offset', label: 'Volume Offset', field: 'volume_offset', align: 'center', sortable: true },
   { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
   { name: 'p_ch', label: 'P-Ch', field: row => row.p_ch || row.priority_channel || 'Off', align: 'center', sortable: true },
@@ -2209,30 +2301,32 @@ const favoritesTreeNodes = computed(() => {
     const systemsMap = new Map()
     
     if (fav.groups && fav.groups.length > 0) {
-      fav.groups.forEach((group, gIdx) => {
-        const systemName = group.system_name || 'Unknown System'
-        const systemType = group.system_type || 'Conventional'
-        const systemKey = `${systemType}_${systemName}`
-        
-        if (!systemsMap.has(systemKey)) {
-          systemsMap.set(systemKey, {
-            system_name: systemName,
-            system_type: systemType,
-            departments: []
+      fav.groups
+        .filter(group => !group.is_system_placeholder)  // Filter out placeholder departments
+        .forEach((group, gIdx) => {
+          const systemName = group.system_name || 'Unknown System'
+          const systemType = group.system_type || 'Conventional'
+          const systemKey = `${systemType}_${systemName}`
+          
+          if (!systemsMap.has(systemKey)) {
+            systemsMap.set(systemKey, {
+              system_name: systemName,
+              system_type: systemType,
+              departments: []
+            })
+          }
+          
+          systemsMap.get(systemKey).departments.push({
+            id: `dept_${fav.id}_${gIdx}`,
+            label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
+            type: 'department',
+            system_type: group.system_type,
+            favId: fav.id,
+            groupId: group.id,
+            channel_count: group.freq_count,
+            groupData: group
           })
-        }
-        
-        systemsMap.get(systemKey).departments.push({
-          id: `dept_${fav.id}_${gIdx}`,
-          label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
-          type: 'department',
-          system_type: group.system_type,
-          favId: fav.id,
-          groupId: group.id,
-          channel_count: group.freq_count,
-          groupData: group
         })
-      })
     }
     
     // Convert systems map to tree nodes
@@ -2285,12 +2379,15 @@ const favoritesChannels = computed(() => {
 const showCreateDialog = ref(false)
 const showAddChannelDialog = ref(false)
 const showCreateFavoritesListDialog = ref(false)
+const isEditFavoritesListMode = ref(false)
 const newFavoritesList = ref({
   user_name: '',
   location_control: 'Off',
   monitor: 'On',
   quick_key: 'Off',
-  number_tag: 'Off'
+  number_tag: 'Off',
+  s_qkeys: Array(100).fill(false),
+  startup_keys: Array(10).fill(false)
 })
 const isEditMode = ref(false)
 const newChannel = ref({
@@ -2306,6 +2403,8 @@ const newChannel = ref({
   attenuator: 'Off',
   alert_tone: 'Off',
   alert_light: 'Off',
+  alert_color: 'Off',
+  alert_pattern: 'On',
   volume_offset: '0',
   p_ch: 'Off',
   number_tag: null,
@@ -2693,17 +2792,19 @@ const selectFavoritesNode = async (node) => {
       
       // node.children contains the departments for this system
       if (node.children && node.children.length > 0) {
-        departmentsData.value = node.children.map(dept => ({
-          id: dept.groupId,
-          name_tag: dept.label.split(' (')[0], // Extract name without count
-          avoid: dept.groupData?.avoid || 'Off',
-          system_type: dept.system_type,
-          location_type: dept.groupData?.location_type || 'Circle',
-          quick_key: dept.groupData?.quick_key || 'Off',
-          latitude: dept.groupData?.latitude ?? null,
-          longitude: dept.groupData?.longitude ?? null,
-          range_miles: dept.groupData?.range_miles ?? null
-        }))
+        departmentsData.value = node.children
+          .filter(dept => !dept.groupData?.is_system_placeholder)  // Filter out placeholder departments
+          .map(dept => ({
+            id: dept.groupId,
+            name_tag: dept.label.split(' (')[0], // Extract name without count
+            avoid: dept.groupData?.avoid || 'Off',
+            system_type: dept.system_type,
+            location_type: dept.groupData?.location_type || 'Circle',
+            quick_key: dept.groupData?.quick_key || 'Off',
+            latitude: dept.groupData?.latitude ?? null,
+            longitude: dept.groupData?.longitude ?? null,
+            range_miles: dept.groupData?.range_miles ?? null
+          }))
         console.log('[selectFavoritesNode] Loaded', departmentsData.value.length, 'departments for system')
       } else {
         departmentsData.value = []
@@ -3987,9 +4088,54 @@ const createNewFavoritesList = async () => {
     location_control: 'Off',
     monitor: 'On',
     quick_key: 'Off',
-    number_tag: 'Off'
+    number_tag: 'Off',
+    s_qkeys: Array(100).fill(false),
+    startup_keys: Array(10).fill(false)
   }
+  isEditFavoritesListMode.value = false
   showCreateFavoritesListDialog.value = true
+}
+
+const editFavoritesList = (favoritesList) => {
+  newFavoritesList.value = {
+    id: favoritesList.id,
+    user_name: favoritesList.user_name,
+    location_control: favoritesList.location_control,
+    monitor: favoritesList.monitor,
+    quick_key: favoritesList.quick_key,
+    number_tag: favoritesList.number_tag,
+    s_qkeys: Array.isArray(favoritesList.s_qkeys) ? [...favoritesList.s_qkeys] : Array(100).fill(false),
+    startup_keys: Array.isArray(favoritesList.startup_keys) ? [...favoritesList.startup_keys] : Array(10).fill(false)
+  }
+  isEditFavoritesListMode.value = true
+  showCreateFavoritesListDialog.value = true
+}
+
+const updateFavoritesList = async () => {
+  if (!newFavoritesList.value.user_name || newFavoritesList.value.user_name.trim() === '') {
+    $q.notify({ type: 'warning', message: 'Please enter a Favorite List Name' })
+    return
+  }
+
+  try {
+    await api.patch(`/usersettings/favorites-lists/${newFavoritesList.value.id}/`, {
+      user_name: newFavoritesList.value.user_name,
+      location_control: newFavoritesList.value.location_control,
+      monitor: newFavoritesList.value.monitor,
+      quick_key: newFavoritesList.value.quick_key,
+      number_tag: newFavoritesList.value.number_tag,
+      s_qkeys: newFavoritesList.value.s_qkeys,
+      startup_keys: newFavoritesList.value.startup_keys
+    })
+
+    $q.notify({ type: 'positive', message: 'Favorites list updated successfully!' })
+    showCreateFavoritesListDialog.value = false
+    isEditFavoritesListMode.value = false
+    await loadFavoritesList()
+  } catch (error) {
+    console.error('Error updating favorites list:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update favorites list' })
+  }
 }
 
 const submitCreateFavoritesList = async () => {
@@ -4019,7 +4165,9 @@ const submitCreateFavoritesList = async () => {
       location_control: newFavoritesList.value.location_control,
       monitor: newFavoritesList.value.monitor,
       quick_key: newFavoritesList.value.quick_key,
-      number_tag: newFavoritesList.value.number_tag
+      number_tag: newFavoritesList.value.number_tag,
+      s_qkeys: newFavoritesList.value.s_qkeys,
+      startup_keys: newFavoritesList.value.startup_keys
     })
 
     $q.notify({ type: 'positive', message: 'Favorites list created successfully!' })
@@ -4029,6 +4177,48 @@ const submitCreateFavoritesList = async () => {
     console.error('Error creating favorites list:', error)
     $q.notify({ type: 'negative', message: 'Failed to create favorites list' })
   }
+}
+
+const deleteSingleFavoritesList = async (favoritesList) => {
+  const listName = favoritesList.user_name
+  const departmentCount = favoritesList.groups ? favoritesList.groups.length : 0
+  let channelCount = 0
+  if (favoritesList.groups) {
+    favoritesList.groups.forEach(group => {
+      channelCount += group.freq_count || 0
+    })
+  }
+  
+  // Show confirmation dialog with warning
+  $q.dialog({
+    title: 'Delete Favorites List',
+    message: `<strong style="color: #c41c3b;">⚠️ Warning: This action cannot be undone!</strong><br><br>
+              You are about to delete:<br>
+              <strong>${listName}</strong><br><br>
+              This will permanently delete:<br>
+              • <strong>${departmentCount}</strong> department(s)<br>
+              • <strong>${channelCount}</strong> channel(s)`,
+    html: true,
+    cancel: true,
+    persistent: true
+  }).onOk(async () => {
+    try {
+      await api.delete(`/usersettings/favorites-lists/${favoritesList.id}/`)
+      $q.notify({ type: 'positive', message: 'Favorites list deleted successfully!' })
+      await loadFavoritesList()
+    } catch (error) {
+      console.error('Error deleting favorites list:', error)
+      $q.notify({ type: 'negative', message: 'Failed to delete favorites list' })
+    }
+  })
+}
+
+const selectAllSQkeys = (value) => {
+  newFavoritesList.value.s_qkeys = Array(100).fill(value)
+}
+
+const selectAllStartupKeys = (value) => {
+  newFavoritesList.value.startup_keys = Array(10).fill(value)
 }
 
 const deleteFavoritesList = () => {
@@ -4117,8 +4307,8 @@ const addChannelToFavorites = async () => {
         volume_offset: newChannel.value.volume_offset || 0,
         alert_tone: newChannel.value.alert_tone || 'Off',
         alert_volume: newChannel.value.alert_volume || 'Auto',
-        alert_color: 'Off',
-        alert_pattern: 'On',
+        alert_color: newChannel.value.alert_color || 'Off',
+        alert_pattern: newChannel.value.alert_pattern || 'On',
         number_tag: newChannel.value.number_tag || 'Off',
         priority_channel: newChannel.value.p_ch || 'Off'
       }
@@ -4147,8 +4337,8 @@ const addChannelToFavorites = async () => {
         volume_offset: newChannel.value.volume_offset || 0,
         alert_tone: newChannel.value.alert_tone || 'Off',
         alert_volume: newChannel.value.alert_volume || 'Auto',
-        alert_color: 'Off',
-        alert_pattern: 'On',
+        alert_color: newChannel.value.alert_color || 'Off',
+        alert_pattern: newChannel.value.alert_pattern || 'On',
         number_tag: newChannel.value.number_tag || 'Off',
         priority_channel: newChannel.value.p_ch || 'Off',
         tdma_slot: newChannel.value.tdma_slot || 'Any'
@@ -4168,7 +4358,8 @@ const addChannelToFavorites = async () => {
     newChannel.value.delay = 15
     newChannel.value.attenuator = 'Off'
     newChannel.value.alert_tone = 'Off'
-    newChannel.value.alert_light = 'Off'
+    newChannel.value.alert_color = 'Off'
+    newChannel.value.alert_pattern = 'On'
     newChannel.value.volume_offset = '0'
     newChannel.value.p_ch = 'Off'
     newChannel.value.number_tag = null
@@ -4245,6 +4436,78 @@ const editSystem = (system) => {
   }
   isEditSystemMode.value = true
   showSystemDialog.value = true
+}
+
+const deleteSystem = async (system) => {
+  const systemName = system.system_name || 'this system'
+  
+  try {
+    // Fetch system details to get accurate counts
+    let departmentCount = 0
+    let channelCount = 0
+    
+    try {
+      const isConventional = system.system_type === 'Conventional'
+      const endpoint = isConventional 
+        ? `/usersettings/conventional-systems/${system.id}/`
+        : `/usersettings/trunk-systems/${system.id}/`
+      
+      const { data } = await api.get(endpoint)
+      
+      // Count departments and channels
+      if (data.groups && Array.isArray(data.groups)) {
+        departmentCount = data.groups.length
+        data.groups.forEach(group => {
+          const freqCount = isConventional 
+            ? group.frequencies?.length || 0
+            : group.tgids?.length || 0
+          channelCount += freqCount
+        })
+      }
+    } catch (error) {
+      console.warn('Could not fetch system details for counts:', error)
+    }
+    
+    const departmentText = departmentCount === 1 ? '1 Department' : `${departmentCount} Departments`
+    const channelText = channelCount === 1 ? '1 Channel' : `${channelCount} Channels`
+    
+    $q.dialog({
+      title: 'Delete System',
+      message: `<strong style="color: #c41c3b;">⚠️ Warning: This action cannot be undone!</strong><br><br>
+                You are about to delete:<br>
+                <strong>${systemName}</strong><br><br>
+                This will permanently delete:<br>
+                • <strong>${departmentText}</strong><br>
+                • <strong>${channelText}</strong>`,
+      html: true,
+      cancel: true,
+      persistent: true
+    }).onOk(async () => {
+      try {
+        // Determine if it's a ConventionalSystem or TrunkSystem based on system_type
+        const isConventional = system.system_type === 'Conventional'
+        const apiEndpoint = isConventional 
+          ? `/usersettings/conventional-systems/${system.id}/`
+          : `/usersettings/trunk-systems/${system.id}/`
+        
+        await api.delete(apiEndpoint)
+        
+        $q.notify({ type: 'positive', message: 'System deleted successfully!' })
+        
+        // Remove from local array immediately
+        systemsData.value = systemsData.value.filter(s => s.id !== system.id)
+        
+        // Reload the tree and systems
+        await loadFavoritesList()
+      } catch (error) {
+        console.error('[deleteSystem] Error deleting system:', error)
+        $q.notify({ type: 'negative', message: 'Failed to delete system: ' + (error.response?.data?.detail || error.message) })
+      }
+    })
+  } catch (error) {
+    console.error('[deleteSystem] Error:', error)
+    $q.notify({ type: 'negative', message: 'Error preparing delete: ' + error.message })
+  }
 }
 
 const addSystemToFavorites = async () => {
@@ -4356,34 +4619,6 @@ const updateSystem = async () => {
   } catch (error) {
     console.error('Error updating system:', error)
     $q.notify({ type: 'negative', message: 'Failed to update system' })
-  }
-}
-
-const editFavoritesList = (favoritesList) => {
-  editingFavorites.value = {
-    id: favoritesList.id,
-    user_name: favoritesList.user_name
-  }
-  showEditFavoritesDialog.value = true
-}
-
-const updateFavoritesList = async () => {
-  if (!editingFavorites.value.user_name || editingFavorites.value.user_name.trim() === '') {
-    $q.notify({ type: 'negative', message: 'Favorites list name is required' })
-    return
-  }
-
-  try {
-    await api.patch(`/usersettings/favorites-lists/${editingFavorites.value.id}/`, {
-      user_name: editingFavorites.value.user_name
-    })
-    
-    $q.notify({ type: 'positive', message: 'Favorites list name updated successfully!' })
-    showEditFavoritesDialog.value = false
-    await loadFavoritesList()
-  } catch (error) {
-    console.error('Error updating favorites list:', error)
-    $q.notify({ type: 'negative', message: 'Failed to update favorites list name' })
   }
 }
 
@@ -4589,7 +4824,8 @@ const editChannel = (channel) => {
     attenuator: channel.attenuator || 'Off',
     delay: toNumber(channel.delay, 2),
     alert_tone: channel.alert_tone || 'Off',
-    alert_light: channel.alert_light || channel.alert_color || 'Off',
+    alert_color: channel.alert_color || 'Off',
+    alert_pattern: channel.alert_pattern || 'On',
     volume_offset: toNumber(channel.volume_offset, 0),
     number_tag: channel.number_tag || 'Off',
     p_ch: channel.p_ch || channel.priority_channel || 'Off',
@@ -4633,8 +4869,8 @@ const updateChannel = async () => {
       payload.frequency = Math.round(Number(newChannel.value.frequency) * 1000000)  // Convert MHz to Hz
       payload.attenuator = newChannel.value.attenuator
       payload.alert_volume = 'Auto'
-      payload.alert_color = newChannel.value.alert_light
-      payload.alert_pattern = 'On'
+      payload.alert_color = newChannel.value.alert_color
+      payload.alert_pattern = newChannel.value.alert_pattern
       
       console.log('CFreq Update Payload:', payload)
       const response = await api.patch(`/usersettings/cfreqs/${newChannel.value.id}/`, payload)
@@ -4643,8 +4879,8 @@ const updateChannel = async () => {
       payload.tgid = newChannel.value.frequency
       payload.audio_type = newChannel.value.modulation
       payload.alert_volume = 'Auto'
-      payload.alert_color = newChannel.value.alert_light
-      payload.alert_pattern = 'On'
+      payload.alert_color = newChannel.value.alert_color
+      payload.alert_pattern = newChannel.value.alert_pattern
       payload.tdma_slot = newChannel.value.tdma_slot || 'Any'
       
       await api.patch(`/usersettings/tgids/${newChannel.value.id}/`, payload)
@@ -4710,7 +4946,8 @@ const openAddChannelDialog = () => {
     attenuator: 'Off',
     delay: 2,
     alert_tone: 'Off',
-    alert_light: 'Off',
+    alert_color: 'Off',
+    alert_pattern: 'On',
     volume_offset: 0,
     number_tag: 'Off',
     p_ch: 'Off',
