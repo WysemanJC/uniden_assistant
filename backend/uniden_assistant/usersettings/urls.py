@@ -4,6 +4,7 @@ from .views import (
     ScannerProfileViewSet, FrequencyViewSet, ChannelGroupViewSet, AgencyViewSet, SDCardViewSet,
     FavoritesListViewSet, FavoritesImportViewSet, UserSettingsStatsView, ClearUserSettingsDataView,
     ClearScannerRawDataView, ExportFavoritesFolderView, CGroupViewSet, TGroupViewSet,
+    CFreqViewSet, TGIDViewSet, ConventionalSystemViewSet, TrunkSystemViewSet,
 )
 
 router = DefaultRouter()
@@ -16,6 +17,10 @@ router.register(r'favorites-lists', FavoritesListViewSet, basename='favorites-li
 router.register(r'import-files', FavoritesImportViewSet, basename='favorites-import')
 router.register(r'cgroups', CGroupViewSet, basename='cgroup')
 router.register(r'tgroups', TGroupViewSet, basename='tgroup')
+router.register(r'cfreqs', CFreqViewSet, basename='cfreq')
+router.register(r'tgids', TGIDViewSet, basename='tgid')
+router.register(r'conventional-systems', ConventionalSystemViewSet, basename='conventional-system')
+router.register(r'trunk-systems', TrunkSystemViewSet, basename='trunk-system')
 
 urlpatterns = [
     path('stats/', UserSettingsStatsView.as_view()),

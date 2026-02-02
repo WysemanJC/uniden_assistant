@@ -678,6 +678,7 @@
                     :nodes="favoritesTreeNodes"
                     node-key="id"
                     v-model:selected="selectedFavoritesNodeId"
+                    v-model:expanded="expandedFavoritesNodes"
                   >
                     <template v-slot:default-header="prop">
                       <div 
@@ -732,14 +733,14 @@
                         label="Add Channel"
                         icon="add"
                         size="sm"
-                        @click="showAddChannelDialog = true"
+                        @click="openAddChannelDialog"
                       />
                     </div>
 
                     <div v-if="favoritesChannels.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
                       <q-table
                         :rows="favoritesChannels"
-                        :columns="favoritesChannelColumns"
+                        :columns="favoritesChannelColumnsBySystem"
                         row-key="id"
                         flat
                         dense
@@ -790,12 +791,12 @@
                     </div>
                   </div>
 
-                  <!-- Departments List View (when Favorites List selected) -->
+                  <!-- Systems List View (when Favorites List selected) -->
                   <div v-else-if="selectedFavoritesNode && selectedFavoritesNode.type === 'favorites_list'">
                     <div class="row items-center q-mb-md">
                       <div class="col">
                         <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
-                        <div class="text-caption text-grey-7">Departments</div>
+                        <div class="text-caption text-grey-7">Systems</div>
                       </div>
                       <q-btn
                         flat
@@ -811,16 +812,69 @@
                       </q-btn>
                       <q-btn
                         color="secondary"
-                        label="Add Department"
+                        label="Add System"
                         icon="add"
                         size="sm"
-                        @click="showAddDepartmentDialog = true"
+                        @click="openAddSystemDialog"
                       />
                     </div>
 
-                    <div v-if="selectedFavoritesNode.favData && selectedFavoritesNode.favData.groups && selectedFavoritesNode.favData.groups.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
+                    <!-- Systems table -->
+                    <div v-if="systemsData && systemsData.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
                       <q-table
-                        :rows="selectedFavoritesNode.favData.groups"
+                        :rows="systemsData"
+                        :columns="systemsColumns"
+                        row-key="id"
+                        flat
+                        dense
+                        :rows-per-page-options="[0]"
+                        virtual-scroll
+                        style="max-height: calc(100vh - 380px);"
+                      >
+                        <template #body-cell-actions="props">
+                          <q-td :props="props">
+                            <q-btn
+                              flat
+                              round
+                              dense
+                              icon="edit"
+                              color="primary"
+                              size="sm"
+                              @click="editSystem(props.row)"
+                            >
+                              <q-tooltip>Edit System</q-tooltip>
+                            </q-btn>
+                          </q-td>
+                        </template>
+                      </q-table>
+                    </div>
+
+                    <div v-else class="text-center q-pa-xl text-grey-7">
+                      <q-icon name="info" size="2em" />
+                      <div class="q-mt-md text-caption">No systems found</div>
+                    </div>
+                  </div>
+
+                  <!-- Departments List View (when System selected) -->
+                  <div v-else-if="selectedFavoritesNode && selectedFavoritesNode.type === 'system'">
+                    <div class="row items-center q-mb-md">
+                      <div class="col">
+                        <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
+                        <div class="text-caption text-grey-7">Departments</div>
+                      </div>
+                      <q-btn
+                        color="secondary"
+                        label="Add Department"
+                        icon="add"
+                        size="sm"
+                        @click="openAddDepartmentDialog"
+                      />
+                    </div>
+
+                    <!-- Departments table -->
+                    <div v-if="departmentsData && departmentsData.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
+                      <q-table
+                        :rows="departmentsData"
                         :columns="favoritesListDepartmentColumns"
                         row-key="id"
                         flat
@@ -863,7 +917,13 @@
             </div>
           </div>
 
-          <div class="row justify-end q-mt-md">
+          <div class="row justify-end q-mt-md q-gutter-sm">
+            <q-btn
+              color="secondary"
+              label="Download Favourites"
+              icon="cloud_download"
+              @click="exportFavoritesFolder"
+            />
             <q-btn
               color="primary"
               label="Load Favourites"
@@ -1159,194 +1219,355 @@
     <q-dialog v-model="showAddChannelDialog">
       <q-card style="min-width: 500px">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Add Channel</div>
+          <div class="text-h6">{{ isEditMode ? 'Edit Channel' : 'Add Channel' }}</div>
           <q-space />
           <q-btn icon="close" flat round dense @click="showAddChannelDialog = false" />
         </q-card-section>
 
         <q-card-section class="q-pt-none" style="max-height: 600px; overflow-y: auto;">
-          <!-- Basic Info -->
-          <div class="text-subtitle2 q-mb-md">Basic Information</div>
-          <q-input
-            v-model="newChannel.name_tag"
-            label="Channel Name (NameTag)"
-            hint="Max 64 characters"
-            maxlength="64"
-            counter
-            class="q-mb-md"
-          />
-          <q-input
-            v-model.number="newChannel.frequency"
-            label="Frequency (Hz)"
-            type="number"
-            hint="Enter frequency in Hz"
-            class="q-mb-md"
-          />
-          <q-select
-            v-model="newChannel.modulation"
-            :options="['FM', 'NFM', 'AM', 'AUTO']"
-            label="Modulation"
-            class="q-mb-md"
-          />
+          <template v-if="isTrunkSystemType(selectedFavoritesNode?.system_type || newChannel.system_type)">
+            <!-- Trunk System Fields -->
+            <div class="text-subtitle2 q-mb-md">Channel Details</div>
+            <q-input
+              v-model="newChannel.name_tag"
+              label="Channel Name (NameTag)"
+              hint="Max 64 characters"
+              maxlength="64"
+              counter
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.avoid"
+              :options="['Off', 'On']"
+              label="Avoid"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model="newChannel.frequency"
+              label="TGID"
+              hint="Talkgroup ID"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.tdma_slot"
+              :options="['Any', '1', '2']"
+              label="TDMA Slot"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.func_tag_id"
+              :options="serviceTypes"
+              option-value="value"
+              option-label="label"
+              emit-value
+              map-options
+              label="Service Type (FuncTagId)"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model.number="newChannel.delay"
+              :options="[30, 10, 5, 4, 3, 2, 1, 0, -5, -10]"
+              label="Delay (seconds)"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.alert_tone"
+              :options="['Off', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              label="Alert Tone"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.alert_light"
+              :options="['Off', 'On']"
+              label="Alert Light"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model.number="newChannel.volume_offset"
+              :options="['-3', '-2', '-1', '0', '1', '2', '3']"
+              label="Volume Offset (dB)"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model.number="newChannel.number_tag"
+              label="Number Tag"
+              type="number"
+              hint="Off or 0-999"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.p_ch"
+              :options="['Off', 'On']"
+              label="P-Ch"
+              class="q-mb-md"
+            />
+          </template>
 
-          <!-- Sub-Audio Options -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Sub-Audio Options</div>
-          <q-input
-            v-model="newChannel.audio_option"
-            label="Audio Option"
-            hint="e.g., TONE=67.0, NAC=293, ColorCode=1, RAN=12, Area=2"
-            class="q-mb-md"
-          />
+          <template v-else>
+            <!-- Conventional Fields -->
+            <div class="text-subtitle2 q-mb-md">Basic Information</div>
+            <q-input
+              v-model="newChannel.name_tag"
+              label="Channel Name (NameTag)"
+              hint="Max 64 characters"
+              maxlength="64"
+              counter
+              class="q-mb-md"
+            />
+            <q-input
+              v-model.number="newChannel.frequency"
+              label="Frequency (Hz)"
+              type="number"
+              hint="Enter frequency in Hz"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.modulation"
+              :options="['FM', 'NFM', 'AM', 'AUTO']"
+              label="Modulation"
+              class="q-mb-md"
+            />
 
-          <!-- Attenuator & Delay -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Signal Settings</div>
-          <q-select
-            v-model="newChannel.attenuator"
-            :options="['Off', 'On']"
-            label="Attenuator"
-            class="q-mb-md"
-          />
-          <q-select
-            v-model.number="newChannel.delay"
-            :options="[30, 10, 5, 4, 3, 2, 1, 0, -5, -10]"
-            label="Delay (seconds)"
-            class="q-mb-md"
-          />
-          <q-select
-            v-model.number="newChannel.volume_offset"
-            :options="['-3', '-2', '-1', '0', '1', '2', '3']"
-            label="Volume Offset (dB)"
-            class="q-mb-md"
-          />
+            <div class="text-subtitle2 q-mb-md q-mt-lg">Sub-Audio Options</div>
+            <q-input
+              v-model="newChannel.audio_option"
+              label="Audio Option"
+              hint="e.g., TONE=67.0, NAC=293, ColorCode=1, RAN=12, Area=2"
+              class="q-mb-md"
+            />
 
-          <!-- Alert Settings -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Alert Settings</div>
-          <q-select
-            v-model="newChannel.alert_tone"
-            :options="['Off', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
-            label="Alert Tone"
-            class="q-mb-md"
-          />
-          <q-select
-            v-model="newChannel.alert_light"
-            :options="['Off', 'On']"
-            label="Alert Light"
-            class="q-mb-md"
-          />
+            <div class="text-subtitle2 q-mb-md q-mt-lg">Signal Settings</div>
+            <q-select
+              v-model="newChannel.attenuator"
+              :options="['Off', 'On']"
+              label="Attenuator"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model.number="newChannel.delay"
+              :options="[30, 10, 5, 4, 3, 2, 1, 0, -5, -10]"
+              label="Delay (seconds)"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model.number="newChannel.volume_offset"
+              :options="['-3', '-2', '-1', '0', '1', '2', '3']"
+              label="Volume Offset (dB)"
+              class="q-mb-md"
+            />
 
-          <!-- Priority & Flags -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Flags & Priority</div>
-          <q-select
-            v-model="newChannel.p_ch"
-            :options="['Off', 'On']"
-            label="P-CH (Priority Channel)"
-            class="q-mb-md"
-          />
-          <q-input
-            v-model.number="newChannel.number_tag"
-            label="Number Tag"
-            type="number"
-            hint="Off or 0-999"
-            class="q-mb-md"
-          />
-          <q-input
-            v-model.number="newChannel.priority"
-            label="Priority Channel"
-            type="number"
-            hint="0 = no priority"
-            class="q-mb-md"
-          />
+            <div class="text-subtitle2 q-mb-md q-mt-lg">Service Type</div>
+            <q-select
+              v-model="newChannel.func_tag_id"
+              :options="serviceTypes"
+              option-value="value"
+              option-label="label"
+              emit-value
+              map-options
+              label="Service Type (FuncTagId)"
+              hint="Function/service type for this channel"
+              class="q-mb-md"
+            />
 
-          <!-- Enabled -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Status</div>
-          <q-toggle
-            v-model="newChannel.enabled"
-            label="Enabled"
-            class="q-mb-md"
-          />
+            <div class="text-subtitle2 q-mb-md q-mt-lg">Alert Settings</div>
+            <q-select
+              v-model="newChannel.alert_tone"
+              :options="['Off', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              label="Alert Tone"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newChannel.alert_light"
+              :options="['Off', 'On']"
+              label="Alert Light"
+              class="q-mb-md"
+            />
+
+            <div class="text-subtitle2 q-mb-md q-mt-lg">Flags & Priority</div>
+            <q-select
+              v-model="newChannel.p_ch"
+              :options="['Off', 'On']"
+              label="P-CH (Priority Channel)"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model.number="newChannel.number_tag"
+              label="Number Tag"
+              type="number"
+              hint="Off or 0-999"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model.number="newChannel.priority"
+              label="Priority Channel"
+              type="number"
+              hint="0 = no priority"
+              class="q-mb-md"
+            />
+
+            <div class="text-subtitle2 q-mb-md q-mt-lg">Status</div>
+            <q-toggle
+              v-model="newChannel.enabled"
+              label="Enabled"
+              class="q-mb-md"
+            />
+          </template>
         </q-card-section>
 
         <q-card-actions align="right">
           <q-btn flat label="Cancel" @click="showAddChannelDialog = false" />
           <q-btn
             flat
-            label="Add Channel"
+            :label="isEditMode ? 'Save' : 'Add Channel'"
             color="primary"
-            @click="addChannelToFavorites"
+            @click="isEditMode ? updateChannel() : addChannelToFavorites()"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
 
-    <!-- Add Department Dialog -->
-    <q-dialog v-model="showAddDepartmentDialog">
-      <q-card style="min-width: 500px">
+    <!-- Add/Edit System Dialog -->
+    <q-dialog v-model="showSystemDialog">
+      <q-card style="min-width: 560px; max-width: 680px">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Add Department</div>
+          <div class="text-h6">{{ isEditSystemMode ? 'Edit System' : 'Add System' }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense @click="showAddDepartmentDialog = false" />
+          <q-btn icon="close" flat round dense @click="showSystemDialog = false" />
         </q-card-section>
 
         <q-card-section class="q-pt-none" style="max-height: 600px; overflow-y: auto;">
-          <!-- Basic Info -->
-          <div class="text-subtitle2 q-mb-md">Basic Information</div>
+          <div class="text-subtitle2 q-mb-md">System Details</div>
           <q-input
-            v-model="newDepartment.name_tag"
-            label="Department Name (NameTag)"
-            hint="Max 255 characters"
-            maxlength="255"
+            v-model="newSystem.system_name"
+            label="System Name"
+            maxlength="64"
             counter
             class="q-mb-md"
           />
-
-          <!-- Location Info -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Location Information</div>
           <q-select
-            v-model="newDepartment.location_type"
-            :options="['Conventional', 'Trunked', 'Other']"
-            label="Location Type"
+            v-model="newSystem.avoid"
+            :options="['Off', 'On']"
+            label="Avoid"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model="newSystem.system_type"
+            :options="systemTypeOptions"
+            label="System Type"
             class="q-mb-md"
           />
           <q-input
-            v-model.number="newDepartment.latitude"
-            label="Latitude"
-            type="number"
-            step="0.00001"
-            hint="Optional"
+            v-model="newSystem.quick_key"
+            label="Quick Key"
+            hint="Off or 0-99"
             class="q-mb-md"
           />
           <q-input
-            v-model.number="newDepartment.longitude"
-            label="Longitude"
-            type="number"
-            step="0.00001"
-            hint="Optional"
+            v-model="newSystem.number_tag"
+            label="Number Tag"
+            hint="Off or 0-999"
             class="q-mb-md"
           />
           <q-input
-            v-model.number="newDepartment.range_miles"
-            label="Range (miles)"
+            v-model.number="newSystem.hold_time"
+            label="Hold Time"
             type="number"
-            hint="Optional"
+            hint="0-255 seconds"
             class="q-mb-md"
           />
+          <q-select
+            v-model="newSystem.analog_agc"
+            :options="['Off', 'On']"
+            label="Analog AGC"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model="newSystem.digital_agc"
+            :options="['Off', 'On']"
+            label="Digital AGC"
+            class="q-mb-md"
+          />
+          <template v-if="!isTrunkSystemType(newSystem.system_type)">
+            <q-input
+              v-model.number="newSystem.digital_waiting_time"
+              label="Digital Waiting Time"
+              type="number"
+              hint="0-1000 ms"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newSystem.digital_threshold_mode"
+              :options="['Manual', 'Auto', 'Default']"
+              label="Digital Threshold Mode"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model.number="newSystem.digital_threshold_level"
+              label="Digital Threshold Level"
+              type="number"
+              hint="5-13"
+              class="q-mb-md"
+            />
+          </template>
 
-          <!-- Other Settings -->
-          <div class="text-subtitle2 q-mb-md q-mt-lg">Settings</div>
-          <q-toggle
-            v-model="newDepartment.enabled"
-            label="Enabled"
-            class="q-mb-md"
-          />
+          <template v-if="isTrunkSystemType(newSystem.system_type)">
+            <q-select
+              v-model="newSystem.id_search"
+              :options="['Off', 'On']"
+              label="ID: Search"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newSystem.emergency_alert"
+              :options="['Off', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              label="Emergency Alert"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newSystem.emergency_alert_light"
+              :options="['Off', 'On']"
+              label="Emergency Alert Light"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newSystem.status_bit"
+              :options="['Ignore', 'Yes']"
+              label="Status Bit"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model="newSystem.p25_nac"
+              label="P25 NAC"
+              hint="Srch or 0-FFF"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newSystem.priority_id_scan"
+              :options="['Off', 'On']"
+              label="Priority ID Scan"
+              class="q-mb-md"
+            />
+            <q-select
+              v-model="newSystem.end_code"
+              :options="['Analog', 'Analog+Digital', 'Ignore']"
+              label="End Code"
+              class="q-mb-md"
+            />
+            <q-input
+              v-model="newSystem.nxdn_format"
+              label="NXDN TGID Format"
+              class="q-mb-md"
+            />
+          </template>
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="showAddDepartmentDialog = false" />
+          <q-btn flat label="Cancel" @click="showSystemDialog = false" />
           <q-btn
             flat
-            label="Add Department"
+            :label="isEditSystemMode ? 'Save' : 'Add System'"
             color="primary"
-            @click="addDepartmentToFavorites"
+            @click="isEditSystemMode ? updateSystem() : addSystemToFavorites()"
           />
         </q-card-actions>
       </q-card>
@@ -1383,65 +1604,78 @@
       </q-card>
     </q-dialog>
 
-    <!-- Edit Department Dialog -->
-    <q-dialog v-model="showEditDepartmentDialog">
-      <q-card style="min-width: 400px">
+    <!-- Add/Edit Department Dialog -->
+    <q-dialog v-model="showDepartmentDialog">
+      <q-card style="min-width: 520px; max-width: 640px">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Edit Department Name</div>
+          <div class="text-h6">{{ isEditDepartmentMode ? 'Edit Department' : 'Add Department' }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense @click="showEditDepartmentDialog = false" />
+          <q-btn icon="close" flat round dense @click="showDepartmentDialog = false" />
         </q-card-section>
 
-        <q-card-section>
+        <q-card-section class="q-pt-none" style="max-height: 600px; overflow-y: auto;">
+          <div class="text-subtitle2 q-mb-md">Department Details</div>
           <q-input
-            v-model="editingDepartment.name_tag"
-            label="Department Name"
+            v-model="newDepartment.name_tag"
+            label="Department Name (NameTag)"
             maxlength="255"
             counter
+            class="q-mb-md"
+          />
+          <q-select
+            v-model="newDepartment.avoid"
+            :options="['Off', 'On']"
+            label="Avoid"
+            class="q-mb-md"
+          />
+          <q-select
+            v-model="newDepartment.location_type"
+            :options="['Circle', 'Rectangles']"
+            label="Location Type"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newDepartment.latitude"
+            label="Latitude"
+            type="number"
+            step="0.00001"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newDepartment.longitude"
+            label="Longitude"
+            type="number"
+            step="0.00001"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model.number="newDepartment.range_miles"
+            label="Range (miles)"
+            type="number"
+            class="q-mb-md"
+          />
+          <q-input
+            v-model="newDepartment.quick_key"
+            label="Quick Key"
+            hint="Off or 0-99"
+            class="q-mb-md"
           />
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="showEditDepartmentDialog = false" />
+          <q-btn flat label="Cancel" @click="showDepartmentDialog = false" />
           <q-btn
             flat
-            label="Save"
+            :label="isEditDepartmentMode ? 'Save' : 'Add Department'"
             color="primary"
-            @click="updateDepartment"
+            @click="isEditDepartmentMode ? updateDepartment() : addDepartmentToSystem()"
           />
         </q-card-actions>
       </q-card>
     </q-dialog>
 
     <!-- Edit Channel Dialog -->
-    <q-dialog v-model="showEditChannelDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Edit Channel Name</div>
-          <q-space />
-          <q-btn icon="close" flat round dense @click="showEditChannelDialog = false" />
-        </q-card-section>
 
-        <q-card-section>
-          <q-input
-            v-model="editingChannel.name_tag"
-            label="Channel Name"
-            maxlength="64"
-            counter
-          />
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="showEditChannelDialog = false" />
-          <q-btn
-            flat
-            label="Save"
-            color="primary"
-            @click="updateChannel"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
 
     <!-- Import Confirmation Dialog -->
     <q-dialog v-model="showImportConfirm" persistent>
@@ -1713,6 +1947,11 @@ const favoritesLoading = ref(false)
 const selectedFavoritesNodeId = ref(null)
 const selectedFavoritesNode = ref(null)
 const selectedFavoritesList = ref(null)
+const expandedFavoritesNodes = ref(['favorites_root'])
+const systemsData = ref([])
+const systemsLoading = ref(false)
+const departmentsData = ref([])
+const departmentsLoading = ref(false)
 const favoritesColumns = [
   { name: 'user_name', label: 'User Name', field: 'user_name', align: 'left', sortable: true },
   { name: 'filename', label: 'Filename', field: 'filename', align: 'left', sortable: true },
@@ -1727,50 +1966,143 @@ const favoritesColumns = [
   }, align: 'center' }
 ]
 
-const favoritesChannelColumns = [
+const favoritesChannelColumnsConventional = [
   { name: 'name_tag', label: 'Channel Name', field: 'name_tag', align: 'left', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: 'avoid', align: 'center', sortable: true },
   { name: 'frequency', label: 'Frequency', field: 'frequency', align: 'left', sortable: true },
   { name: 'modulation', label: 'Modulation', field: 'modulation', align: 'left', sortable: true },
   { name: 'audio_option', label: 'Audio Option', field: 'audio_option', align: 'left', sortable: true },
+  { name: 'func_tag_id', label: 'Service Type', field: 'func_tag_id', align: 'center', sortable: true },
+  { name: 'attenuator', label: 'Attenuator', field: 'attenuator', align: 'center', sortable: true },
   { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
-  { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center' },
-  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'center' },
-  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center' },
+  { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center', sortable: true },
+  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'center', sortable: true },
+  { name: 'volume_offset', label: 'Volume Offset', field: 'volume_offset', align: 'center', sortable: true },
+  { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
+  { name: 'p_ch', label: 'P-Ch', field: row => row.p_ch || row.priority_channel || 'Off', align: 'center', sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
+]
+
+const favoritesChannelColumnsTrunk = [
+  { name: 'name_tag', label: 'Channel Name', field: 'name_tag', align: 'left', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: 'avoid', align: 'center', sortable: true },
+  { name: 'frequency', label: 'TGID', field: row => row.tgid ?? row.frequency, align: 'left', sortable: true },
+  { name: 'tdma_slot', label: 'TDMA Slot', field: row => row.tdma_slot || 'Any', align: 'center', sortable: true },
+  { name: 'func_tag_id', label: 'Service Type', field: 'func_tag_id', align: 'center', sortable: true },
+  { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
+  { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center', sortable: true },
+  { name: 'alert_light', label: 'Alert Light', field: 'alert_light', align: 'center', sortable: true },
+  { name: 'volume_offset', label: 'Volume Offset', field: 'volume_offset', align: 'center', sortable: true },
+  { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
+  { name: 'p_ch', label: 'P-Ch', field: row => row.p_ch || row.priority_channel || 'Off', align: 'center', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
 ]
 
 const favoritesListDepartmentColumns = [
   { name: 'name_tag', label: 'Department Name', field: 'name_tag', align: 'left', sortable: true },
-  { name: 'enabled', label: 'Enabled', field: 'enabled', align: 'center', sortable: true },
-  { name: 'freq_count', label: 'Channels', field: 'freq_count', align: 'center', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: 'avoid', align: 'center', sortable: true },
+  { name: 'system_type', label: 'Type', field: 'system_type', align: 'center', sortable: true },
   { name: 'location_type', label: 'Location Type', field: 'location_type', align: 'left', sortable: true },
-  { name: 'latitude', label: 'Latitude', field: 'latitude', align: 'center', sortable: true },
-  { name: 'longitude', label: 'Longitude', field: 'longitude', align: 'center', sortable: true },
-  { name: 'range_miles', label: 'Range (mi)', field: 'range_miles', align: 'center', sortable: true },
+  { name: 'quick_key', label: 'Quick Key', field: 'quick_key', align: 'center', sortable: true },
   { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
 ]
+
+const systemsColumns = [
+  { name: 'system_name', label: 'System Name', field: 'system_name', align: 'left', sortable: true },
+  { name: 'avoid', label: 'Avoid', field: 'avoid', align: 'center', sortable: true },
+  { name: 'system_type', label: 'System Type', field: 'system_type', align: 'center', sortable: true },
+  { name: 'id_search', label: 'ID: Search', field: 'id_search', align: 'center', sortable: true },
+  { name: 'emergency_alert', label: 'Emergency Alert', field: 'emergency_alert', align: 'center', sortable: true },
+  { name: 'emergency_alert_light', label: 'Emergency Alert Light', field: 'emergency_alert_light', align: 'center', sortable: true },
+  { name: 'status_bit', label: 'Status Bit', field: 'status_bit', align: 'center', sortable: true },
+  { name: 'p25_nac', label: 'P25 NAC', field: 'p25_nac', align: 'center', sortable: true },
+  { name: 'quick_key', label: 'Quick Key', field: 'quick_key', align: 'center', sortable: true },
+  { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
+  { name: 'hold_time', label: 'Hold Time', field: 'hold_time', align: 'center', sortable: true },
+  { name: 'priority_id_scan', label: 'Priority ID Scan', field: 'priority_id_scan', align: 'center', sortable: true },
+  { name: 'end_code', label: 'End Code', field: 'end_code', align: 'center', sortable: true },
+  { name: 'nxdn_format', label: 'NXDN TGID Format', field: 'nxdn_format', align: 'center', sortable: true },
+  { name: 'analog_agc', label: 'Analog AGC', field: 'analog_agc', align: 'center', sortable: true },
+  { name: 'digital_agc', label: 'Digital AGC', field: 'digital_agc', align: 'center', sortable: true },
+  { name: 'digital_waiting_time', label: 'Digital Waiting Time', field: 'digital_waiting_time', align: 'center', sortable: true },
+  { name: 'digital_threshold_mode', label: 'Digital Threshold Mode', field: 'digital_threshold_mode', align: 'center', sortable: true },
+  { name: 'digital_threshold_level', label: 'Digital Threshold Level', field: 'digital_threshold_level', align: 'center', sortable: true },
+  { name: 'actions', label: 'Actions', field: 'actions', align: 'center' }
+]
+
+const isTrunkSystemType = (systemType) => {
+  if (!systemType) return false
+  return systemType !== 'Conventional'
+}
+
+const favoritesChannelColumnsBySystem = computed(() => {
+  if (isTrunkSystemType(selectedFavoritesNode.value?.system_type)) {
+    return favoritesChannelColumnsTrunk
+  }
+  return favoritesChannelColumnsConventional
+})
 
 const favoritesTreeNodes = computed(() => {
   console.log('[favoritesTreeNodes] Computing tree nodes, favorites.value:', favorites.value)
   
   const favoritesList = favorites.value.map((fav, idx) => {
-    console.log(`[favoritesTreeNodes] Processing favorite #${idx}: ${fav.user_name}, has groups?`, !!fav.groups, 'groups count:', fav.groups?.length || 0)
+    console.log(`[favoritesTreeNodes] Processing favorite #${idx}: ${fav.user_name}`)
+    
+    // Group departments by their system
+    const systemsMap = new Map()
+    
+    if (fav.groups && fav.groups.length > 0) {
+      fav.groups.forEach((group, gIdx) => {
+        const systemName = group.system_name || 'Unknown System'
+        const systemType = group.system_type || 'Conventional'
+        const systemKey = `${systemType}_${systemName}`
+        
+        if (!systemsMap.has(systemKey)) {
+          systemsMap.set(systemKey, {
+            system_name: systemName,
+            system_type: systemType,
+            departments: []
+          })
+        }
+        
+        systemsMap.get(systemKey).departments.push({
+          id: `dept_${fav.id}_${gIdx}`,
+          label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
+          type: 'department',
+          system_type: group.system_type,
+          favId: fav.id,
+          groupId: group.id,
+          channel_count: group.freq_count,
+          groupData: group
+        })
+      })
+    }
+    
+    // Convert systems map to tree nodes
+    const systemsChildren = Array.from(systemsMap.values()).map((system, sIdx) => {
+      const matched = systemsData.value?.find(sys =>
+        sys.system_name === system.system_name && sys.system_type === system.system_type
+      )
+
+      return ({
+      id: `sys_${fav.id}_${sIdx}`,
+      label: `${system.system_name} (${system.system_type})`,
+      type: 'system',
+      system_type: system.system_type,
+      system_name: system.system_name,
+      systemId: matched?.id || null,
+      favId: fav.id,
+      favData: fav,
+      children: system.departments
+      })
+    })
     
     return {
       id: `fav_${fav.id}`,
       label: `${fav.user_name} (${fav.filename})`,
       type: 'favorites_list',
       favData: fav,
-      children: fav.groups ? fav.groups.map((group, gIdx) => ({
-        id: `dept_${fav.id}_${gIdx}`,
-        label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
-        type: 'department',
-        system_type: group.system_type,
-        favId: fav.id,
-        groupId: group.id,
-        channel_count: group.freq_count,
-        groupData: group
-      })) : []
+      children: systemsChildren
     }
   })
   
@@ -1795,12 +2127,15 @@ const favoritesChannels = computed(() => {
 
 const showCreateDialog = ref(false)
 const showAddChannelDialog = ref(false)
+const isEditMode = ref(false)
 const newChannel = ref({
   name_tag: '',
   description: '',
   frequency: '',
   modulation: 'FM',
   audio_option: '',
+  func_tag_id: 21,  // 21 = Other (default)
+  avoid: 'Off',
   enabled: true,
   delay: 15,
   attenuator: 'Off',
@@ -1809,17 +2144,105 @@ const newChannel = ref({
   volume_offset: '0',
   p_ch: 'Off',
   number_tag: null,
-  priority: 0
+  priority: 0,
+  tdma_slot: 'Any',
+  system_type: 'Conventional'
 })
 
-const showAddDepartmentDialog = ref(false)
+// Service types for func_tag_id dropdown (from specification)
+const serviceTypes = [
+  { label: '1 - Multi-Dispatch', value: 1 },
+  { label: '2 - Law Dispatch', value: 2 },
+  { label: '3 - Fire Dispatch', value: 3 },
+  { label: '4 - EMS Dispatch', value: 4 },
+  { label: '6 - Multi-Tac', value: 6 },
+  { label: '7 - Law Tac', value: 7 },
+  { label: '8 - Fire-Tac', value: 8 },
+  { label: '9 - EMS-Tac', value: 9 },
+  { label: '11 - Interop', value: 11 },
+  { label: '12 - Hospital', value: 12 },
+  { label: '13 - Ham', value: 13 },
+  { label: '14 - Public Works', value: 14 },
+  { label: '15 - Aircraft', value: 15 },
+  { label: '16 - Federal', value: 16 },
+  { label: '17 - Business', value: 17 },
+  { label: '20 - Railroad', value: 20 },
+  { label: '21 - Other', value: 21 },
+  { label: '22 - Multi-Talk', value: 22 },
+  { label: '23 - Law Talk', value: 23 },
+  { label: '24 - Fire-Talk', value: 24 },
+  { label: '25 - EMS-Talk', value: 25 },
+  { label: '26 - Transportation', value: 26 },
+  { label: '29 - Emergency Ops', value: 29 },
+  { label: '30 - Military', value: 30 },
+  { label: '31 - Media', value: 31 },
+  { label: '32 - Schools', value: 32 },
+  { label: '33 - Security', value: 33 },
+  { label: '34 - Utilities', value: 34 },
+  { label: '37 - Corrections', value: 37 },
+  { label: '208 - Custom 1', value: 208 },
+  { label: '209 - Custom 2', value: 209 },
+  { label: '210 - Custom 3', value: 210 },
+  { label: '211 - Custom 4', value: 211 },
+  { label: '212 - Custom 5', value: 212 },
+  { label: '213 - Custom 6', value: 213 },
+  { label: '214 - Custom 7', value: 214 },
+  { label: '215 - Custom 8', value: 215 },
+  { label: '216 - Racing Officials', value: 216 },
+  { label: '217 - Racing Teams', value: 217 }
+]
+
+const showSystemDialog = ref(false)
+const isEditSystemMode = ref(false)
+const systemTypeOptions = [
+  'Conventional',
+  'Motorola',
+  'Edacs',
+  'Scat',
+  'Ltr',
+  'P25Standard',
+  'P25OneFrequency',
+  'P25X2_TDMA',
+  'MotoTrbo',
+  'DmrOneFrequency',
+  'Nxdn',
+  'NxdnOneFrequency'
+]
+const newSystem = ref({
+  id: null,
+  system_name: '',
+  avoid: 'Off',
+  system_type: 'Conventional',
+  id_search: 'Off',
+  emergency_alert: 'Off',
+  emergency_alert_light: 'Off',
+  status_bit: 'Ignore',
+  p25_nac: 'Srch',
+  quick_key: 'Off',
+  number_tag: 'Off',
+  hold_time: 0,
+  priority_id_scan: 'Off',
+  end_code: 'Analog',
+  nxdn_format: '',
+  analog_agc: 'Off',
+  digital_agc: 'Off',
+  digital_waiting_time: 400,
+  digital_threshold_mode: 'Manual',
+  digital_threshold_level: 8
+})
+
+const showDepartmentDialog = ref(false)
+const isEditDepartmentMode = ref(false)
 const newDepartment = ref({
+  id: null,
   name_tag: '',
-  location_type: 'Conventional',
+  avoid: 'Off',
+  location_type: 'Circle',
   latitude: null,
   longitude: null,
   range_miles: null,
-  enabled: true
+  quick_key: 'Off',
+  system_type: 'Conventional'
 })
 
 const showEditFavoritesDialog = ref(false)
@@ -1828,17 +2251,6 @@ const editingFavorites = ref({
   user_name: ''
 })
 
-const showEditDepartmentDialog = ref(false)
-const editingDepartment = ref({
-  id: null,
-  name_tag: ''
-})
-
-const showEditChannelDialog = ref(false)
-const editingChannel = ref({
-  id: null,
-  name_tag: ''
-})
 
 const importFiles = ref([])
 const importFilePicker = ref(null)
@@ -2049,14 +2461,18 @@ const selectFavoritesNode = async (node) => {
         node.groupData.channels = (data.tgids || []).map(tgid => ({
           id: tgid.id,
           name_tag: tgid.name_tag,
+          avoid: tgid.avoid,
           frequency: tgid.tgid,  // Use TGID value as "frequency" for display
           modulation: tgid.audio_type,
-          avoid: tgid.avoid,
+          audio_option: '',  // TGIDs don't have audio_option
+          func_tag_id: tgid.func_tag_id,
+          attenuator: '',  // TGIDs don't have attenuator
           delay: tgid.delay,
-          volume_offset: tgid.volume_offset,
           alert_tone: tgid.alert_tone,
-          alert_volume: tgid.alert_volume,
-          enabled: tgid.avoid !== 'On'
+          alert_light: tgid.alert_color,
+          volume_offset: tgid.volume_offset,
+          number_tag: tgid.number_tag,
+          priority_channel: tgid.priority_channel
         }))
         console.log('[selectFavoritesNode] Loaded', data.tgids?.length || 0, 'TGIDs')
       }
@@ -2064,9 +2480,72 @@ const selectFavoritesNode = async (node) => {
       console.error('[selectFavoritesNode] Error loading channels:', error)
       $q.notify({ type: 'negative', message: 'Failed to load channels' })
     }
+  } else if (node.type === 'system') {
+    // System node selected - load and display departments (CGroups or TGroups)
+    const favData = node.favData
+    selectedFavoritesList.value = favData
+
+    if (!systemsData.value?.length && favData?.id) {
+      try {
+        const { data } = await api.get(`/usersettings/favorites-lists/${favData.id}/get-systems/`)
+        systemsData.value = data.systems || []
+      } catch (error) {
+        console.error('[selectFavoritesNode] Error loading systems for id lookup:', error)
+      }
+    }
+
+    if (!node.systemId && systemsData.value?.length) {
+      const matched = systemsData.value.find(sys =>
+        sys.system_name === node.system_name && sys.system_type === node.system_type
+      )
+      if (matched) {
+        node.systemId = matched.id
+      }
+    }
+    
+    // Load departments for this system
+    try {
+      departmentsLoading.value = true
+      
+      // node.children contains the departments for this system
+      if (node.children && node.children.length > 0) {
+        departmentsData.value = node.children.map(dept => ({
+          id: dept.groupId,
+          name_tag: dept.label.split(' (')[0], // Extract name without count
+          avoid: dept.groupData?.avoid || 'Off',
+          system_type: dept.system_type,
+          location_type: dept.groupData?.location_type || 'Circle',
+          quick_key: dept.groupData?.quick_key || 'Off',
+          latitude: dept.groupData?.latitude ?? null,
+          longitude: dept.groupData?.longitude ?? null,
+          range_miles: dept.groupData?.range_miles ?? null
+        }))
+        console.log('[selectFavoritesNode] Loaded', departmentsData.value.length, 'departments for system')
+      } else {
+        departmentsData.value = []
+      }
+    } catch (error) {
+      console.error('[selectFavoritesNode] Error loading departments:', error)
+      $q.notify({ type: 'negative', message: 'Failed to load departments' })
+    } finally {
+      departmentsLoading.value = false
+    }
   } else if (node.type === 'favorites_list') {
     // Set the favorites list directly
     selectedFavoritesList.value = node.favData
+    
+    // Load systems (ConventionalSystem and TrunkSystem) for this favorites list
+    try {
+      systemsLoading.value = true
+      const { data } = await api.get(`/usersettings/favorites-lists/${node.favData.id}/get-systems/`)
+      systemsData.value = data.systems || []
+      console.log('[selectFavoritesNode] Loaded', data.systems?.length || 0, 'systems')
+    } catch (error) {
+      console.error('[selectFavoritesNode] Error loading systems:', error)
+      $q.notify({ type: 'negative', message: 'Failed to load systems' })
+    } finally {
+      systemsLoading.value = false
+    }
   }
 }
 
@@ -2074,6 +2553,7 @@ const getFavoritesNodeIcon = (node) => {
   switch (node.type) {
     case 'root': return 'star'
     case 'favorites_list': return 'bookmark'
+    case 'system': return 'hub'
     case 'department': return 'radio'
     default: return 'circle'
   }
@@ -2083,6 +2563,7 @@ const getFavoritesNodeColor = (node) => {
   switch (node.type) {
     case 'root': return 'amber'
     case 'favorites_list': return 'orange'
+    case 'system': return 'purple'
     case 'department': return 'blue'
     default: return 'grey'
   }
@@ -3173,170 +3654,279 @@ const deleteFavoritesList = () => {
 }
 
 const addChannelToFavorites = async () => {
-  // Validate frequency is a positive integer (Hz)
-  if (!newChannel.frequency || newChannel.frequency <= 0) {
-    $q.notify({ type: 'negative', message: 'Frequency must be a positive integer (Hz)' })
-    return
-  }
-
-  // Validate NameTag is not empty if required
-  if (!newChannel.name_tag || newChannel.name_tag.trim() === '') {
-    $q.notify({ type: 'negative', message: 'Channel name tag is required' })
-    return
-  }
-
-  // Validate NameTag length (max 64 characters per spec)
-  if (newChannel.name_tag.length > 64) {
-    $q.notify({ type: 'negative', message: 'Channel name tag must be 64 characters or less' })
-    return
-  }
-
-  // Validate modulation is selected
-  if (!newChannel.modulation) {
-    $q.notify({ type: 'negative', message: 'Modulation must be selected' })
-    return
-  }
-
-  // Validate number tag if not "Off"
-  if (newChannel.number_tag && (newChannel.number_tag < 0 || newChannel.number_tag > 999)) {
-    $q.notify({ type: 'negative', message: 'Number tag must be between 0 and 999' })
-    return
-  }
-
-  // Validate volume offset if selected
-  if (newChannel.volume_offset && !['-3', '-2', '-1', '0', '1', '2', '3'].includes(String(newChannel.volume_offset))) {
-    $q.notify({ type: 'negative', message: 'Volume offset must be between -3 and +3 dB' })
-    return
-  }
-
   try {
-    // Get the selected department (channel group)
+    // Validate we have a selected department
     if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'department') {
       $q.notify({ type: 'negative', message: 'Please select a department to add channel to' })
       return
     }
 
-    const channelGroup = selectedFavoritesNode.value.groupData
-    if (!channelGroup || !channelGroup.id) {
-      $q.notify({ type: 'negative', message: 'Invalid department selected' })
-      return
+    const systemType = selectedFavoritesNode.value.system_type
+    const groupId = selectedFavoritesNode.value.groupId
+
+    if (!isTrunkSystemType(systemType)) {
+      // Validate frequency for conventional
+      if (!newChannel.value.frequency || newChannel.value.frequency <= 0) {
+        $q.notify({ type: 'negative', message: 'Frequency must be a positive integer (Hz)' })
+        return
+      }
+      if (!newChannel.value.name_tag || newChannel.value.name_tag.trim() === '') {
+        $q.notify({ type: 'negative', message: 'Channel name is required' })
+        return
+      }
+      if (newChannel.value.name_tag.length > 64) {
+        $q.notify({ type: 'negative', message: 'Channel name must be 64 characters or less' })
+        return
+      }
+
+      // POST to add frequency
+      const payload = {
+        name_tag: newChannel.value.name_tag,
+        frequency: parseInt(newChannel.value.frequency),
+        modulation: newChannel.value.modulation || 'AUTO',
+        avoid: newChannel.value.avoid || 'Off',
+        audio_option: newChannel.value.audio_option || '',
+        func_tag_id: newChannel.value.func_tag_id || 21,
+        attenuator: newChannel.value.attenuator || 'Off',
+        delay: newChannel.value.delay || 2,
+        volume_offset: newChannel.value.volume_offset || 0,
+        alert_tone: newChannel.value.alert_tone || 'Off',
+        alert_volume: newChannel.value.alert_volume || 'Auto',
+        alert_color: 'Off',
+        alert_pattern: 'On',
+        number_tag: newChannel.value.number_tag || 'Off',
+        priority_channel: newChannel.value.p_ch || 'Off'
+      }
+
+      await api.post(`/usersettings/cgroups/${groupId}/add-frequency/`, payload)
+      $q.notify({ type: 'positive', message: `Frequency "${newChannel.value.name_tag}" added successfully!` })
+    } else if (isTrunkSystemType(systemType)) {
+      // Validate TGID for trunked
+      if (!newChannel.value.frequency || String(newChannel.value.frequency).trim() === '') {
+        $q.notify({ type: 'negative', message: 'TGID is required' })
+        return
+      }
+      if (!newChannel.value.name_tag || newChannel.value.name_tag.trim() === '') {
+        $q.notify({ type: 'negative', message: 'TGID name is required' })
+        return
+      }
+
+      // POST to add TGID
+      const payload = {
+        name_tag: newChannel.value.name_tag,
+        tgid: String(newChannel.value.frequency),
+        audio_type: newChannel.value.modulation || 'ALL',
+        func_tag_id: newChannel.value.func_tag_id || 21,
+        avoid: newChannel.value.avoid || 'Off',
+        delay: newChannel.value.delay || 2,
+        volume_offset: newChannel.value.volume_offset || 0,
+        alert_tone: newChannel.value.alert_tone || 'Off',
+        alert_volume: newChannel.value.alert_volume || 'Auto',
+        alert_color: 'Off',
+        alert_pattern: 'On',
+        number_tag: newChannel.value.number_tag || 'Off',
+        priority_channel: newChannel.value.p_ch || 'Off',
+        tdma_slot: newChannel.value.tdma_slot || 'Any'
+      }
+
+      await api.post(`/usersettings/tgroups/${groupId}/add-tgid/`, payload)
+      $q.notify({ type: 'positive', message: `TGID "${newChannel.value.name_tag}" added successfully!` })
     }
 
-    // Create payload for API
-    const payload = {
-      name_tag: newChannel.name_tag,
-      description: newChannel.description || '',
-      frequency: parseInt(newChannel.frequency),
-      modulation: newChannel.modulation,
-      audio_option: newChannel.audio_option || '',
-      delay: newChannel.delay || 15,
-      attenuator: newChannel.attenuator || 'Off',
-      alert_tone: newChannel.alert_tone || 'Off',
-      alert_light: newChannel.alert_light || 'Off',
-      volume_offset: newChannel.volume_offset || '0',
-      p_ch: newChannel.p_ch || 'Off',
-      number_tag: newChannel.number_tag || null,
-      priority: newChannel.priority ? 'On' : 'Off',
-      enabled: newChannel.enabled ? true : false,
-      reserved: 'Off',
-      channel_group: channelGroup.id // ForeignKey reference
-    }
-
-    // POST to API to create new frequency
-    const response = await api.post('/usersettings/frequencies/', payload)
-    
-    $q.notify({ type: 'positive', message: `Channel "${newChannel.name_tag}" added successfully!` })
-    
     // Reset form
-    newChannel.name_tag = ''
-    newChannel.description = ''
-    newChannel.frequency = null
-    newChannel.modulation = ''
-    newChannel.audio_option = ''
-    newChannel.enabled = true
-    newChannel.delay = 15
-    newChannel.attenuator = 'Off'
-    newChannel.alert_tone = 'Off'
-    newChannel.alert_light = 'Off'
-    newChannel.volume_offset = '0'
-    newChannel.p_ch = 'Off'
-    newChannel.number_tag = null
-    newChannel.priority = false
-    
+    newChannel.value.name_tag = ''
+    newChannel.value.avoid = 'Off'
+    newChannel.value.frequency = ''
+    newChannel.value.modulation = 'FM'
+    newChannel.value.audio_option = ''
+    newChannel.value.func_tag_id = 21  // Reset to Other
+    newChannel.value.delay = 15
+    newChannel.value.attenuator = 'Off'
+    newChannel.value.alert_tone = 'Off'
+    newChannel.value.alert_light = 'Off'
+    newChannel.value.volume_offset = '0'
+    newChannel.value.p_ch = 'Off'
+    newChannel.value.number_tag = null
+    newChannel.value.priority = 0
+    newChannel.value.enabled = true
+    newChannel.value.tdma_slot = 'Any'
+
     // Close dialog
     showAddChannelDialog.value = false
-    
-    // Reload the favorites list to show the new channel
-    await loadFavoritesList()
-    
+
+    // Reload channels for this group
+    await selectFavoritesNode(selectedFavoritesNode.value)
+
   } catch (error) {
     console.error('Error adding channel:', error)
-    const errorMsg = error.response?.data?.detail || error.message || 'Failed to add channel'
+    const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Failed to add channel'
     $q.notify({ type: 'negative', message: errorMsg })
   }
 }
 
-const addDepartmentToFavorites = async () => {
-  // Validate department name
-  if (!newDepartment.value.name_tag || newDepartment.value.name_tag.trim() === '') {
-    $q.notify({ type: 'negative', message: 'Department name is required' })
-    return
+const openAddSystemDialog = () => {
+  newSystem.value = {
+    id: null,
+    system_name: '',
+    avoid: 'Off',
+    system_type: 'Conventional',
+    id_search: 'Off',
+    emergency_alert: 'Off',
+    emergency_alert_light: 'Off',
+    status_bit: 'Ignore',
+    p25_nac: 'Srch',
+    quick_key: 'Off',
+    number_tag: 'Off',
+    hold_time: 0,
+    priority_id_scan: 'Off',
+    end_code: 'Analog',
+    nxdn_format: '',
+    analog_agc: 'Off',
+    digital_agc: 'Off',
+    digital_waiting_time: 400,
+    digital_threshold_mode: 'Manual',
+    digital_threshold_level: 8
   }
+  isEditSystemMode.value = false
+  showSystemDialog.value = true
+}
 
-  // Validate name length (max 255 characters)
-  if (newDepartment.value.name_tag.length > 255) {
-    $q.notify({ type: 'negative', message: 'Department name must be 255 characters or less' })
+const editSystem = (system) => {
+  newSystem.value = {
+    id: system.id,
+    system_name: system.system_name || system.name || '',
+    avoid: system.avoid || 'Off',
+    system_type: system.system_type || 'Conventional',
+    id_search: system.id_search || 'Off',
+    emergency_alert: system.emergency_alert || 'Off',
+    emergency_alert_light: system.emergency_alert_light || 'Off',
+    status_bit: system.status_bit || 'Ignore',
+    p25_nac: system.p25_nac || 'Srch',
+    quick_key: system.quick_key || 'Off',
+    number_tag: system.number_tag || 'Off',
+    hold_time: system.hold_time || 0,
+    priority_id_scan: system.priority_id_scan || 'Off',
+    end_code: system.end_code || 'Analog',
+    nxdn_format: system.nxdn_format || '',
+    analog_agc: system.analog_agc || 'Off',
+    digital_agc: system.digital_agc || 'Off',
+    digital_waiting_time: system.digital_waiting_time || 400,
+    digital_threshold_mode: system.digital_threshold_mode || 'Manual',
+    digital_threshold_level: system.digital_threshold_level || 8
+  }
+  isEditSystemMode.value = true
+  showSystemDialog.value = true
+}
+
+const addSystemToFavorites = async () => {
+  if (!newSystem.value.system_name || newSystem.value.system_name.trim() === '') {
+    $q.notify({ type: 'negative', message: 'System name is required' })
     return
   }
 
   try {
-    // Get the selected favorites list
-    if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'favorites_list') {
-      $q.notify({ type: 'negative', message: 'Please select a favorites list to add department to' })
-      return
-    }
+    const favoritesList = selectedFavoritesNode.value?.type === 'favorites_list'
+      ? selectedFavoritesNode.value.favData
+      : selectedFavoritesList.value
 
-    const favoritesList = selectedFavoritesNode.value.favData
     if (!favoritesList || !favoritesList.id) {
-      $q.notify({ type: 'negative', message: 'Invalid favorites list selected' })
+      $q.notify({ type: 'negative', message: 'Please select a favorites list to add system to' })
       return
     }
 
-    // Create payload for API - use favorites_list FK now
     const payload = {
-      name_tag: newDepartment.value.name_tag,
-      location_type: newDepartment.value.location_type || 'Conventional',
-      latitude: newDepartment.value.latitude || null,
-      longitude: newDepartment.value.longitude || null,
-      range_miles: newDepartment.value.range_miles || null,
-      enabled: newDepartment.value.enabled ? true : false,
-      cgroup_id: `CG_${Date.now()}`, // Generate a unique ID
-      favorites_list: favoritesList.id // Link directly to FavoritesList
+      name_tag: newSystem.value.system_name,
+      avoid: newSystem.value.avoid,
+      system_type: newSystem.value.system_type,
+      id_search: newSystem.value.id_search,
+      emergency_alert: newSystem.value.emergency_alert,
+      emergency_alert_light: newSystem.value.emergency_alert_light,
+      status_bit: newSystem.value.status_bit,
+      p25_nac: newSystem.value.p25_nac,
+      quick_key: newSystem.value.quick_key,
+      number_tag: newSystem.value.number_tag,
+      priority_id_scan: newSystem.value.priority_id_scan,
+      end_code: newSystem.value.end_code,
+      nxdn_format: newSystem.value.nxdn_format,
+      analog_agc: newSystem.value.analog_agc,
+      digital_agc: newSystem.value.digital_agc,
+      digital_waiting_time: newSystem.value.digital_waiting_time,
+      digital_threshold_mode: newSystem.value.digital_threshold_mode,
+      digital_threshold_level: newSystem.value.digital_threshold_level
     }
 
-    // POST to API to create new channel group (department)
-    const response = await api.post('/usersettings/channel-groups/', payload)
-    
-    $q.notify({ type: 'positive', message: `Department "${newDepartment.value.name_tag}" added successfully!` })
-    
-    // Reset form
-    newDepartment.value.name_tag = ''
-    newDepartment.value.location_type = 'Conventional'
-    newDepartment.value.latitude = null
-    newDepartment.value.longitude = null
-    newDepartment.value.range_miles = null
-    newDepartment.value.enabled = true
-    
-    // Close dialog
-    showAddDepartmentDialog.value = false
-    
-    // Reload the favorites list to show the new department
+    if (!isTrunkSystemType(newSystem.value.system_type)) {
+      payload.system_hold_time = newSystem.value.hold_time
+    } else {
+      payload.site_hold_time = newSystem.value.hold_time
+    }
+
+    await api.post(`/usersettings/favorites-lists/${favoritesList.id}/add-system/`, payload)
+    $q.notify({ type: 'positive', message: `System "${newSystem.value.system_name}" added successfully!` })
+
+    showSystemDialog.value = false
     await loadFavoritesList()
-    
+    await selectFavoritesNode({ ...selectedFavoritesNode.value, type: 'favorites_list', favData: favoritesList })
   } catch (error) {
-    console.error('Error adding department:', error)
-    const errorMsg = error.response?.data?.detail || error.message || 'Failed to add department'
+    console.error('Error adding system:', error)
+    const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Failed to add system'
     $q.notify({ type: 'negative', message: errorMsg })
+  }
+}
+
+const updateSystem = async () => {
+  if (!newSystem.value.system_name || newSystem.value.system_name.trim() === '') {
+    $q.notify({ type: 'negative', message: 'System name is required' })
+    return
+  }
+
+  try {
+    if (!isTrunkSystemType(newSystem.value.system_type)) {
+      const payload = {
+        name_tag: newSystem.value.system_name,
+        avoid: newSystem.value.avoid,
+        system_type: newSystem.value.system_type,
+        quick_key: newSystem.value.quick_key,
+        number_tag: newSystem.value.number_tag,
+        system_hold_time: newSystem.value.hold_time,
+        analog_agc: newSystem.value.analog_agc,
+        digital_agc: newSystem.value.digital_agc,
+        digital_waiting_time: newSystem.value.digital_waiting_time,
+        digital_threshold_mode: newSystem.value.digital_threshold_mode,
+        digital_threshold_level: newSystem.value.digital_threshold_level
+      }
+
+      await api.patch(`/usersettings/conventional-systems/${newSystem.value.id}/`, payload)
+    } else {
+      const payload = {
+        name_tag: newSystem.value.system_name,
+        avoid: newSystem.value.avoid,
+        system_type: newSystem.value.system_type,
+        id_search: newSystem.value.id_search,
+        alert_tone: newSystem.value.emergency_alert,
+        alert_color: newSystem.value.emergency_alert_light,
+        status_bit: newSystem.value.status_bit,
+        nac: newSystem.value.p25_nac,
+        quick_key: newSystem.value.quick_key,
+        number_tag: newSystem.value.number_tag,
+        site_hold_time: newSystem.value.hold_time,
+        priority_id_scan: newSystem.value.priority_id_scan,
+        end_code: newSystem.value.end_code,
+        tgid_format: newSystem.value.nxdn_format,
+        analog_agc: newSystem.value.analog_agc,
+        digital_agc: newSystem.value.digital_agc
+      }
+
+      await api.patch(`/usersettings/trunk-systems/${newSystem.value.id}/`, payload)
+    }
+
+    $q.notify({ type: 'positive', message: 'System updated successfully!' })
+    showSystemDialog.value = false
+    isEditSystemMode.value = false
+    await selectFavoritesNode(selectedFavoritesNode.value)
+  } catch (error) {
+    console.error('Error updating system:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update system' })
   }
 }
 
@@ -3368,60 +3958,228 @@ const updateFavoritesList = async () => {
   }
 }
 
-const editDepartment = (department) => {
-  editingDepartment.value = {
-    id: department.id,
-    name_tag: department.name_tag
+const openAddDepartmentDialog = () => {
+  newDepartment.value = {
+    id: null,
+    name_tag: '',
+    avoid: 'Off',
+    location_type: 'Circle',
+    latitude: null,
+    longitude: null,
+    range_miles: null,
+    quick_key: 'Off',
+    system_type: selectedFavoritesNode.value?.system_type || 'Conventional'
   }
-  showEditDepartmentDialog.value = true
+  isEditDepartmentMode.value = false
+  showDepartmentDialog.value = true
 }
 
-const updateDepartment = async () => {
-  if (!editingDepartment.value.name_tag || editingDepartment.value.name_tag.trim() === '') {
+const editDepartment = (department) => {
+  newDepartment.value = {
+    id: department.id,
+    name_tag: department.name_tag,
+    avoid: department.avoid || 'Off',
+    location_type: department.location_type || 'Circle',
+    latitude: department.latitude ?? null,
+    longitude: department.longitude ?? null,
+    range_miles: department.range_miles ?? null,
+    quick_key: department.quick_key || 'Off',
+    system_type: selectedFavoritesNode.value?.system_type || department.system_type || 'Conventional'
+  }
+  isEditDepartmentMode.value = true
+  showDepartmentDialog.value = true
+}
+
+const addDepartmentToSystem = async () => {
+  if (!newDepartment.value.name_tag || newDepartment.value.name_tag.trim() === '') {
     $q.notify({ type: 'negative', message: 'Department name is required' })
     return
   }
 
   try {
-    await api.patch(`/usersettings/channel-groups/${editingDepartment.value.id}/`, {
-      name_tag: editingDepartment.value.name_tag
-    })
-    
-    $q.notify({ type: 'positive', message: 'Department name updated successfully!' })
-    showEditDepartmentDialog.value = false
-    await loadFavoritesList()
+    if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'system') {
+      $q.notify({ type: 'negative', message: 'Please select a system to add department to' })
+      return
+    }
+
+    let systemId = selectedFavoritesNode.value.systemId || selectedFavoritesNode.value.id
+    const systemType = selectedFavoritesNode.value.system_type || 'Conventional'
+
+    if (!systemId && systemsData.value?.length) {
+      const matched = systemsData.value.find(sys =>
+        sys.system_name === selectedFavoritesNode.value.system_name &&
+        sys.system_type === systemType
+      )
+      systemId = matched?.id
+    }
+
+    if (!systemId) {
+      $q.notify({ type: 'negative', message: 'Unable to determine system id for department' })
+      return
+    }
+
+    const payload = {
+      name_tag: newDepartment.value.name_tag,
+      avoid: newDepartment.value.avoid,
+      latitude: newDepartment.value.latitude,
+      longitude: newDepartment.value.longitude,
+      range_miles: newDepartment.value.range_miles,
+      location_type: newDepartment.value.location_type,
+      quick_key: newDepartment.value.quick_key
+    }
+
+    if (!isTrunkSystemType(systemType)) {
+      await api.post(`/usersettings/conventional-systems/${systemId}/add-department/`, payload)
+    } else {
+      await api.post(`/usersettings/trunk-systems/${systemId}/add-department/`, payload)
+    }
+
+    $q.notify({ type: 'positive', message: `Department "${newDepartment.value.name_tag}" added successfully!` })
+    showDepartmentDialog.value = false
+    await selectFavoritesNode(selectedFavoritesNode.value)
+  } catch (error) {
+    console.error('Error adding department:', error)
+    const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message || 'Failed to add department'
+    $q.notify({ type: 'negative', message: errorMsg })
+  }
+}
+
+const updateDepartment = async () => {
+  if (!newDepartment.value.name_tag || newDepartment.value.name_tag.trim() === '') {
+    $q.notify({ type: 'negative', message: 'Department name is required' })
+    return
+  }
+
+  try {
+    const payload = {
+      name_tag: newDepartment.value.name_tag,
+      avoid: newDepartment.value.avoid,
+      location_type: newDepartment.value.location_type,
+      latitude: newDepartment.value.latitude,
+      longitude: newDepartment.value.longitude,
+      range_miles: newDepartment.value.range_miles,
+      quick_key: newDepartment.value.quick_key
+    }
+
+    if (!isTrunkSystemType(newDepartment.value.system_type)) {
+      await api.patch(`/usersettings/cgroups/${newDepartment.value.id}/`, payload)
+    } else {
+      await api.patch(`/usersettings/tgroups/${newDepartment.value.id}/`, payload)
+    }
+
+    $q.notify({ type: 'positive', message: 'Department updated successfully!' })
+    showDepartmentDialog.value = false
+    isEditDepartmentMode.value = false
+    await selectFavoritesNode(selectedFavoritesNode.value)
   } catch (error) {
     console.error('Error updating department:', error)
-    $q.notify({ type: 'negative', message: 'Failed to update department name' })
+    $q.notify({ type: 'negative', message: 'Failed to update department' })
   }
 }
 
 const editChannel = (channel) => {
-  editingChannel.value = {
-    id: channel.id,
-    name_tag: channel.name_tag
+  // Populate newChannel with existing channel data
+  newChannel.value = {
+    id: channel.id || channel._id,
+    name_tag: channel.name_tag,
+    avoid: channel.avoid || 'Off',
+    frequency: channel.frequency || channel.tgid,
+    modulation: channel.modulation || channel.audio_type || 'FM',
+    audio_option: channel.audio_option || '',
+    func_tag_id: channel.func_tag_id || 21,
+    attenuator: channel.attenuator || 'Off',
+    delay: channel.delay || 2,
+    alert_tone: channel.alert_tone || 'Off',
+    alert_light: channel.alert_light || channel.alert_color || 'Off',
+    volume_offset: channel.volume_offset || 0,
+    number_tag: channel.number_tag || 'Off',
+    p_ch: channel.p_ch || channel.priority_channel || 'Off',
+    priority: channel.priority || 0,
+    enabled: channel.enabled !== false,
+    tdma_slot: channel.tdma_slot || 'Any',
+    system_type: selectedFavoritesNode.value?.system_type || 'Conventional'
   }
-  showEditChannelDialog.value = true
+  isEditMode.value = true
+  showAddChannelDialog.value = true
 }
 
 const updateChannel = async () => {
-  if (!editingChannel.value.name_tag || editingChannel.value.name_tag.trim() === '') {
+  if (!newChannel.value.name_tag || newChannel.value.name_tag.trim() === '') {
     $q.notify({ type: 'negative', message: 'Channel name is required' })
     return
   }
 
   try {
-    await api.patch(`/usersettings/frequencies/${editingChannel.value.id}/`, {
-      name_tag: editingChannel.value.name_tag
-    })
+    const payload = {
+      name_tag: newChannel.value.name_tag,
+      avoid: newChannel.value.avoid,
+      modulation: newChannel.value.modulation,
+      audio_option: newChannel.value.audio_option || '',
+      func_tag_id: newChannel.value.func_tag_id,
+      delay: newChannel.value.delay,
+      volume_offset: newChannel.value.volume_offset,
+      alert_tone: newChannel.value.alert_tone,
+      number_tag: newChannel.value.number_tag,
+      priority_channel: newChannel.value.p_ch
+    }
+
+    if (!isTrunkSystemType(newChannel.value.system_type)) {
+      payload.frequency = parseInt(newChannel.value.frequency)
+      payload.attenuator = newChannel.value.attenuator
+      payload.alert_volume = 'Auto'
+      payload.alert_color = newChannel.value.alert_light
+      payload.alert_pattern = 'On'
+      
+      await api.patch(`/usersettings/cfreqs/${newChannel.value.id}/`, payload)
+    } else {
+      payload.tgid = newChannel.value.frequency
+      payload.audio_type = newChannel.value.modulation
+      payload.alert_volume = 'Auto'
+      payload.alert_color = newChannel.value.alert_light
+      payload.alert_pattern = 'On'
+      payload.tdma_slot = newChannel.value.tdma_slot || 'Any'
+      
+      await api.patch(`/usersettings/tgids/${newChannel.value.id}/`, payload)
+    }
     
-    $q.notify({ type: 'positive', message: 'Channel name updated successfully!' })
-    showEditChannelDialog.value = false
-    await loadFavoritesList()
+    $q.notify({ type: 'positive', message: 'Channel updated successfully!' })
+    showAddChannelDialog.value = false
+    isEditMode.value = false
+    
+    // Reload the channels for the current department
+    if (selectedFavoritesNode.value && selectedFavoritesNode.value.type === 'department') {
+      await selectFavoritesNode(selectedFavoritesNode.value)
+    }
   } catch (error) {
     console.error('Error updating channel:', error)
-    $q.notify({ type: 'negative', message: 'Failed to update channel name' })
+    $q.notify({ type: 'negative', message: 'Failed to update channel' })
   }
+}
+
+const openAddChannelDialog = () => {
+  // Reset form to default values
+  newChannel.value = {
+    id: null,
+    name_tag: '',
+    avoid: 'Off',
+    frequency: '',
+    modulation: 'FM',
+    audio_option: '',
+    func_tag_id: 21,
+    attenuator: 'Off',
+    delay: 2,
+    alert_tone: 'Off',
+    alert_light: 'Off',
+    volume_offset: 0,
+    number_tag: 'Off',
+    p_ch: 'Off',
+    priority: 0,
+    enabled: true,
+    tdma_slot: 'Any',
+    system_type: selectedFavoritesNode.value?.system_type || 'Conventional'
+  }
+  isEditMode.value = false
+  showAddChannelDialog.value = true
 }
 
 const openProfile = (row) => {

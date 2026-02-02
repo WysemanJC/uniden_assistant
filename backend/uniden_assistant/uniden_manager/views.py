@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -51,18 +52,30 @@ class ProxyAPIView(APIView):
         try:
             with urllib.request.urlopen(req) as resp:
                 content = resp.read()
+                content_type = resp.headers.get('Content-Type', 'application/json')
+                if 'application/json' in content_type:
+                    try:
+                        payload = json.loads(content.decode('utf-8'))
+                        return Response(payload, status=resp.status)
+                    except json.JSONDecodeError:
+                        return Response(content.decode('utf-8', errors='replace'), status=resp.status)
+
+                response = HttpResponse(content, status=resp.status, content_type=content_type)
+                disposition = resp.headers.get('Content-Disposition')
+                if disposition:
+                    response['Content-Disposition'] = disposition
+                return response
+        except HTTPError as exc:
+            content = exc.read()
+            content_type = exc.headers.get('Content-Type', 'application/json')
+            if 'application/json' in content_type:
                 try:
                     payload = json.loads(content.decode('utf-8'))
-                    return Response(payload, status=resp.status)
+                    return Response(payload, status=exc.code)
                 except json.JSONDecodeError:
-                    return Response(content.decode('utf-8'), status=resp.status)
-        except HTTPError as exc:
-            content = exc.read().decode('utf-8')
-            try:
-                payload = json.loads(content)
-                return Response(payload, status=exc.code)
-            except json.JSONDecodeError:
-                return Response({'error': content}, status=exc.code)
+                    return Response({'error': content.decode('utf-8', errors='replace')}, status=exc.code)
+
+            return Response({'error': content.decode('utf-8', errors='replace')}, status=exc.code)
         except URLError as exc:
             return Response({'error': str(exc)}, status=502)
 

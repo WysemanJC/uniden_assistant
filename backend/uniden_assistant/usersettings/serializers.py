@@ -60,7 +60,7 @@ class CFreqSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = CFreq
-        fields = ['id', 'name_tag', 'avoid', 'frequency', 'modulation', 'audio_option',
+        fields = ['id', 'name_tag', 'avoid', 'frequency', 'modulation', 'audio_option', 'func_tag_id',
                   'attenuator', 'delay', 'volume_offset', 'alert_tone', 'alert_volume',
                   'alert_color', 'alert_pattern', 'number_tag', 'priority_channel', 'order']
 
@@ -84,6 +84,15 @@ class CGroupSerializer(serializers.ModelSerializer):
                   'location_type', 'quick_key', 'filter', 'cfreqs', 'rectangles', 'order']
 
 
+class CGroupWriteSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
+    class Meta:
+        model = CGroup
+        fields = ['id', 'name_tag', 'avoid', 'latitude', 'longitude', 'range_miles',
+                  'location_type', 'quick_key', 'filter']
+
+
 class ConventionalSystemSerializer(serializers.ModelSerializer):
     id = ObjectIdField(read_only=True)
     cgroups = CGroupSerializer(many=True, read_only=True)
@@ -93,6 +102,18 @@ class ConventionalSystemSerializer(serializers.ModelSerializer):
         fields = ['id', 'name_tag', 'system_type', 'avoid', 'quick_key', 'number_tag',
                   'system_hold_time', 'analog_agc', 'digital_agc', 'digital_waiting_time',
                   'digital_threshold_mode', 'digital_threshold_level', 'dqks_status', 'cgroups', 'order']
+
+
+class ConventionalSystemWriteSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
+    class Meta:
+        model = ConventionalSystem
+        fields = [
+            'id', 'name_tag', 'system_type', 'avoid', 'quick_key', 'number_tag',
+            'system_hold_time', 'analog_agc', 'digital_agc', 'digital_waiting_time',
+            'digital_threshold_mode', 'digital_threshold_level'
+        ]
 
 
 # Trunk System Serializers
@@ -125,8 +146,9 @@ class TGIDSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TGID
-        fields = ['id', 'name_tag', 'tgid', 'alert_tone', 'alert_volume', 'alert_color',
-                  'alert_pattern', 'priority_channel', 'number_tag', 'order']
+        fields = ['id', 'name_tag', 'avoid', 'tgid', 'audio_type', 'func_tag_id', 'delay', 
+                  'volume_offset', 'alert_tone', 'alert_volume', 'alert_color',
+                  'alert_pattern', 'priority_channel', 'number_tag', 'tdma_slot', 'order']
 
 
 class TGroupSerializer(serializers.ModelSerializer):
@@ -138,6 +160,15 @@ class TGroupSerializer(serializers.ModelSerializer):
         model = TGroup
         fields = ['id', 'name_tag', 'avoid', 'latitude', 'longitude', 'range_miles',
                   'location_type', 'quick_key', 'filter', 'tgids', 'rectangles', 'order']
+
+
+class TGroupWriteSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
+    class Meta:
+        model = TGroup
+        fields = ['id', 'name_tag', 'avoid', 'latitude', 'longitude', 'range_miles',
+                  'location_type', 'quick_key', 'filter']
 
 
 class SiteSerializer(serializers.ModelSerializer):
@@ -192,10 +223,26 @@ class TrunkSystemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TrunkSystem
-        fields = ['id', 'name_tag', 'system_type', 'avoid', 'quick_key', 'number_tag',
-                  'system_hold_time', 'analog_agc', 'digital_agc', 'digital_waiting_time',
-                  'digital_threshold_mode', 'digital_threshold_level', 'dqks_status',
-                  'fleet_maps', 'unit_ids', 'avoid_tgids', 'sites', 'tgroups', 'order']
+        fields = [
+            'id', 'name_tag', 'system_type', 'avoid', 'quick_key', 'number_tag',
+            'id_search', 'alert_tone', 'alert_volume', 'status_bit', 'nac',
+            'site_hold_time', 'analog_agc', 'digital_agc', 'end_code',
+            'priority_id_scan', 'alert_color', 'alert_pattern', 'tgid_format',
+            'dqks_status', 'fleet_maps', 'unit_ids', 'avoid_tgids', 'sites', 'tgroups', 'order'
+        ]
+
+
+class TrunkSystemWriteSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
+    class Meta:
+        model = TrunkSystem
+        fields = [
+            'id', 'name_tag', 'system_type', 'avoid', 'quick_key', 'number_tag',
+            'id_search', 'alert_tone', 'alert_volume', 'status_bit', 'nac',
+            'site_hold_time', 'analog_agc', 'digital_agc', 'end_code',
+            'priority_id_scan', 'alert_color', 'alert_pattern', 'tgid_format'
+        ]
 
 
 class FavoritesListDetailSerializer(serializers.ModelSerializer):

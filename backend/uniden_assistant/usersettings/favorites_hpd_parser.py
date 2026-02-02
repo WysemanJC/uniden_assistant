@@ -246,12 +246,11 @@ class FavoritesHPDParser:
         self.avoid_tgid_order = 0
 
     def _parse_dqks_status(self, fields: list[str]) -> None:
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
-        my_id = items[0] if len(items) > 0 else ''
-        flags = items[1:] if len(items) > 1 else []
+        my_id = fields[0] if len(fields) > 0 else ''
+        flags = fields[1:] if len(fields) > 1 else []
 
         if self.current_conventional:
             self.current_conventional.dqks_my_id = my_id
@@ -303,7 +302,7 @@ class FavoritesHPDParser:
             frequency=int(fields[4]) if len(fields) > 4 and fields[4].isdigit() else 0,
             modulation=fields[5] if len(fields) > 5 else 'AUTO',
             audio_option=fields[6] if len(fields) > 6 else '',
-            func_tag_id=int(fields[7]) if len(fields) > 7 and fields[7].isdigit() else 0,
+            func_tag_id=int(fields[7]) if len(fields) > 7 and fields[7].isdigit() else 21,  # 21 = Other (valid default)
             attenuator=fields[8] if len(fields) > 8 else 'Off',
             delay=int(fields[9]) if len(fields) > 9 and self._is_int(fields[9]) else 2,
             volume_offset=int(fields[10]) if len(fields) > 10 and self._is_int(fields[10]) else 0,
@@ -320,30 +319,29 @@ class FavoritesHPDParser:
     def _parse_site(self, fields: list[str]) -> None:
         if not self.current_trunk:
             return
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
         self.current_site = Site.objects.using('favorites').create(
             trunk_system=self.current_trunk,
-            my_id=items[0] if len(items) > 0 else '',
-            parent_id=items[1] if len(items) > 1 else '',
-            name_tag=items[2] if len(items) > 2 else '',
-            avoid=items[3] if len(items) > 3 else 'Off',
-            latitude=self._to_decimal(items[4]) if len(items) > 4 else None,
-            longitude=self._to_decimal(items[5]) if len(items) > 5 else None,
-            range_miles=self._to_decimal(items[6]) if len(items) > 6 else None,
-            modulation=items[7] if len(items) > 7 else 'AUTO',
-            mot_band_type=items[8] if len(items) > 8 else 'Standard',
-            edacs_band_type=items[9] if len(items) > 9 else 'Wide',
-            location_type=items[10] if len(items) > 10 else 'Circle',
-            attenuator=items[11] if len(items) > 11 else 'Off',
-            digital_waiting_time=int(items[12]) if len(items) > 12 and items[12].isdigit() else 400,
-            digital_threshold_mode=items[13] if len(items) > 13 else 'Manual',
-            digital_threshold_level=int(items[14]) if len(items) > 14 and items[14].isdigit() else 8,
-            quick_key=items[15] if len(items) > 15 else 'Off',
-            nac=items[16] if len(items) > 16 else 'Srch',
-            filter=items[17] if len(items) > 17 else '',
+            my_id=fields[0] if len(fields) > 0 else '',
+            parent_id=fields[1] if len(fields) > 1 else '',
+            name_tag=fields[2] if len(fields) > 2 else '',
+            avoid=fields[3] if len(fields) > 3 else 'Off',
+            latitude=self._to_decimal(fields[4]) if len(fields) > 4 else None,
+            longitude=self._to_decimal(fields[5]) if len(fields) > 5 else None,
+            range_miles=self._to_decimal(fields[6]) if len(fields) > 6 else None,
+            modulation=fields[7] if len(fields) > 7 else 'AUTO',
+            mot_band_type=fields[8] if len(fields) > 8 else 'Standard',
+            edacs_band_type=fields[9] if len(fields) > 9 else 'Wide',
+            location_type=fields[10] if len(fields) > 10 else 'Circle',
+            attenuator=fields[11] if len(fields) > 11 else 'Off',
+            digital_waiting_time=int(fields[12]) if len(fields) > 12 and fields[12].isdigit() else 400,
+            digital_threshold_mode=fields[13] if len(fields) > 13 else 'Manual',
+            digital_threshold_level=int(fields[14]) if len(fields) > 14 and fields[14].isdigit() else 8,
+            quick_key=fields[15] if len(fields) > 15 else 'Off',
+            nac=fields[16] if len(fields) > 16 else 'Srch',
+            filter=fields[17] if len(fields) > 17 else '',
             order=self.site_order,
         )
         self.site_order += 1
@@ -354,13 +352,12 @@ class FavoritesHPDParser:
     def _parse_bandplan_p25(self, fields: list[str]) -> None:
         if not self.current_site:
             return
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
-        my_id = items[0] if len(items) > 0 else ''
+        my_id = fields[0] if len(fields) > 0 else ''
         band_plan = {}
-        values = items[1:]
+        values = fields[1:]
         for idx in range(0, len(values), 2):
             band_index = idx // 2
             base = values[idx] if idx < len(values) else ''
@@ -378,13 +375,12 @@ class FavoritesHPDParser:
     def _parse_bandplan_mot(self, fields: list[str]) -> None:
         if not self.current_site:
             return
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
-        my_id = items[0] if len(items) > 0 else ''
+        my_id = fields[0] if len(fields) > 0 else ''
         band_plan = {}
-        values = items[1:]
+        values = fields[1:]
         for idx in range(0, len(values), 4):
             band_index = idx // 4
             lower = values[idx] if idx < len(values) else ''
@@ -406,19 +402,18 @@ class FavoritesHPDParser:
     def _parse_tfreq(self, fields: list[str]) -> None:
         if not self.current_site:
             return
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
         TFreq.objects.using('favorites').create(
             site=self.current_site,
-            reserve_my_id=items[0] if len(items) > 0 else '',
-            parent_id=items[1] if len(items) > 1 else '',
-            reserve1=items[2] if len(items) > 2 else '',
-            reserve_avoid=items[3] if len(items) > 3 else 'Off',
-            frequency=int(items[4]) if len(items) > 4 and items[4].isdigit() else 0,
-            lcn=int(items[5]) if len(items) > 5 and items[5].isdigit() else 0,
-            color_code_ran_area=items[6] if len(items) > 6 else '',
+            reserve_my_id=fields[0] if len(fields) > 0 else '',
+            parent_id=fields[1] if len(fields) > 1 else '',
+            reserve1=fields[2] if len(fields) > 2 else '',
+            reserve_avoid=fields[3] if len(fields) > 3 else 'Off',
+            frequency=int(fields[4]) if len(fields) > 4 and fields[4].isdigit() else 0,
+            lcn=int(fields[5]) if len(fields) > 5 and fields[5].isdigit() else 0,
+            color_code_ran_area=fields[6] if len(fields) > 6 else '',
             order=self.tfreq_order,
         )
         self.tfreq_order += 1
@@ -460,7 +455,7 @@ class FavoritesHPDParser:
             avoid=fields[3] if len(fields) > 3 else 'Off',
             tgid=fields[4] if len(fields) > 4 else '',
             audio_type=fields[5] if len(fields) > 5 else 'ALL',
-            func_tag_id=int(fields[6]) if len(fields) > 6 and fields[6].isdigit() else 0,
+            func_tag_id=int(fields[6]) if len(fields) > 6 and fields[6].isdigit() else 21,  # 21 = Other (valid default)
             delay=int(fields[7]) if len(fields) > 7 and self._is_int(fields[7]) else 2,
             volume_offset=int(fields[8]) if len(fields) > 8 and self._is_int(fields[8]) else 0,
             alert_tone=fields[9] if len(fields) > 9 else 'Off',
@@ -475,16 +470,15 @@ class FavoritesHPDParser:
         self.tgid_order += 1
 
     def _parse_rectangle(self, fields: list[str]) -> None:
-        items = self._trim_leading_empty(fields)
-        if len(items) < 5:
+        if len(fields) < 5:
             return
 
         rectangle_data = {
-            'my_id': items[0],
-            'latitude1': self._to_decimal(items[1]),
-            'longitude1': self._to_decimal(items[2]),
-            'latitude2': self._to_decimal(items[3]),
-            'longitude2': self._to_decimal(items[4]),
+            'my_id': fields[0],
+            'latitude1': self._to_decimal(fields[1]),
+            'longitude1': self._to_decimal(fields[2]),
+            'latitude2': self._to_decimal(fields[3]),
+            'longitude2': self._to_decimal(fields[4]),
             'order': self.rectangle_order,
         }
 
@@ -503,12 +497,11 @@ class FavoritesHPDParser:
     def _parse_fleetmap(self, fields: list[str]) -> None:
         if not self.current_trunk:
             return
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
-        my_id = items[0] if len(items) > 0 else ''
-        blocks = items[1:9] if len(items) > 1 else []
+        my_id = fields[0] if len(fields) > 0 else ''
+        blocks = fields[1:9] if len(fields) > 1 else []
         FleetMap.objects.using('favorites').create(
             trunk_system=self.current_trunk,
             my_id=my_id,
@@ -520,20 +513,19 @@ class FavoritesHPDParser:
     def _parse_unitids(self, fields: list[str]) -> None:
         if not self.current_trunk:
             return
-        items = self._trim_leading_empty(fields)
-        if len(items) < 4:
+        if len(fields) < 4:
             return
 
         UnitId.objects.using('favorites').create(
             trunk_system=self.current_trunk,
-            reserve1=items[0] if len(items) > 0 else '',
-            reserve2=items[1] if len(items) > 1 else '',
-            name_tag=items[2] if len(items) > 2 else '',
-            unit_id=int(items[3]) if len(items) > 3 and items[3].isdigit() else 0,
-            alert_tone=items[4] if len(items) > 4 else 'Off',
-            alert_volume=items[5] if len(items) > 5 else 'Auto',
-            alert_color=items[6] if len(items) > 6 else 'Off',
-            alert_pattern=items[7] if len(items) > 7 else 'On',
+            reserve1=fields[0] if len(fields) > 0 else '',
+            reserve2=fields[1] if len(fields) > 1 else '',
+            name_tag=fields[2] if len(fields) > 2 else '',
+            unit_id=int(fields[3]) if len(fields) > 3 and fields[3].isdigit() else 0,
+            alert_tone=fields[4] if len(fields) > 4 else 'Off',
+            alert_volume=fields[5] if len(fields) > 5 else 'Auto',
+            alert_color=fields[6] if len(fields) > 6 else 'Off',
+            alert_pattern=fields[7] if len(fields) > 7 else 'On',
             order=self.unitid_order,
         )
         self.unitid_order += 1
@@ -541,12 +533,11 @@ class FavoritesHPDParser:
     def _parse_avoid_tgids(self, fields: list[str]) -> None:
         if not self.current_trunk:
             return
-        items = self._trim_leading_empty(fields)
-        if not items:
+        if not fields:
             return
 
-        my_id = items[0] if len(items) > 0 else ''
-        tgids = items[1:] if len(items) > 1 else []
+        my_id = fields[0] if len(fields) > 0 else ''
+        tgids = fields[1:] if len(fields) > 1 else []
         AvoidTgid.objects.using('favorites').create(
             trunk_system=self.current_trunk,
             my_id=my_id,

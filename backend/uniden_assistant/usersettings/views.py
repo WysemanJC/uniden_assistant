@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.db.utils import DatabaseError
+from django.db import models
 import logging
 from django.shortcuts import get_object_or_404
 from django.conf import settings
@@ -17,8 +18,10 @@ from .models import (
     TGID, Rectangle, FleetMap, UnitId, AvoidTgid
 )
 from .serializers import (
-    ScannerProfileSerializer, FrequencySerializer, ChannelGroupSerializer, 
-    AgencySerializer, FavoritesListSerializer, FavoritesListDetailSerializer
+    ScannerProfileSerializer, FrequencySerializer, ChannelGroupSerializer,
+    AgencySerializer, FavoritesListSerializer, FavoritesListDetailSerializer,
+    CFreqSerializer, TGIDSerializer, ConventionalSystemWriteSerializer, TrunkSystemWriteSerializer,
+    CGroupWriteSerializer, TGroupWriteSerializer
 )
 from .parsers import UnidenFileParser
 import tempfile
@@ -145,7 +148,7 @@ class ExportFavoritesFolderView(APIView):
             return Response({'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _build_f_list_cfg(self) -> str:
-        favorites_lists = FavoritesList.objects.using('favorites').all().order_by('order', 'filename')
+        favorites_lists = FavoritesList.objects.using('favorites').all().order_by('filename')
         scanner_model = favorites_lists[0].scanner_model if favorites_lists else 'BCDx36HP'
         format_version = favorites_lists[0].format_version if favorites_lists else '1.00'
 
@@ -169,7 +172,7 @@ class ExportFavoritesFolderView(APIView):
             ]
             lines.append(self._join_record('F-List ', fields))
 
-        return '\n'.join(lines) + '\n'
+        return '\r\n'.join(lines) + '\r\n'
 
     def _build_favorites_hpd(self, favorites_list: FavoritesList) -> str:
         lines = [
@@ -316,8 +319,6 @@ class ExportFavoritesFolderView(APIView):
                     site.digital_threshold_mode or 'Manual',
                     str(site.digital_threshold_level),
                     site.quick_key or 'Off',
-                    site.nac or 'Srch',
-                    site.filter or '',
                 ]))
 
                 if hasattr(site, 'bandplan_p25') and site.bandplan_p25:
@@ -392,11 +393,14 @@ class ExportFavoritesFolderView(APIView):
                         self._format_decimal(rect.longitude2, 6),
                     ]))
 
-        return '\n'.join(lines) + '\n'
+        return '\r\n'.join(lines) + '\r\n'
 
     @staticmethod
     def _join_record(record_type: str, fields: list[str]) -> str:
         sanitized = [str(f) if f is not None else '' for f in fields]
+        # Remove trailing empty fields
+        while sanitized and sanitized[-1] == '':
+            sanitized.pop()
         if sanitized:
             return record_type + '\t' + '\t'.join(sanitized)
         return record_type
@@ -602,7 +606,10 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
                     'frequency_count': freq_count,
                     'freq_count': freq_count,
                     'system_type': 'Conventional',
-                    'system_name': conv_sys.name_tag
+                    'system_name': conv_sys.name_tag,
+                    'avoid': cgroup.avoid,
+                    'location_type': cgroup.location_type,
+                    'quick_key': cgroup.quick_key
                 })
         
         # Process trunk systems and their groups (tgroups)
@@ -616,7 +623,10 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
                     'frequency_count': tgid_count,
                     'freq_count': tgid_count,
                     'system_type': 'Trunked',
-                    'system_name': trunk_sys.name_tag
+                    'system_name': trunk_sys.name_tag,
+                    'avoid': tgroup.avoid,
+                    'location_type': tgroup.location_type,
+                    'quick_key': tgroup.quick_key
                 })
         
         return Response({
@@ -632,6 +642,233 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
             'conventional_systems': len(favorite.conventional_systems.using('favorites').all()),
             'trunk_systems': len(favorite.trunk_systems.using('favorites').all())
         })
+    
+    @action(detail=True, methods=['get'], url_path='get-systems')
+    def get_systems(self, request, pk=None):
+        """Get all systems (Conventional and Trunk) for this favorites list"""
+        favorite = self.get_object()
+        
+        systems = []
+        
+        # Get conventional systems
+        for conv_sys in favorite.conventional_systems.using('favorites').all().order_by('order'):
+            systems.append({
+                'id': str(conv_sys.id),
+                'name': conv_sys.name_tag,
+                'system_name': conv_sys.name_tag,
+                'avoid': conv_sys.avoid,
+                'system_type': 'Conventional',
+                'type': 'Conventional',
+                'quick_key': conv_sys.quick_key,
+                'number_tag': conv_sys.number_tag,
+                'system_hold_time': conv_sys.system_hold_time,
+                'analog_agc': conv_sys.analog_agc,
+                'digital_agc': conv_sys.digital_agc,
+                'digital_waiting_time': conv_sys.digital_waiting_time,
+                'digital_threshold_mode': conv_sys.digital_threshold_mode,
+                'digital_threshold_level': conv_sys.digital_threshold_level,
+                # Conventional-specific fields that may not apply
+                'id_search': None,
+                'emergency_alert': None,
+                'emergency_alert_light': None,
+                'status_bit': None,
+                'p25_nac': None,
+                'hold_time': conv_sys.system_hold_time,
+                'priority_id_scan': None,
+                'end_code': None,
+                'nxdn_format': None,
+            })
+        
+        # Get trunk systems
+        for trunk_sys in favorite.trunk_systems.using('favorites').all().order_by('order'):
+            systems.append({
+                'id': str(trunk_sys.id),
+                'name': trunk_sys.name_tag,
+                'system_name': trunk_sys.name_tag,
+                'avoid': trunk_sys.avoid,
+                'system_type': trunk_sys.system_type or 'Trunk',
+                'type': 'Trunk',
+                'quick_key': trunk_sys.quick_key,
+                'number_tag': trunk_sys.number_tag,
+                'id_search': trunk_sys.id_search,
+                'emergency_alert': trunk_sys.alert_tone,
+                'emergency_alert_light': trunk_sys.alert_color,
+                'status_bit': trunk_sys.status_bit,
+                'p25_nac': trunk_sys.nac,
+                'hold_time': trunk_sys.site_hold_time,
+                'priority_id_scan': trunk_sys.priority_id_scan,
+                'end_code': trunk_sys.end_code,
+                'nxdn_format': trunk_sys.tgid_format,
+                'analog_agc': trunk_sys.analog_agc,
+                'digital_agc': trunk_sys.digital_agc,
+                # Conventional-specific fields that may not apply
+                'digital_waiting_time': None,
+                'digital_threshold_mode': None,
+                'digital_threshold_level': None,
+            })
+        
+        return Response({
+            'id': str(favorite.id),
+            'user_name': favorite.user_name,
+            'systems': systems,
+            'total_systems': len(systems),
+            'conventional_count': favorite.conventional_systems.using('favorites').count(),
+            'trunk_count': favorite.trunk_systems.using('favorites').count()
+        })
+
+    @action(detail=True, methods=['post'], url_path='add-system')
+    def add_system(self, request, pk=None):
+        """Add a new system (ConventionalSystem or TrunkSystem) to a favorites list"""
+        try:
+            favorite = self.get_object()
+
+            system_type = request.data.get('system_type', 'Conventional')
+            name_tag = request.data.get('name_tag', 'New System')
+
+            if system_type == 'Conventional':
+                max_order = ConventionalSystem.objects.using('favorites').filter(
+                    favorites_list=favorite
+                ).aggregate(max_order=models.Max('order'))['max_order'] or 0
+
+                system = ConventionalSystem.objects.using('favorites').create(
+                    favorites_list=favorite,
+                    name_tag=name_tag,
+                    avoid=request.data.get('avoid', 'Off'),
+                    system_type=system_type,
+                    quick_key=request.data.get('quick_key', 'Off'),
+                    number_tag=request.data.get('number_tag', 'Off'),
+                    system_hold_time=request.data.get('system_hold_time', 0),
+                    analog_agc=request.data.get('analog_agc', 'Off'),
+                    digital_agc=request.data.get('digital_agc', 'Off'),
+                    digital_waiting_time=request.data.get('digital_waiting_time', 400),
+                    digital_threshold_mode=request.data.get('digital_threshold_mode', 'Manual'),
+                    digital_threshold_level=request.data.get('digital_threshold_level', 8),
+                    order=max_order + 1
+                )
+
+                return Response({
+                    'id': str(system.id),
+                    'system_name': system.name_tag,
+                    'system_type': system.system_type,
+                })
+
+            max_order = TrunkSystem.objects.using('favorites').filter(
+                favorites_list=favorite
+            ).aggregate(max_order=models.Max('order'))['max_order'] or 0
+
+            system = TrunkSystem.objects.using('favorites').create(
+                favorites_list=favorite,
+                name_tag=name_tag,
+                avoid=request.data.get('avoid', 'Off'),
+                system_type=system_type,
+                id_search=request.data.get('id_search', 'Off'),
+                alert_tone=request.data.get('emergency_alert', 'Off'),
+                alert_volume=request.data.get('alert_volume', 'Auto'),
+                status_bit=request.data.get('status_bit', 'Ignore'),
+                nac=request.data.get('p25_nac', 'Srch'),
+                quick_key=request.data.get('quick_key', 'Off'),
+                number_tag=request.data.get('number_tag', 'Off'),
+                site_hold_time=request.data.get('site_hold_time', 0),
+                analog_agc=request.data.get('analog_agc', 'Off'),
+                digital_agc=request.data.get('digital_agc', 'Off'),
+                end_code=request.data.get('end_code', 'Analog'),
+                priority_id_scan=request.data.get('priority_id_scan', 'Off'),
+                alert_color=request.data.get('emergency_alert_light', 'Off'),
+                alert_pattern=request.data.get('alert_pattern', 'On'),
+                tgid_format=request.data.get('nxdn_format', ''),
+                order=max_order + 1
+            )
+
+            return Response({
+                'id': str(system.id),
+                'system_name': system.name_tag,
+                'system_type': system.system_type,
+            })
+
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], url_path='add-department')
+    def add_department(self, request, pk=None):
+        """Add a new department (CGroup or TGroup) to a favorites list"""
+        try:
+            favorite = self.get_object()
+            
+            system_type = request.data.get('system_type', 'Conventional')
+            name_tag = request.data.get('name_tag', 'New Department')
+            
+            if system_type == 'Conventional':
+                # Create or get the default ConventionalSystem
+                conv_sys, _ = ConventionalSystem.objects.using('favorites').get_or_create(
+                    favorites_list=favorite,
+                    name_tag__isnull=True,
+                    defaults={
+                        'name_tag': f'{favorite.user_name} System',
+                        'avoid': 'Off',
+                        'order': 0
+                    }
+                )
+                
+                # Get max order for groups in this system
+                max_order = CGroup.objects.using('favorites').filter(conventional_system=conv_sys).aggregate(max_order=models.Max('order'))['max_order'] or 0
+                
+                # Create the CGroup
+                cgroup = CGroup.objects.using('favorites').create(
+                    conventional_system=conv_sys,
+                    name_tag=name_tag,
+                    avoid=request.data.get('avoid', 'Off'),
+                    latitude=request.data.get('latitude'),
+                    longitude=request.data.get('longitude'),
+                    range_miles=request.data.get('range_miles'),
+                    location_type=request.data.get('location_type', 'Circle'),
+                    quick_key='Off',
+                    filter='',
+                    order=max_order + 1
+                )
+                
+                return Response({
+                    'id': str(cgroup.id),
+                    'name_tag': cgroup.name_tag,
+                    'type': 'Conventional',
+                    'frequency_count': 0
+                })
+            else:
+                # Create or get the default TrunkSystem
+                trunk_sys, _ = TrunkSystem.objects.using('favorites').get_or_create(
+                    favorites_list=favorite,
+                    name_tag__isnull=True,
+                    defaults={
+                        'name_tag': f'{favorite.user_name} Trunk',
+                        'avoid': 'Off',
+                        'order': 0
+                    }
+                )
+                
+                # Get max order for groups in this system
+                max_order = TGroup.objects.using('favorites').filter(trunk_system=trunk_sys).aggregate(max_order=models.Max('order'))['max_order'] or 0
+                
+                # Create the TGroup
+                tgroup = TGroup.objects.using('favorites').create(
+                    trunk_system=trunk_sys,
+                    name_tag=name_tag,
+                    avoid=request.data.get('avoid', 'Off'),
+                    latitude=request.data.get('latitude'),
+                    longitude=request.data.get('longitude'),
+                    range_miles=request.data.get('range_miles'),
+                    location_type=request.data.get('location_type', 'Circle'),
+                    quick_key='Off',
+                    order=max_order + 1
+                )
+                
+                return Response({
+                    'id': str(tgroup.id),
+                    'name_tag': tgroup.name_tag,
+                    'type': 'Trunked',
+                    'frequency_count': 0
+                })
+                
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class FavoritesImportViewSet(viewsets.ViewSet):
@@ -721,8 +958,9 @@ class FavoritesImportViewSet(viewsets.ViewSet):
                 pass
 
 
-class CGroupViewSet(viewsets.ReadOnlyModelViewSet):
+class CGroupViewSet(viewsets.ModelViewSet):
     """ViewSet for CGroups (Conventional Groups) with their frequencies"""
+    serializer_class = CGroupWriteSerializer
     
     def get_queryset(self):
         return CGroup.objects.using('favorites').all()
@@ -763,9 +1001,74 @@ class CGroupViewSet(viewsets.ReadOnlyModelViewSet):
         except CGroup.DoesNotExist:
             return Response({'error': 'CGroup not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
-class TGroupViewSet(viewsets.ReadOnlyModelViewSet):
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    
+    @action(detail=True, methods=['post'], url_path='add-frequency')
+    def add_frequency(self, request, pk=None):
+        """Add a frequency to a CGroup"""
+        try:
+            cgroup = CGroup.objects.using('favorites').get(pk=pk)
+            
+            # Get the max order value
+            max_order = CFreq.objects.using('favorites').filter(cgroup=cgroup).aggregate(max_order=models.Max('order'))['max_order'] or 0
+            
+            cfreq_obj = CFreq.objects.using('favorites').create(
+                cgroup=cgroup,
+                name_tag=request.data.get('name_tag', 'New Frequency'),
+                frequency=int(request.data.get('frequency', 0)),
+                modulation=request.data.get('modulation', 'AUTO'),
+                avoid=request.data.get('avoid', 'Off'),
+                audio_option=request.data.get('audio_option', ''),
+                func_tag_id=int(request.data.get('func_tag_id', 21)) if request.data.get('func_tag_id') else 21,  # 21 = Other
+                attenuator=request.data.get('attenuator', 'Off'),
+                delay=int(request.data.get('delay', 2)) if request.data.get('delay') else 2,
+                volume_offset=int(request.data.get('volume_offset', 0)) if request.data.get('volume_offset') else 0,
+                alert_tone=request.data.get('alert_tone', 'Off'),
+                alert_volume=request.data.get('alert_volume', 'Auto'),
+                alert_color=request.data.get('alert_color', 'Off'),
+                alert_pattern=request.data.get('alert_pattern', 'On'),
+                number_tag=request.data.get('number_tag', 'Off'),
+                priority_channel=request.data.get('priority_channel', 'Off'),
+                order=max_order + 1
+            )
+            
+            return Response({
+                'id': str(cfreq_obj.id),
+                'name_tag': cfreq_obj.name_tag,
+                'frequency': cfreq_obj.frequency,
+                'modulation': cfreq_obj.modulation,
+                'avoid': cfreq_obj.avoid,
+                'audio_option': cfreq_obj.audio_option,
+                'attenuator': cfreq_obj.attenuator,
+                'delay': cfreq_obj.delay,
+                'volume_offset': cfreq_obj.volume_offset,
+                'alert_tone': cfreq_obj.alert_tone,
+                'alert_volume': cfreq_obj.alert_volume,
+                'alert_color': cfreq_obj.alert_color,
+                'alert_pattern': cfreq_obj.alert_pattern,
+                'number_tag': cfreq_obj.number_tag,
+                'priority_channel': cfreq_obj.priority_channel,
+                'order': cfreq_obj.order
+            })
+        except CGroup.DoesNotExist:
+            return Response({'error': 'CGroup not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TGroupViewSet(viewsets.ModelViewSet):
     """ViewSet for TGroups (Trunk Groups) with their TGIDs"""
+    serializer_class = TGroupWriteSerializer
     
     def get_queryset(self):
         return TGroup.objects.using('favorites').all()
@@ -804,3 +1107,209 @@ class TGroupViewSet(viewsets.ReadOnlyModelViewSet):
             })
         except TGroup.DoesNotExist:
             return Response({'error': 'TGroup not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+    
+    @action(detail=True, methods=['post'], url_path='add-tgid')
+    def add_tgid(self, request, pk=None):
+        """Add a TGID to a TGroup"""
+        try:
+            tgroup = TGroup.objects.using('favorites').get(pk=pk)
+            
+            # Get the max order value
+            max_order = TGID.objects.using('favorites').filter(tgroup=tgroup).aggregate(max_order=models.Max('order'))['max_order'] or 0
+            
+            tgid_obj = TGID.objects.using('favorites').create(
+                tgroup=tgroup,
+                name_tag=request.data.get('name_tag', 'New TGID'),
+                tgid=request.data.get('tgid', ''),
+                audio_type=request.data.get('audio_type', 'ALL'),
+                func_tag_id=int(request.data.get('func_tag_id', 21)) if request.data.get('func_tag_id') else 21,  # 21 = Other
+                avoid=request.data.get('avoid', 'Off'),
+                delay=int(request.data.get('delay', 2)) if request.data.get('delay') else 2,
+                volume_offset=int(request.data.get('volume_offset', 0)) if request.data.get('volume_offset') else 0,
+                alert_tone=request.data.get('alert_tone', 'Off'),
+                alert_volume=request.data.get('alert_volume', 'Auto'),
+                alert_color=request.data.get('alert_color', 'Off'),
+                alert_pattern=request.data.get('alert_pattern', 'On'),
+                number_tag=request.data.get('number_tag', 'Off'),
+                priority_channel=request.data.get('priority_channel', 'Off'),
+                tdma_slot=request.data.get('tdma_slot', 'Any'),
+                order=max_order + 1
+            )
+            
+            return Response({
+                'id': str(tgid_obj.id),
+                'name_tag': tgid_obj.name_tag,
+                'tgid': tgid_obj.tgid,
+                'audio_type': tgid_obj.audio_type,
+                'avoid': tgid_obj.avoid,
+                'delay': tgid_obj.delay,
+                'volume_offset': tgid_obj.volume_offset,
+                'alert_tone': tgid_obj.alert_tone,
+                'alert_volume': tgid_obj.alert_volume,
+                'alert_color': tgid_obj.alert_color,
+                'alert_pattern': tgid_obj.alert_pattern,
+                'number_tag': tgid_obj.number_tag,
+                'priority_channel': tgid_obj.priority_channel,
+                'tdma_slot': tgid_obj.tdma_slot,
+                'order': tgid_obj.order
+            })
+        except TGroup.DoesNotExist:
+            return Response({'error': 'TGroup not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CFreqViewSet(viewsets.ModelViewSet):
+    """ViewSet for CFreq (Conventional Frequencies)"""
+    serializer_class = CFreqSerializer
+    
+    def get_queryset(self):
+        return CFreq.objects.using('favorites').all()
+    
+    def update(self, request, *args, **kwargs):
+        """Update a CFreq"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Partial update a CFreq"""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+
+class TGIDViewSet(viewsets.ModelViewSet):
+    """ViewSet for TGID (Talkgroup IDs)"""
+    serializer_class = TGIDSerializer
+    
+    def get_queryset(self):
+        return TGID.objects.using('favorites').all()
+    
+    def update(self, request, *args, **kwargs):
+        """Update a TGID"""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Partial update a TGID"""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+
+class ConventionalSystemViewSet(viewsets.ModelViewSet):
+    """ViewSet for Conventional Systems"""
+    serializer_class = ConventionalSystemWriteSerializer
+
+    def get_queryset(self):
+        return ConventionalSystem.objects.using('favorites').all()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], url_path='add-department')
+    def add_department(self, request, pk=None):
+        """Add a CGroup (Department) to a Conventional System"""
+        try:
+            system = self.get_object()
+            max_order = CGroup.objects.using('favorites').filter(
+                conventional_system=system
+            ).aggregate(max_order=models.Max('order'))['max_order'] or 0
+
+            cgroup = CGroup.objects.using('favorites').create(
+                conventional_system=system,
+                name_tag=request.data.get('name_tag', 'New Department'),
+                avoid=request.data.get('avoid', 'Off'),
+                latitude=request.data.get('latitude'),
+                longitude=request.data.get('longitude'),
+                range_miles=request.data.get('range_miles'),
+                location_type=request.data.get('location_type', 'Circle'),
+                quick_key=request.data.get('quick_key', 'Off'),
+                filter='',
+                order=max_order + 1
+            )
+
+            return Response({
+                'id': str(cgroup.id),
+                'name_tag': cgroup.name_tag,
+                'type': 'Conventional'
+            })
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TrunkSystemViewSet(viewsets.ModelViewSet):
+    """ViewSet for Trunk Systems"""
+    serializer_class = TrunkSystemWriteSerializer
+
+    def get_queryset(self):
+        return TrunkSystem.objects.using('favorites').all()
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+    @action(detail=True, methods=['post'], url_path='add-department')
+    def add_department(self, request, pk=None):
+        """Add a TGroup (Department) to a Trunk System"""
+        try:
+            system = self.get_object()
+            max_order = TGroup.objects.using('favorites').filter(
+                trunk_system=system
+            ).aggregate(max_order=models.Max('order'))['max_order'] or 0
+
+            tgroup = TGroup.objects.using('favorites').create(
+                trunk_system=system,
+                name_tag=request.data.get('name_tag', 'New Department'),
+                avoid=request.data.get('avoid', 'Off'),
+                latitude=request.data.get('latitude'),
+                longitude=request.data.get('longitude'),
+                range_miles=request.data.get('range_miles'),
+                location_type=request.data.get('location_type', 'Circle'),
+                quick_key=request.data.get('quick_key', 'Off'),
+                filter='',
+                order=max_order + 1
+            )
+
+            return Response({
+                'id': str(tgroup.id),
+                'name_tag': tgroup.name_tag,
+                'type': 'Trunked'
+            })
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
