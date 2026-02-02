@@ -13,7 +13,7 @@ import uuid
 import tempfile
 from .models import (
     Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency,
-    HPDBRawFile, HPDBRawLine, HPDBImportJob
+    HPDBRawFile, HPDBRawLine, HPDBImportJob, HPDBRectangle
 )
 from .serializers import (
     CountrySerializer, StateSerializer, CountySerializer, 
@@ -38,6 +38,7 @@ def _clear_hpdb_parsed_data():
     
     # Delete in dependency order (children first)
     HPDBFrequency.objects.using('hpdb').all().delete()
+    HPDBRectangle.objects.using('hpdb').all().delete()
     HPDBChannelGroup.objects.using('hpdb').all().delete()
     HPDBAgency.objects.using('hpdb').all().delete()
     County.objects.using('hpdb').all().delete()
@@ -600,6 +601,7 @@ class ClearHPDBDataView(APIView):
             logger.info("Clearing HPDB data")
             # Delete all HPDB records in reverse dependency order
             HPDBFrequency.objects.using('hpdb').all().delete()
+            HPDBRectangle.objects.using('hpdb').all().delete()
             HPDBChannelGroup.objects.using('hpdb').all().delete()
             HPDBAgency.objects.using('hpdb').all().delete()
             County.objects.using('hpdb').all().delete()
@@ -610,4 +612,44 @@ class ClearHPDBDataView(APIView):
             return Response({'message': 'HPDB data cleared successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             logger.exception("Failed to clear HPDB data", exc_info=e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class ClearHPDBRawDataView(APIView):
+    """Clear all raw HPDB file data from the database"""
+
+    def post(self, request):
+        try:
+            logger.info("Clearing HPDB raw data")
+            # Delete raw files and lines (cascades to lines automatically)
+            HPDBRawFile.objects.using('hpdb').all().delete()
+            
+            logger.info("HPDB raw data cleared successfully")
+            return Response({'message': 'HPDB raw data cleared successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Failed to clear HPDB raw data", exc_info=e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CancelImportView(APIView):
+    """Cancel in-progress HPDB import and clear job queue"""
+
+    def post(self, request):
+        try:
+            logger.info("Cancelling HPDB import and clearing job queue")
+            
+            # Mark all non-completed jobs as cancelled
+            active_jobs = HPDBImportJob.objects.using('hpdb').exclude(
+                status__in=['completed', 'failed', 'cancelled']
+            )
+            
+            cancelled_count = active_jobs.update(status='cancelled')
+            
+            logger.info(f"Cancelled {cancelled_count} import job(s)")
+            
+            return Response({
+                'message': f'Cancelled {cancelled_count} import job(s)',
+                'jobs_cancelled': cancelled_count
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Failed to cancel import", exc_info=e)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -2,7 +2,7 @@
 import os
 import logging
 from typing import Dict, List, Optional
-from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, HPDBFileRecord, HPDBRawFile, HPDBRawLine
+from .models import Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, HPDBFileRecord, HPDBRawFile, HPDBRawLine, HPDBRectangle
 from uniden_assistant.record_parser import RecordHandler, BaseRecordParser
 from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
 
@@ -23,6 +23,7 @@ class HPDBParser:
         self._current_group = None
         self._current_site_id = None
         self._hpdb_base_dir = None
+        self._rectangles_cache: Dict[str, List[Dict]] = {}  # Cache rectangles by parent ID before saving
         
         # Initialize shared record handler
         self.record_handler = RecordHandler(using_db='hpdb')
@@ -549,6 +550,20 @@ class HPDBParser:
 
             self.channel_groups[cgroup_id] = group
             
+            # Apply any cached rectangles for this channel group
+            # The rectangle cache uses the MyId value from parts[1] (e.g., "CGroupId=123")
+            rectangle_key = parts[1].strip()  # This is the MyId from the C-Group record
+            if rectangle_key in self._rectangles_cache:
+                for rect_data in self._rectangles_cache[rectangle_key]:
+                    HPDBRectangle.objects.using('hpdb').create(
+                        channel_group=group,
+                        latitude_1=rect_data['latitude_1'],
+                        longitude_1=rect_data['longitude_1'],
+                        latitude_2=rect_data['latitude_2'],
+                        longitude_2=rect_data['longitude_2']
+                    )
+                logger.debug(f"Applied {len(self._rectangles_cache[rectangle_key])} rectangles to channel group {name}")
+            
             if created:
                 logger.debug(f"Created channel group: {name}")
             else:
@@ -689,6 +704,18 @@ class HPDBParser:
                     longitude_1 = float(coords[1])
                     latitude_2 = float(coords[2])
                     longitude_2 = float(coords[3])
+                    
+                    # Cache rectangle for later association with channel group
+                    if my_id not in self._rectangles_cache:
+                        self._rectangles_cache[my_id] = []
+                    
+                    self._rectangles_cache[my_id].append({
+                        'latitude_1': latitude_1,
+                        'longitude_1': longitude_1,
+                        'latitude_2': latitude_2,
+                        'longitude_2': longitude_2,
+                    })
+                    
                     association = None
                     if self._current_group is not None:
                         association = 'Department'

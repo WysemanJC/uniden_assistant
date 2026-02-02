@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ScannerProfileViewSet, FrequencyViewSet, ChannelGroupViewSet, AgencyViewSet, SDCardViewSet,
     FavoritesListViewSet, FavoritesImportViewSet, UserSettingsStatsView, ClearUserSettingsDataView,
+    ClearScannerRawDataView,
 )
 
 router = DefaultRouter()
@@ -17,5 +18,6 @@ router.register(r'import-files', FavoritesImportViewSet, basename='favorites-imp
 urlpatterns = [
     path('stats/', UserSettingsStatsView.as_view()),
     path('clear-data/', ClearUserSettingsDataView.as_view()),
+    path('clear-raw-data/', ClearScannerRawDataView.as_view()),
     path('', include(router.urls)),
 ]

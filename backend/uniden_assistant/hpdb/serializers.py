@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency
+    Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency, HPDBRectangle
 )
 
 
@@ -42,15 +42,23 @@ class HPDBFrequencySerializer(serializers.ModelSerializer):
         fields = ['id', 'name_tag', 'description', 'enabled', 'frequency', 'modulation', 'audio_option', 'delay', 'cgroup_id']
 
 
+class HPDBRectangleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HPDBRectangle
+        fields = ['id', 'latitude_1', 'longitude_1', 'latitude_2', 'longitude_2', 'min_latitude', 'max_latitude', 'min_longitude', 'max_longitude']
+        read_only_fields = ['id', 'min_latitude', 'max_latitude', 'min_longitude', 'max_longitude']
+
+
 class HPDBChannelGroupSerializer(serializers.ModelSerializer):
     id = serializers.CharField(source='cgroup_id', read_only=True)
     agency_id = serializers.IntegerField(source='agency.agency_id', read_only=True)
     frequencies = HPDBFrequencySerializer(many=True, read_only=True)
     frequency_count = serializers.IntegerField(source='frequencies.count', read_only=True)
+    rectangles = HPDBRectangleSerializer(many=True, read_only=True)
     
     class Meta:
         model = HPDBChannelGroup
-        fields = ['id', 'name_tag', 'enabled', 'latitude', 'longitude', 'range_miles', 'location_type', 'agency_id', 'frequencies', 'frequency_count']
+        fields = ['id', 'name_tag', 'enabled', 'latitude', 'longitude', 'range_miles', 'location_type', 'agency_id', 'frequencies', 'frequency_count', 'rectangles']
 
 
 class HPDBAgencySerializer(serializers.ModelSerializer):

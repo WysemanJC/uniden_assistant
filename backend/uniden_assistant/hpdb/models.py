@@ -138,6 +138,45 @@ class HPDBChannelGroup(models.Model):
         ]
 
 
+class HPDBRectangle(models.Model):
+    """Rectangle geographic bounds for channel groups or sites"""
+    channel_group = models.ForeignKey(HPDBChannelGroup, on_delete=models.CASCADE, related_name='rectangles', null=True, blank=True)
+    latitude_1 = models.DecimalField(max_digits=9, decimal_places=6)  # First corner
+    longitude_1 = models.DecimalField(max_digits=10, decimal_places=6)  # First corner
+    latitude_2 = models.DecimalField(max_digits=9, decimal_places=6)  # Opposite corner
+    longitude_2 = models.DecimalField(max_digits=10, decimal_places=6)  # Opposite corner
+    
+    class Meta:
+        app_label = 'hpdb'
+        verbose_name_plural = 'HPDB Rectangles'
+        indexes = [
+            models.Index(fields=['channel_group']),
+        ]
+
+    def __str__(self):
+        return f"Rectangle: ({self.latitude_1}, {self.longitude_1}) to ({self.latitude_2}, {self.longitude_2})"
+
+    @property
+    def min_latitude(self):
+        """Minimum (southernmost) latitude"""
+        return min(float(self.latitude_1), float(self.latitude_2))
+    
+    @property
+    def max_latitude(self):
+        """Maximum (northernmost) latitude"""
+        return max(float(self.latitude_1), float(self.latitude_2))
+    
+    @property
+    def min_longitude(self):
+        """Minimum (westernmost) longitude"""
+        return min(float(self.longitude_1), float(self.longitude_2))
+    
+    @property
+    def max_longitude(self):
+        """Maximum (easternmost) longitude"""
+        return max(float(self.longitude_1), float(self.longitude_2))
+
+
 class HPDBFrequency(models.Model):
     """Frequency from HPDB database"""
     cfreq_id = models.BigIntegerField()
@@ -375,6 +414,7 @@ class HPDBImportJob(models.Model):
         ('processing', 'Processing'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
     ]
 
     job_id = models.CharField(max_length=36, unique=True, primary_key=True)

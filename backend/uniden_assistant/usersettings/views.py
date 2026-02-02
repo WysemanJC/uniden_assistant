@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.conf import settings
 from pathlib import Path
 from .models import (
-    ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList
+    ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList, ScannerRawFile, ScannerRawLine
 )
 from .serializers import (
     ScannerProfileSerializer, FrequencySerializer, ChannelGroupSerializer, 
@@ -83,6 +83,22 @@ class ClearUserSettingsDataView(APIView):
                 {'error': f'Failed to clear data: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ClearScannerRawDataView(APIView):
+    """Clear all raw scanner file data from the database"""
+
+    def post(self, request):
+        try:
+            logger.info("Clearing scanner raw data")
+            # Delete raw files and lines (cascades to lines automatically)
+            ScannerRawFile.objects.using('favorites').all().delete()
+            
+            logger.info("Scanner raw data cleared successfully")
+            return Response({'message': 'Scanner raw data cleared successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Failed to clear scanner raw data", exc_info=e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ScannerProfileViewSet(viewsets.ModelViewSet):

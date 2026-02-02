@@ -546,6 +546,22 @@
                             />
                           </q-td>
                         </template>
+                        <template #body-cell-system_type="props">
+                          <q-td :props="props" class="cursor-pointer">
+                            <div class="row items-center q-gutter-xs">
+                              <span>{{ props.value }}</span>
+                              <q-btn
+                                v-if="props.row.latitude && props.row.longitude"
+                                flat
+                                dense
+                                size="sm"
+                                icon="map"
+                                color="primary"
+                                @click.stop="openChannelGroupMap(props.row)"
+                              />
+                            </div>
+                          </q-td>
+                        </template>
                       </q-table>
                     </div>
 
@@ -855,6 +871,18 @@
               />
               <q-btn
                 outline
+                color="warning"
+                label="Clear Raw Data"
+                @click="clearRawDataConfirm"
+              />
+              <q-btn
+                outline
+                color="negative"
+                label="Cancel Import & Clear Queue"
+                @click="cancelImportConfirm"
+              />
+              <q-btn
+                outline
                 color="negative"
                 label="Clear All Data"
                 @click="clearHpdbDataConfirm"
@@ -930,7 +958,7 @@
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">Confirm Data Import</div>
           <q-space />
-          <q-btn icon="close" flat round dense @click="cancelImport" />
+          <q-btn icon="close" flat round dense @click="closeImportDialog" />
         </q-card-section>
 
         <q-card-section v-if="importDetection">
@@ -969,7 +997,7 @@
         </q-card-section>
 
         <q-card-actions align="right" class="q-pa-md">
-          <q-btn flat label="Cancel" @click="cancelImport" />
+          <q-btn flat label="Cancel" @click="closeImportDialog" />
           <q-btn
             outline
             label="Proceed with Merge"
@@ -989,6 +1017,12 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Channel Group Map Dialog -->
+    <ChannelGroupMapDialog 
+      v-model="showChannelGroupMap"
+      :channel-group="mapChannelGroup"
+    />
   </q-layout>
 </template>
 <script setup>
@@ -999,6 +1033,7 @@ import api, { sdAPI } from '../api'
 import { useQuasar, QSeparator } from 'quasar'
 import { marked } from 'marked'
 import axios from 'axios'
+import ChannelGroupMapDialog from '../components/ChannelGroupMapDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1058,6 +1093,8 @@ const agencyChannelGroups = ref([])
 const channelGroupFrequencies = ref([])
 const loadingAgencies = ref(false)
 const loadingFrequencies = ref(false)
+const showChannelGroupMap = ref(false)
+const mapChannelGroup = ref(null)
 
 const frequencyColumns = [
   { name: 'channel_name', label: 'Channel Name', field: row => row.name_tag || row.description || '', align: 'left', sortable: true },
@@ -1474,6 +1511,12 @@ const onChannelGroupRowClick = async (evt, row) => {
   await selectNode(groupNode)
 }
 
+const openChannelGroupMap = (channelGroup) => {
+  console.log('[OPEN-MAP] Opening map for channel group:', channelGroup)
+  mapChannelGroup.value = channelGroup
+  showChannelGroupMap.value = true
+}
+
 const getNodeIcon = (node) => {
   switch (node.type) {
     case 'country': return 'public'
@@ -1626,7 +1669,7 @@ const analyzeImport = async () => {
   }
 }
 
-const cancelImport = () => {
+const closeImportDialog = () => {
   showImportConfirm.value = false
   importDetection.value = null
   importSession.value = null
@@ -1940,6 +1983,33 @@ const clearHpdbDataConfirm = () => {
   })
 }
 
+const clearRawDataConfirm = () => {
+  $q.dialog({
+    title: 'Clear Raw Data',
+    message: 'This will delete all uploaded raw files:\n\n• HPDB raw files and lines\n• Scanner configuration raw files and lines\n\nYou can re-import from source files. Continue?',
+    ok: {
+      label: 'Clear Raw Data',
+      color: 'warning'
+    },
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    clearRawData()
+  })
+}
+
+const clearRawData = async () => {
+  try {
+    await Promise.all([
+      api.post('/hpdb/clear-raw-data/'),
+      api.post('/usersettings/clear-raw-data/')
+    ])
+    $q.notify({ type: 'positive', message: 'Raw data cleared successfully' })
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to clear raw data: ' + (error.response?.data?.error || error.message) })
+  }
+}
+
 const clearAllData = async () => {
   try {
     await Promise.all([
@@ -1952,6 +2022,31 @@ const clearAllData = async () => {
     await loadStats()
   } catch (error) {
     $q.notify({ type: 'negative', message: 'Failed to clear data: ' + (error.response?.data?.error || error.message) })
+  }
+}
+
+const cancelImportConfirm = () => {
+  $q.dialog({
+    title: 'Cancel Import & Clear Queue',
+    message: 'This will:\n\n• Stop any in-progress imports\n• Clear the job queue\n• Cancel pending processing\n\nContinue?',
+    ok: {
+      label: 'Cancel & Clear',
+      color: 'negative'
+    },
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    cancelImport()
+  })
+}
+
+const cancelImport = async () => {
+  try {
+    await api.post('/hpdb/cancel-import/')
+    $q.notify({ type: 'positive', message: 'Import cancelled and queue cleared' })
+    resetHpdbImportProgress()
+  } catch (error) {
+    $q.notify({ type: 'negative', message: 'Failed to cancel import: ' + (error.response?.data?.error || error.message) })
   }
 }
 

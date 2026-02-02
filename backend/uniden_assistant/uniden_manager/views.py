@@ -34,9 +34,19 @@ class ProxyAPIView(APIView):
     def _proxy(self, request, path_suffix=''):
         url = self._build_upstream_url(request, path_suffix)
         data = request.body if request.method in ['POST', 'PUT', 'PATCH'] else None
+        
+        # Ensure data is bytes for urllib
+        if data and not isinstance(data, bytes):
+            data = data.encode('utf-8')
+        
+        # For empty POST/PUT/PATCH, send empty JSON object instead of None
+        if request.method in ['POST', 'PUT', 'PATCH'] and not data:
+            data = b'{}'
+        
         headers = {
             'Content-Type': request.META.get('CONTENT_TYPE', 'application/json'),
         }
+        
         req = urllib.request.Request(url, data=data, headers=headers, method=request.method)
         try:
             with urllib.request.urlopen(req) as resp:
