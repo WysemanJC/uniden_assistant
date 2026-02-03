@@ -29,6 +29,13 @@ PROJECT_NAME="Uniden Assistant"
 PYTHON_MIN_VERSION="3.8"
 NODE_MIN_VERSION="16"
 
+# Ensure system paths take priority over Windows paths (for WSL)
+# This must be done early to ensure WSL tools are used
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
+# Clear command hash cache to ensure new PATH is used
+hash -r
+
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}[*]${NC} $1"
@@ -92,6 +99,8 @@ install_os_packages() {
         "libffi-dev"
         "curl"
         "git"
+        "nodejs"
+        "npm"
     )
     
     for pkg in "${packages[@]}"; do
@@ -102,6 +111,12 @@ install_os_packages() {
             $PKG_MANAGER install -y "$pkg" -qq || print_warning "Failed to install $pkg"
         fi
     done
+    
+    # Special handling for npm: ensure it's the apt version, not Windows
+    if [ ! -f "/usr/bin/npm" ]; then
+        print_warning "npm binary not found in /usr/bin, force installing..."
+        $PKG_MANAGER install -y --reinstall npm -qq || print_warning "Failed to reinstall npm"
+    fi
     
     print_success "OS packages check complete"
 }
@@ -132,48 +147,13 @@ check_python() {
     print_success "Python version check passed"
 }
 
-# Function to check Node.js and install if needed
+# Function to check Node.js version
 check_and_install_node() {
     print_status "Checking Node.js..."
     
     if ! command_exists node; then
-        print_warning "Node.js is not installed. Installing Node.js 18..."
-        
-        # Check if running as root or with sudo
-        if [ "$EUID" -eq 0 ]; then
-            local PKG_MANAGER="apt-get"
-        elif command_exists sudo; then
-            local PKG_MANAGER="sudo apt-get"
-        else
-            print_error "Cannot install Node.js (no sudo access). Please install manually:"
-            echo "  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
-            echo "  sudo apt-get install -y nodejs"
-            exit 1
-        fi
-        
-        # Install Node.js from NodeSource repository
-        print_status "Adding NodeSource repository..."
-        $PKG_MANAGER update -qq || true
-        
-        # Install curl if not present (needed for NodeSource setup)
-        if ! command_exists curl; then
-            print_status "Installing curl (required for Node.js setup)..."
-            $PKG_MANAGER install -y curl -qq || print_warning "Failed to install curl"
-        fi
-        
-        print_status "Setting up Node.js 18 repository..."
-        curl -fsSL https://deb.nodesource.com/setup_18.x | bash - >/dev/null 2>&1 || {
-            print_error "Failed to add NodeSource repository"
-            exit 1
-        }
-        
-        print_status "Installing Node.js..."
-        $PKG_MANAGER install -y nodejs -qq || {
-            print_error "Failed to install Node.js"
-            exit 1
-        }
-        
-        print_success "Node.js installed successfully"
+        print_error "Node.js is not installed. Please run setup again or install manually."
+        exit 1
     fi
     
     local node_version=$(node --version 2>&1 | cut -d'v' -f2)
@@ -212,14 +192,9 @@ check_git() {
 
 # Function to detect WSL and provide recommendations
 check_wsl() {
-    if grep -qi microsoft /proc/version 2>/dev/null; then
-        print_status "Detected Windows Subsystem for Linux (WSL)"
-        print_warning "WSL detected. Remember:"
-        echo "  - Store project in /home or /root (not /mnt/c or Windows directories)"
-        echo "  - Use native WSL terminal, not Windows PowerShell"
-        echo "  - Access frontend at http://localhost:9001 from Windows browser"
-        return 0
-    fi
+    # WSL detection is now handled in main() before other checks
+    # This function is kept for backward compatibility
+    return 0
 }
 
 # Function to clean previous installation
@@ -309,7 +284,37 @@ setup_frontend() {
     
     # Install dependencies
     print_status "Installing Node.js dependencies..."
-    npm install -q 2>/dev/null || npm install
+    
+    # Clean node_modules if they exist (may be corrupted from previous attempts)
+    if [ -d "node_modules" ]; then
+        print_status "Removing potentially corrupted node_modules..."
+        rm -rf node_modules
+    fi
+    
+    # Clear npm cache
+    npm cache clean --force >/dev/null 2>&1 || true
+    
+    # Use explicit npm path from system (not Windows)
+    local NPM_CMD="/usr/bin/npm"
+    if [ ! -f "$NPM_CMD" ]; then
+        NPM_CMD=$(which npm)
+        if [[ "$NPM_CMD" == *"/mnt/c/"* ]] || [[ "$NPM_CMD" == *"Windows"* ]]; then
+            print_error "Cannot find WSL npm. Debian npm installation failed."
+            return 1
+        fi
+    fi
+    
+    print_status "Using npm from: $NPM_CMD"
+    
+    # Install with npm
+    if ! "$NPM_CMD" install 2>&1; then
+        print_warning "npm install failed. Retrying with legacy-peer-deps flag..."
+        if ! "$NPM_CMD" install --legacy-peer-deps 2>&1; then
+            print_error "Failed to install Node.js dependencies"
+            return 1
+        fi
+    fi
+    
     print_success "Node.js dependencies installed"
     
     print_success "Frontend setup complete"
@@ -355,7 +360,6 @@ check_databases() {
     print_status "Checking database connectivity..."
     
     cd "$SCRIPT_DIR/backend"
-    source venv/bin/activate
     
     # Test database connection by running a simple check
     "$SCRIPT_DIR/backend/venv/bin/python" -c "
@@ -369,9 +373,8 @@ try:
     print('Database connection successful')
 except Exception as e:
     print(f'Database connection failed: {e}')
+    exit(1)
 " 2>/dev/null && print_success "Database connectivity check passed" || print_warning "Database connectivity check failed (check config.env and setup)"
-    
-    deactivate
 }
 
 # Main setup flow
@@ -388,9 +391,24 @@ main() {
         echo ""
     fi
     
-    # Check for WSL
-    check_wsl
-    echo ""
+    # Check for WSL and handle Windows npm FIRST before any other checks
+    # This must happen before check_and_install_node to ensure correct npm is used
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        print_status "Detected Windows Subsystem for Linux (WSL)"
+        
+        # Check if npm is pointing to Windows (critical blocker for WSL)
+        local npm_path=$(which npm 2>/dev/null || echo "")
+        if [[ "$npm_path" == *"/mnt/c/"* ]] || [[ "$npm_path" == *"Windows"* ]] || [[ "$npm_path" == *"WINDOWS"* ]]; then
+            print_warning "npm is resolving to Windows: $npm_path"
+            print_status "Will install WSL npm via apt to fix this..."
+        fi
+        
+        print_warning "WSL recommendations:"
+        echo "  - Store project in /home or /root (not /mnt/c or Windows directories)"
+        echo "  - Use native WSL terminal, not Windows PowerShell"
+        echo "  - Access frontend at http://localhost:9001 from Windows browser"
+        echo ""
+    fi
     
     # Check if running on Debian-based system
     if [ -f /etc/debian_version ]; then
