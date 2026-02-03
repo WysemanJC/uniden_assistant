@@ -86,34 +86,20 @@ The Uniden Assistant application is organized as a single Django project with mu
 The application must adhere to a strict multi‑tier API hierarchy:
 
 1) **Uniden Manager** (`backend/uniden_assistant/uniden_manager/`)
-   - Base: /api/uniden_manager/
-   - Front end must ONLY call this API.
-   - This tier MUST NOT directly access any database.
-   - It may only call the internal tier APIs (hpdb, usersettings, appconfig).
+  - Base: /api/uniden_manager/
+  - Front end must ONLY call this API.
+  - This tier MUST NOT directly access any database.
+  - It may only call the internal tier APIs (favourites).
 
-2) **HPDB** (`backend/uniden_assistant/hpdb/`)
-   - Base: /api/hpdb/
-   - Dedicated MongoDB database for HPDB data only.
-   - Contains: Country, State, County, HPDBAgency, HPDBChannelGroup, HPDBFrequency models
-   - MUST NOT read from or write to any other database.
-
-3) **User Settings** (`backend/uniden_assistant/usersettings/`)
-   - Base: /api/usersettings/
-   - Dedicated MongoDB database for user settings and favorites only.
-   - Contains: ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList models
-   - MUST NOT read from or write to any other database.
-
-4) **App Config** (`backend/uniden_assistant/appconfig/`)
-   - Base: /api/appconfig/
-   - Dedicated MongoDB database for app configuration only.
-   - MUST NOT read from or write to any other database.
+2) **Favourites** (`backend/uniden_assistant/favourites/`)
+  - Base: /api/favourites/
+  - Dedicated SQLite database file for favourites and scanner profiles.
+  - MUST NOT read from or write to any other database.
 
 ## Database Rules
 
-- SQLite is reserved for Django core tables only (auth/admin/sessions/etc.).
-- Uniden data (HPDB and user settings/favorites) must NOT be stored in SQLite.
-- App configuration must NOT be stored in SQLite.
-- Each API tier has its own MongoDB database configured via db_router.py
+- SQLite default database is reserved for Django core tables only (auth/admin/sessions/etc.).
+- Favourites data is stored in a dedicated SQLite database configured via db_router.py.
 
 ## Development Rules
 
@@ -121,7 +107,7 @@ The application must adhere to a strict multi‑tier API hierarchy:
 - Do not add direct database access to Uniden Manager.
 - Keep data access confined to the correct tier and database.
 - When creating new models, ensure they have the correct `app_label` in their Meta class.
-- Import models from their respective apps (e.g., `from uniden_assistant.hpdb.models import Country`).
+- Import models from their respective apps (e.g., `from uniden_assistant.favourites.models import FavoritesList`).
 
 ## Configuration
 

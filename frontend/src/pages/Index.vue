@@ -125,7 +125,8 @@
                       row-key="id"
                       :pagination="{ rowsPerPage: 0 }"
                       hide-pagination
-                      style="height: 100%"
+                      style="height: 100%; cursor: pointer"
+                      @row-click="onFavoritesListRowClick"
                     >
                       <template v-slot:header-cell-checkbox="props">
                         <q-th :props="props">
@@ -282,7 +283,8 @@
                         dense
                         :rows-per-page-options="[0]"
                         virtual-scroll
-                        style="max-height: calc(100vh - 380px);"
+                        style="max-height: calc(100vh - 380px); cursor: pointer"
+                        @row-click="onSystemRowClick"
                       >
                         <template #body-cell-actions="props">
                           <q-td :props="props">
@@ -346,7 +348,8 @@
                         dense
                         :rows-per-page-options="[0]"
                         virtual-scroll
-                        style="max-height: calc(100vh - 380px);"
+                        style="max-height: calc(100vh - 380px); cursor: pointer"
+                        @row-click="onDepartmentRowClick"
                       >
                         <template #body-cell-actions="props">
                           <q-td :props="props">
@@ -511,16 +514,16 @@
               class="q-mb-md"
             />
             <q-select
-              v-model.number="newChannel.volume_offset"
+              v-model="newChannel.volume_offset"
               :options="['-3', '-2', '-1', '0', '1', '2', '3']"
               label="Volume Offset (dB)"
               class="q-mb-md"
             />
-            <q-input
-              v-model.number="newChannel.number_tag"
+            <q-select
+              v-model="newChannel.number_tag"
+              :options="['Off', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
               label="Number Tag"
-              type="number"
-              hint="Off or 0-999"
+              hint="Quick access number (Off or 0-9)"
               class="q-mb-md"
             />
             <q-select
@@ -630,11 +633,11 @@
               label="P-CH (Priority Channel)"
               class="q-mb-md"
             />
-            <q-input
-              v-model.number="newChannel.number_tag"
+            <q-select
+              v-model="newChannel.number_tag"
+              :options="['Off', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']"
               label="Number Tag"
-              type="number"
-              hint="Off or 0-999"
+              hint="Quick access number (Off or 0-9)"
               class="q-mb-md"
             />
           </template>
@@ -1348,22 +1351,42 @@ const favoritesTreeNodes = computed(() => {
     // Group departments by their system
     const systemsMap = new Map()
     
+    // First, process actual systems from systemsData
+    if (systemsData.value && systemsData.value.length > 0) {
+      systemsData.value.forEach((system) => {
+        const systemKey = `${system.system_type}_${system.system_name}`
+        if (!systemsMap.has(systemKey)) {
+          systemsMap.set(systemKey, {
+            system_name: system.system_name,
+            system_type: system.system_type,
+            systemId: system.id,
+            departments: []
+          })
+        }
+      })
+    }
+    
+    // Then, process departments and system placeholders from fav.groups
     if (fav.groups && fav.groups.length > 0) {
-      fav.groups
-        .filter(group => !group.is_system_placeholder)  // Filter out placeholder departments
-        .forEach((group, gIdx) => {
-          const systemName = group.system_name || 'Unknown System'
-          const systemType = group.system_type || 'Conventional'
-          const systemKey = `${systemType}_${systemName}`
-          
-          if (!systemsMap.has(systemKey)) {
-            systemsMap.set(systemKey, {
-              system_name: systemName,
-              system_type: systemType,
-              departments: []
-            })
-          }
-          
+      fav.groups.forEach((group, gIdx) => {
+        const systemName = group.system_name || 'Unknown System'
+        const systemType = group.system_type || 'Conventional'
+        const systemKey = `${systemType}_${systemName}`
+        
+        if (!systemsMap.has(systemKey)) {
+          systemsMap.set(systemKey, {
+            system_name: systemName,
+            system_type: systemType,
+            systemId: group.system_id || null,  // Include system_id from placeholder if available
+            departments: []
+          })
+        } else if (group.system_id && !systemsMap.get(systemKey).systemId) {
+          // If we didn't have a system ID before (from systemsData), use it from placeholder
+          systemsMap.get(systemKey).systemId = group.system_id
+        }
+        
+        // Only add to departments if it's NOT a system placeholder
+        if (!group.is_system_placeholder) {
           systemsMap.get(systemKey).departments.push({
             id: `dept_${fav.id}_${gIdx}`,
             label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
@@ -1374,7 +1397,8 @@ const favoritesTreeNodes = computed(() => {
             channel_count: group.freq_count,
             groupData: group
           })
-        })
+        }
+      })
     }
     
     // Convert systems map to tree nodes
@@ -1389,7 +1413,7 @@ const favoritesTreeNodes = computed(() => {
       type: 'system',
       system_type: system.system_type,
       system_name: system.system_name,
-      systemId: matched?.id || null,
+      systemId: matched?.id || system.systemId || null,
       favId: fav.id,
       favData: fav,
       children: system.departments
@@ -1826,6 +1850,7 @@ const getFavoritesNodeIcon = (node) => {
     case 'favorites_list': return 'bookmark'
     case 'system': return 'hub'
     case 'department': return 'radio'
+    case 'empty_department': return 'radio_button_unchecked'
     default: return 'circle'
   }
 }
@@ -1836,7 +1861,62 @@ const getFavoritesNodeColor = (node) => {
     case 'favorites_list': return 'orange'
     case 'system': return 'purple'
     case 'department': return 'blue'
+    case 'empty_department': return 'grey-6'
     default: return 'grey'
+  }
+}
+
+// Table Row Click Handlers
+
+const onFavoritesListRowClick = async (evt, row) => {
+  // Find the favorites list node in the tree and select it
+  const findNodeById = (nodes, targetId) => {
+    for (const node of nodes) {
+      if (node.id === targetId || node.favData?.id === targetId) return node
+      if (node.children) {
+        const found = findNodeById(node.children, targetId)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  const favNode = findNodeById(favoritesTreeNodes.value, `fav_${row.id}`)
+  if (favNode) {
+    await selectFavoritesNode(favNode)
+    // Expand to show the node
+    if (!expandedFavoritesNodes.value.includes(favNode.id)) {
+      expandedFavoritesNodes.value.push(favNode.id)
+    }
+  }
+}
+
+const onSystemRowClick = async (evt, row) => {
+  // Find the system node in the currently selected favorites list
+  if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'favorites_list') return
+  
+  const systemNode = selectedFavoritesNode.value.children?.find(child => 
+    child.systemId === row.id || child.system_name === row.system_name
+  )
+  
+  if (systemNode) {
+    await selectFavoritesNode(systemNode)
+    // Expand to show the node
+    if (!expandedFavoritesNodes.value.includes(systemNode.id)) {
+      expandedFavoritesNodes.value.push(systemNode.id)
+    }
+  }
+}
+
+const onDepartmentRowClick = async (evt, row) => {
+  // Find the department node in the currently selected system
+  if (!selectedFavoritesNode.value || selectedFavoritesNode.value.type !== 'system') return
+  
+  const deptNode = selectedFavoritesNode.value.children?.find(child =>
+    child.groupId === row.id
+  )
+  
+  if (deptNode) {
+    await selectFavoritesNode(deptNode)
   }
 }
 
@@ -1993,9 +2073,7 @@ const performFavoritesImport = async (files) => {
 
   try {
     // First, clear existing data
-    console.log('[DEBUG] Clearing existing favorites data...')
     await api.post('/favourites/clear-data/')
-    console.log('[DEBUG] Data cleared')
 
     // Prepare form data
     const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
@@ -2003,22 +2081,15 @@ const performFavoritesImport = async (files) => {
     files.forEach(file => formData.append('files', file))
 
     // Upload and import
-    console.log('[DEBUG] Starting import upload...')
-    const { data } = await axios.post(
-      api.defaults.baseURL + '/favourites/import-files/',
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 300000,
-        onUploadProgress: (progressEvent) => {
-          favoritesUploadProgress.value.bytesUploaded = progressEvent.loaded
-          favoritesUploadProgress.value.totalBytes = totalBytes
-          favoritesUploadProgress.value.percent = Math.round((progressEvent.loaded / totalBytes) * 100)
-        }
+    const { data } = await api.post('/favourites/import-files/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300000,
+      onUploadProgress: (progressEvent) => {
+        favoritesUploadProgress.value.bytesUploaded = progressEvent.loaded
+        favoritesUploadProgress.value.totalBytes = totalBytes
+        favoritesUploadProgress.value.percent = Math.round((progressEvent.loaded / totalBytes) * 100)
       }
-    )
-
-    console.log('[DEBUG] Import response:', data)
+    })
 
     if (data.errors?.length > 0) {
       $q.notify({
@@ -2967,9 +3038,23 @@ const addDepartmentToSystem = async () => {
     $q.notify({ type: 'positive', message: `Department "${newDepartment.value.name_tag}" added successfully!` })
     showDepartmentDialog.value = false
     await loadFavoritesList()
-    // Re-select the system to show its details
+    // Re-select the system to refresh its details from the newly built tree
     if (selectedFavoritesNode.value?.id) {
-      await selectFavoritesNode(selectedFavoritesNode.value)
+      // Find the updated node from the rebuilt tree
+      const findNodeById = (nodes, targetId) => {
+        for (const node of nodes) {
+          if (node.id === targetId) return node
+          if (node.children) {
+            const found = findNodeById(node.children, targetId)
+            if (found) return found
+          }
+        }
+        return null
+      }
+      const updatedNode = findNodeById(favoritesTreeNodes.value, selectedFavoritesNode.value.id)
+      if (updatedNode) {
+        await selectFavoritesNode(updatedNode)
+      }
     }
   } catch (error) {
     console.error('Error adding department:', error)

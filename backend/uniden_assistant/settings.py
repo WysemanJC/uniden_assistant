@@ -4,7 +4,6 @@ Django settings for uniden_assistant project.
 
 import os
 from pathlib import Path
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -97,57 +96,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'uniden_assistant.wsgi.application'
 
 # Database
-FAVOURITES_MONGO_USER = get_setting('UNIDEN_FAVOURITES_DB_USER', default='')
-FAVOURITES_MONGO_PASSWORD = get_setting('UNIDEN_FAVOURITES_DB_PASSWORD', default='')
-
-FAVOURITES_DB_URI = get_setting('UNIDEN_FAVOURITES_DB')
-
-missing_uris = [
-    key for key, value in (
-        ('UNIDEN_FAVOURITES_DB', FAVOURITES_DB_URI),
-    ) if not value
-]
-if missing_uris:
-    raise RuntimeError(
-        f"Missing MongoDB URI(s): {', '.join(missing_uris)}. "
-        f"Check {ENV_PATH}"
-    )
-
-def _reject_localhost(uri: str, key: str) -> None:
-    if 'localhost' in uri or '127.0.0.1' in uri:
-        raise RuntimeError(
-            f"{key} points to localhost. Refusing to start. Check {ENV_PATH}"
-        )
-
-def _ensure_direct_connection(uri: str) -> str:
-    """Add directConnection=true to MongoDB URI"""
-    parsed = urlparse(uri)
-    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    if query.get('directConnection', '').lower() != 'true':
-        query['directConnection'] = 'true'
-    new_query = urlencode(query)
-    return urlunparse(parsed._replace(query=new_query))
-
-def _force_ipv4(uri: str) -> str:
-    """Replace hostname with IPv4 address to avoid WSL IPv6 issues"""
-    import socket
-    parsed = urlparse(uri)
-    hostname = parsed.hostname
-    port = parsed.port or 27017
-    
-    try:
-        # Get IPv4 address only
-        ipv4_addr = socket.getaddrinfo(hostname, port, socket.AF_INET)[0][4][0]
-        # Replace hostname with IPv4 address in netloc
-        new_netloc = parsed.netloc.replace(hostname, ipv4_addr)
-        return urlunparse(parsed._replace(netloc=new_netloc))
-    except (socket.gaierror, IndexError):
-        # If resolution fails, return original URI
-        return uri
-
-_reject_localhost(FAVOURITES_DB_URI, 'UNIDEN_FAVOURITES_DB')
-
-FAVOURITES_DB_URI = _force_ipv4(_ensure_direct_connection(FAVOURITES_DB_URI))
+FAVOURITES_DB_PATH = BASE_DIR / 'favourites.sqlite3'
 
 DATABASES = {
     'default': {
@@ -155,11 +104,8 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     },
     'favorites': {
-        'ENGINE': 'django_mongodb_backend',
-        'NAME': 'uniden_favourites_db',
-        'HOST': FAVOURITES_DB_URI,
-        **({'USER': FAVOURITES_MONGO_USER} if FAVOURITES_MONGO_USER else {}),
-        **({'PASSWORD': FAVOURITES_MONGO_PASSWORD} if FAVOURITES_MONGO_PASSWORD else {}),
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': FAVOURITES_DB_PATH,
     },
 }
 

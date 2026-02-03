@@ -53,6 +53,8 @@ media/
 .env.*.local
 config.env
 config.env.bak
+favourites.sqlite3
+favourites.sqlite3-journal
 
 # Frontend
 node_modules/
@@ -90,4 +92,5 @@ htmlcov/
 tmp/
 temp/
 SAMPLE_DATA/
+
 

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def _favorites_db_host():
-    return settings.DATABASES.get('favorites', {}).get('CLIENT', {}).get('host')
+    return str(settings.DATABASES.get('favorites', {}).get('NAME'))
 
 
 class UserSettingsStatsView(APIView):
@@ -618,6 +618,7 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
                 # System with no groups - add a placeholder
                 groups.append({
                     'id': f"sys_{conv_sys.id}",
+                    'system_id': str(conv_sys.id),  # Actual system ID for linking
                     'name_tag': f"[{conv_sys.name_tag}]",  # Marker that this is a system, not a group
                     'frequency_count': 0,
                     'freq_count': 0,
@@ -652,6 +653,7 @@ class FavoritesListViewSet(viewsets.ModelViewSet):
                 # System with no groups - add a placeholder
                 groups.append({
                     'id': f"sys_{trunk_sys.id}",
+                    'system_id': str(trunk_sys.id),  # Actual system ID for linking
                     'name_tag': f"[{trunk_sys.name_tag}]",  # Marker that this is a system, not a group
                     'frequency_count': 0,
                     'freq_count': 0,

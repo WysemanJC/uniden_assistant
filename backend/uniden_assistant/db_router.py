@@ -26,7 +26,7 @@ FAVORITES_MODELS = {
 
 
 class UnidenDBRouter:
-    """Route favorites to Mongo (favorites), Django core to SQLite."""
+    """Route favourites to the dedicated SQLite database, Django core to default SQLite."""
 
     def db_for_read(self, model, **hints) -> Optional[str]:
         model_name = model._meta.model_name

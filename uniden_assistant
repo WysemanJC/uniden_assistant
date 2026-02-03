@@ -183,17 +183,7 @@ prepare_databases() {
     cd "$SCRIPT_DIR/backend"
     load_env_file
     
-    # Export all MongoDB URIs and credentials to environment
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
-    export UNIDEN_HPDB_DB
-    export UNIDEN_USERSETTINGS_DB
-    export UNIDEN_APP_DB
-    export UNIDEN_HPDB_DB_USER
-    export UNIDEN_HPDB_DB_PASSWORD
-    export UNIDEN_USERSETTINGS_DB_USER
-    export UNIDEN_USERSETTINGS_DB_PASSWORD
-    export UNIDEN_APP_DB_USER
-    export UNIDEN_APP_DB_PASSWORD
     
     if [ ! -f "$SCRIPT_DIR/backend/venv/bin/activate" ]; then
         print_error "Backend virtual environment not found."
@@ -215,9 +205,51 @@ prepare_databases() {
         return 1
     fi
     
-    # Note: Migrations are not run here. Run them manually with:
-    # cd backend && python run_with_config.py migrate
-    # or during initial setup with: ./setup_uniden.sh
+    # Check if databases exist
+    local default_db="$SCRIPT_DIR/backend/db.sqlite3"
+    local favorites_db="$SCRIPT_DIR/backend/favourites.sqlite3"
+    
+    local db_missing=0
+    if [ ! -f "$default_db" ]; then
+        print_warning "Default database not found: $default_db"
+        ((db_missing++))
+    fi
+    if [ ! -f "$favorites_db" ]; then
+        print_warning "Favourites database not found: $favorites_db"
+        ((db_missing++))
+    fi
+    
+    # If databases are missing, prompt user to create them
+    if [ $db_missing -gt 0 ]; then
+        print_info ""
+        print_info "Databases need to be initialized."
+        read -p "Would you like to run migrations now? (y/n): " -r run_migrations
+        if [[ $run_migrations =~ ^[Yy]$ ]]; then
+            print_status "Running migrations..."
+            python manage.py migrate --database=default
+            if [ $? -ne 0 ]; then
+                print_error "Default database migration failed"
+                deactivate
+                return 1
+            fi
+            
+            python manage.py migrate --database=favorites
+            if [ $? -ne 0 ]; then
+                print_error "Favorites database migration failed"
+                deactivate
+                return 1
+            fi
+            
+            print_success "Databases initialized successfully"
+        else
+            print_error "Databases are required to start the application"
+            print_info "Run migrations manually: cd backend && python manage.py migrate --database=default && python manage.py migrate --database=favourites"
+            deactivate
+            return 1
+        fi
+    else
+        print_info "Databases found and ready"
+    fi
     
     deactivate
     print_success "Database preparation complete"
@@ -254,17 +286,7 @@ start_backend() {
     cd "$SCRIPT_DIR/backend"
     load_env_file
     
-    # Export all MongoDB URIs and credentials to environment
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
-    export UNIDEN_HPDB_DB
-    export UNIDEN_USERSETTINGS_DB
-    export UNIDEN_APP_DB
-    export UNIDEN_HPDB_DB_USER
-    export UNIDEN_HPDB_DB_PASSWORD
-    export UNIDEN_USERSETTINGS_DB_USER
-    export UNIDEN_USERSETTINGS_DB_PASSWORD
-    export UNIDEN_APP_DB_USER
-    export UNIDEN_APP_DB_PASSWORD
     export ALLOWED_HOSTS
     export CORS_ALLOWED_ORIGINS
     
@@ -603,17 +625,7 @@ run_migrations() {
     cd "$SCRIPT_DIR/backend"
     load_env_file
     
-    # Export all MongoDB URIs
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
-    export UNIDEN_HPDB_DB
-    export UNIDEN_USERSETTINGS_DB
-    export UNIDEN_APP_DB
-    export UNIDEN_HPDB_DB_USER
-    export UNIDEN_HPDB_DB_PASSWORD
-    export UNIDEN_USERSETTINGS_DB_USER
-    export UNIDEN_USERSETTINGS_DB_PASSWORD
-    export UNIDEN_APP_DB_USER
-    export UNIDEN_APP_DB_PASSWORD
     
     if [ ! -f "$SCRIPT_DIR/backend/venv/bin/activate" ]; then
         print_error "Backend virtual environment not found."
@@ -636,16 +648,25 @@ run_migrations() {
         return 1
     fi
     
-    # Apply migrations (SQLite default only)
+    # Apply migrations (default database)
     print_status "Applying migrations (default database)..."
     python run_with_config.py migrate --noinput --database=default
-    if [ $? -eq 0 ]; then
-        print_success "Migrations completed successfully"
-    else
-        print_error "Migrations failed"
+    if [ $? -ne 0 ]; then
+        print_error "Migrations failed for default database"
         deactivate
         return 1
     fi
+
+    # Apply migrations (favorites database)
+    print_status "Applying migrations (favorites database)..."
+    python run_with_config.py migrate --noinput --database=favorites
+    if [ $? -ne 0 ]; then
+        print_error "Migrations failed for favorites database"
+        deactivate
+        return 1
+    fi
+
+    print_success "Migrations completed successfully"
     
     deactivate
 }
@@ -692,9 +713,6 @@ ${YELLOW}TROUBLESHOOTING:${NC}
     2. Verify setup: ./setup_uniden.sh
     3. Check ports: Make sure ports $BACKEND_PORT and $FRONTEND_PORT are available
     4. Run migrations: ./uniden_assistant migrate
-EOF
-    4. Check databases: Ensure MongoDB is running if required
-
 EOF
 }
 

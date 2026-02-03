@@ -13,14 +13,13 @@ This application enforces a strict multi‑tier API hierarchy. The front end mus
 ### 2) Favourites API
 - **Base:** /api/favourites/
 - **Purpose:** User‑scoped favorites lists, scanner profiles, frequencies, and import/export functionality.
-- **Database:** Dedicated MongoDB database (favourites only).
+- **Database:** Dedicated SQLite database file (favourites only).
 - **Rule:** Does **not** read or write any other database.
 
 ## Database Isolation
 
-- **SQLite:** Django core tables only (auth, admin, sessions, etc.).
-- **MongoDB:**
-  - User favorites and scanner profiles in dedicated database.
+- **SQLite (default):** Django core tables only (auth, admin, sessions, etc.).
+- **SQLite (favourites):** User favorites and scanner profiles in a dedicated database file.
 
 ## Front‑End Routing Rule
 
@@ -32,7 +31,7 @@ All internal APIs are **server‑side only** and should never be invoked by the 
 
 The application was originally designed with three separate MongoDB databases (HPDB, User Settings, App Config) but has been simplified to:
 
-- **Single MongoDB database** for all user-facing functionality (favourites, scanner profiles, frequencies)
+- **Dedicated SQLite database** for all user-facing functionality (favourites, scanner profiles, frequencies)
 - **Removed:** HPDB (historical frequency database) functionality
 - **Removed:** App Config (unused scanner model configuration)
 - **Consolidated:** User settings renamed to "favourites" for clarity

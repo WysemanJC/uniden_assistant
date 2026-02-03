@@ -2,8 +2,19 @@
 # Uniden Assistant - Comprehensive Setup Script
 # This script sets up the complete environment and can be run multiple times safely
 # Installs OS packages, Python dependencies, Node.js dependencies, and configures databases
+#
+# Usage: ./setup_uniden.sh [--clean]
+#   --clean: Remove venv and node_modules for fresh installation
 
 set -e
+
+# Parse command line arguments
+CLEAN_MODE=false
+for arg in "$@"; do
+    if [ "$arg" = "--clean" ]; then
+        CLEAN_MODE=true
+    fi
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -60,7 +71,6 @@ install_os_packages() {
         echo "  - python3-venv"
         echo "  - python3-dev"
         echo "  - python3-pip"
-        echo "  - mongodb (optional, for production)"
         echo "  - build-essential"
         echo "  - libssl-dev"
         echo "  - libffi-dev"
@@ -93,14 +103,6 @@ install_os_packages() {
         fi
     done
     
-    # Check for MongoDB (optional for development)
-    if ! command_exists mongod; then
-        print_warning "MongoDB not found. You can install it later if needed for production."
-        echo "  For development, the app uses SQLite by default."
-    else
-        print_success "MongoDB is installed"
-    fi
-    
     print_success "OS packages check complete"
 }
 
@@ -130,16 +132,48 @@ check_python() {
     print_success "Python version check passed"
 }
 
-# Function to check Node.js
-check_node() {
+# Function to check Node.js and install if needed
+check_and_install_node() {
     print_status "Checking Node.js..."
     
     if ! command_exists node; then
-        print_error "Node.js is not installed"
-        print_warning "Please install Node.js 16+ manually:"
-        echo "  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
-        echo "  sudo apt-get install -y nodejs"
-        exit 1
+        print_warning "Node.js is not installed. Installing Node.js 18..."
+        
+        # Check if running as root or with sudo
+        if [ "$EUID" -eq 0 ]; then
+            local PKG_MANAGER="apt-get"
+        elif command_exists sudo; then
+            local PKG_MANAGER="sudo apt-get"
+        else
+            print_error "Cannot install Node.js (no sudo access). Please install manually:"
+            echo "  curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
+            echo "  sudo apt-get install -y nodejs"
+            exit 1
+        fi
+        
+        # Install Node.js from NodeSource repository
+        print_status "Adding NodeSource repository..."
+        $PKG_MANAGER update -qq || true
+        
+        # Install curl if not present (needed for NodeSource setup)
+        if ! command_exists curl; then
+            print_status "Installing curl (required for Node.js setup)..."
+            $PKG_MANAGER install -y curl -qq || print_warning "Failed to install curl"
+        fi
+        
+        print_status "Setting up Node.js 18 repository..."
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash - >/dev/null 2>&1 || {
+            print_error "Failed to add NodeSource repository"
+            exit 1
+        }
+        
+        print_status "Installing Node.js..."
+        $PKG_MANAGER install -y nodejs -qq || {
+            print_error "Failed to install Node.js"
+            exit 1
+        }
+        
+        print_success "Node.js installed successfully"
     fi
     
     local node_version=$(node --version 2>&1 | cut -d'v' -f2)
@@ -151,6 +185,65 @@ check_node() {
     fi
     
     print_success "Node.js version check passed"
+}
+
+# Function to check for git
+check_git() {
+    print_status "Checking git..."
+    
+    if ! command_exists git; then
+        print_warning "git is not installed. Installing..."
+        
+        if [ "$EUID" -eq 0 ]; then
+            local PKG_MANAGER="apt-get"
+        elif command_exists sudo; then
+            local PKG_MANAGER="sudo apt-get"
+        else
+            print_warning "Cannot install git (no sudo access). Please install manually: sudo apt-get install -y git"
+            return 0
+        fi
+        
+        $PKG_MANAGER update -qq || true
+        $PKG_MANAGER install -y git -qq || print_warning "Failed to install git"
+    fi
+    
+    print_success "git is available"
+}
+
+# Function to detect WSL and provide recommendations
+check_wsl() {
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+        print_status "Detected Windows Subsystem for Linux (WSL)"
+        print_warning "WSL detected. Remember:"
+        echo "  - Store project in /home or /root (not /mnt/c or Windows directories)"
+        echo "  - Use native WSL terminal, not Windows PowerShell"
+        echo "  - Access frontend at http://localhost:9001 from Windows browser"
+        return 0
+    fi
+}
+
+# Function to clean previous installation
+clean_installation() {
+    if [ "$CLEAN_MODE" = true ]; then
+        print_status "Cleaning previous installation..."
+        
+        if [ -d "$SCRIPT_DIR/backend/venv" ]; then
+            print_status "Removing Python virtual environment..."
+            rm -rf "$SCRIPT_DIR/backend/venv"
+        fi
+        
+        if [ -d "$SCRIPT_DIR/frontend/node_modules" ]; then
+            print_status "Removing Node.js modules..."
+            rm -rf "$SCRIPT_DIR/frontend/node_modules"
+        fi
+        
+        if [ -f "$SCRIPT_DIR/frontend/package-lock.json" ]; then
+            print_status "Removing package-lock.json..."
+            rm "$SCRIPT_DIR/frontend/package-lock.json"
+        fi
+        
+        print_success "Clean complete"
+    fi
 }
 
 # Function to setup backend
@@ -185,7 +278,9 @@ setup_backend() {
     
     # Run migrations (uses config.env loader)
     print_status "Running database migrations..."
-    "$VENV_PY" run_with_config.py migrate --noinput 2>/dev/null || print_warning "Migrations encountered issues (may be normal for first run)"
+    "$VENV_PY" run_with_config.py migrate --noinput --database=default 2>/dev/null || print_warning "Default database migrations encountered issues"
+    "$VENV_PY" run_with_config.py migrate --noinput --database=favorites 2>/dev/null || print_warning "Favorites database migrations encountered issues"
+    print_success "Database migrations completed"
     
     # Create directories
     mkdir -p "$SCRIPT_DIR/.logs" "$SCRIPT_DIR/.pids"
@@ -203,6 +298,13 @@ setup_frontend() {
     if [ ! -f "package.json" ]; then
         print_error "package.json not found in frontend directory"
         return 1
+    fi
+    
+    # Validate package-lock.json
+    if [ ! -f "package-lock.json" ]; then
+        print_warning "package-lock.json not found. Using package.json as source (may not be reproducible)"
+    else
+        print_success "package-lock.json found"
     fi
     
     # Install dependencies
@@ -225,7 +327,7 @@ setup_env() {
             print_warning "Please review $SCRIPT_DIR/config.env and update if needed"
         else
             print_warning "config.env not found. Exiting setup."
-            print_error "Please create config.env from config.env.example and set the correct MongoDB URIs."
+            print_error "Please create config.env from config.env.example and set required values."
             exit 1
         fi
     else
@@ -248,21 +350,6 @@ EOF
     fi
 }
 
-# Function to initialize MongoDB databases
-init_mongo_databases() {
-    print_status "Initializing MongoDB databases..."
-
-    if [ ! -f "$SCRIPT_DIR/backend/venv/bin/python" ]; then
-        print_error "Backend virtual environment not found."
-        print_info "Run: ./setup_uniden.sh"
-        return 1
-    fi
-
-    "$SCRIPT_DIR/backend/venv/bin/python" "$SCRIPT_DIR/backend/init_mongo_databases.py" \
-        && print_success "MongoDB databases initialized" \
-        || print_warning "MongoDB initialization failed (check config.env and connectivity)"
-}
-
 # Function to check database connectivity
 check_databases() {
     print_status "Checking database connectivity..."
@@ -282,7 +369,7 @@ try:
     print('Database connection successful')
 except Exception as e:
     print(f'Database connection failed: {e}')
-" 2>/dev/null && print_success "Database connectivity check passed" || print_warning "Database connectivity check failed (may be normal if MongoDB not required)"
+" 2>/dev/null && print_success "Database connectivity check passed" || print_warning "Database connectivity check failed (check config.env and setup)"
     
     deactivate
 }
@@ -293,6 +380,16 @@ main() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BLUE}║          $PROJECT_NAME Setup              ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    # Clean if requested
+    if [ "$CLEAN_MODE" = true ]; then
+        clean_installation
+        echo ""
+    fi
+    
+    # Check for WSL
+    check_wsl
     echo ""
     
     # Check if running on Debian-based system
@@ -308,7 +405,8 @@ main() {
     # Check prerequisites
     print_status "Checking prerequisites..."
     check_python
-    check_node
+    check_and_install_node
+    check_git
     print_success "All prerequisites met"
     echo ""
     
@@ -325,10 +423,6 @@ main() {
     setup_frontend
     echo ""
     
-    # Initialize MongoDB databases
-    init_mongo_databases
-    echo ""
-
     # Check databases
     check_databases
     echo ""
