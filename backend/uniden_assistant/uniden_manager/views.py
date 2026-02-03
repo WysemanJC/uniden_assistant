@@ -80,18 +80,8 @@ class ProxyAPIView(APIView):
             return Response({'error': str(exc)}, status=502)
 
 
-class HPDBProxyView(ProxyAPIView):
-    upstream_prefix = 'hpdb/'
-
-    def get(self, request, path=''):
-        return self._proxy(request, path)
-
-    def post(self, request, path=''):
-        return self._proxy(request, path)
-
-
 class UserSettingsProxyView(ProxyAPIView):
-    upstream_prefix = 'usersettings/'
+    upstream_prefix = 'favourites/'
 
     def get(self, request, path=''):
         return self._proxy(request, path)
@@ -109,13 +99,6 @@ class UserSettingsProxyView(ProxyAPIView):
         return self._proxy(request, path)
 
 
-class AppConfigProxyView(ProxyAPIView):
-    upstream_prefix = 'appconfig/'
-
-    def get(self, request, path=''):
-        return self._proxy(request, path)
-
-
 class UnifiedImportViewSet(viewsets.ViewSet):
     """Unified import endpoint that detects file type and processes accordingly"""
 
@@ -126,10 +109,8 @@ class UnifiedImportViewSet(viewsets.ViewSet):
         """
         lower_names = [name.lower() for name in filenames]
         
-        # Check for SD card root (has both HPDB and favorites_lists structure)
-        has_hpdb_cfg = 'hpdb.cfg' in lower_names or any('hpdb/hpdb.cfg' in name.lower() for name in filenames)
+        # Check for SD card root (favorites_lists structure)
         has_flist_cfg = 'f_list.cfg' in lower_names or any('favorites_lists/f_list.cfg' in name.lower() for name in filenames)
-        has_system_files = any(name.lower().startswith('s_') and name.lower().endswith('.hpd') for name in lower_names)
         has_fav_files = any(name.lower().startswith('f_') and name.lower().endswith('.hpd') for name in lower_names)
         has_scanner_settings = any(
             'profile.cfg' in name.lower() or 
@@ -140,30 +121,17 @@ class UnifiedImportViewSet(viewsets.ViewSet):
             for name in filenames
         )
         
-        # SD Card root detection (most comprehensive)
-        if (has_hpdb_cfg or any('hpdb/' in name.lower() for name in filenames)) and \
-           (has_flist_cfg or any('favorites_lists/' in name.lower() for name in filenames)):
-            contains_list = ['HPDB database', 'Favourites']
+        # SD Card root detection
+        if has_flist_cfg or any('favorites_lists/' in name.lower() for name in filenames):
+            contains_list = ['Favourites']
             if has_scanner_settings:
                 contains_list.append('Scanner settings')
             return {
                 'type': 'sd_card',
                 'description': 'SD Card Root Directory',
                 'contains': ' and '.join(contains_list),
-                'hpdb_files': [f for f in filenames if 'hpdb' in f.lower() or f.lower().startswith('s_')],
                 'favorites_files': [f for f in filenames if 'favorites_lists' in f.lower() or f.lower().startswith('f_')],
                 'scanner_settings': has_scanner_settings,
-                'file_count': len(filenames)
-            }
-        
-        # HPDB directory detection
-        if has_hpdb_cfg and has_system_files:
-            system_count = len([f for f in lower_names if f.startswith('s_') and f.endswith('.hpd')])
-            return {
-                'type': 'hpdb',
-                'description': 'HPDB Database Directory',
-                'contains': f'{system_count} system file(s)',
-                'hpdb_files': filenames,
                 'file_count': len(filenames)
             }
         
@@ -368,7 +336,7 @@ class UnifiedImportViewSet(viewsets.ViewSet):
         flist_path = next((f for f in files if f.name.lower() == 'f_list.cfg'), None)
         if flist_path:
             import_progress_store[job_id]['message'] = 'Parsing f_list.cfg...'
-            from uniden_assistant.usersettings.hpdb_parser import FavoritesListParser
+            from uniden_assistant.favourites.hpdb_parser import FavoritesListParser
             try:
                 FavoritesListParser.parse_favorites_list(str(flist_path))
                 import_progress_store[job_id]['message'] = '✓ f_list.cfg parsed'
@@ -379,8 +347,8 @@ class UnifiedImportViewSet(viewsets.ViewSet):
         hpd_files = [f for f in files if f.name.lower().endswith('.hpd')]
         import_progress_store[job_id]['total_files'] = len(hpd_files)
         
-        from uniden_assistant.usersettings.models import ScannerProfile
-        from uniden_assistant.usersettings.parsers import UnidenFileParser
+        from uniden_assistant.favourites.models import ScannerProfile
+        from uniden_assistant.favourites.parsers import UnidenFileParser
         
         parser = UnidenFileParser()
         imported = 0
@@ -570,7 +538,7 @@ class UnifiedImportViewSet(viewsets.ViewSet):
     def _process_favorites(self, temp_dir, mode, request):
         """Process favorites files directly without modifying request"""
         from pathlib import Path
-        from uniden_assistant.usersettings.models import ScannerProfile
+        from uniden_assistant.favourites.models import ScannerProfile
         from uniden_assistant.parsers import UnidenFileParser
         from django.db.utils import DatabaseError
         import logging
@@ -594,7 +562,7 @@ class UnifiedImportViewSet(viewsets.ViewSet):
             # Parse f_list.cfg first to create FavoritesList records
             flist_path = next((f for f in files if f.name.lower() == 'f_list.cfg'), None)
             if flist_path:
-                from uniden_assistant.usersettings.hpdb_parser import FavoritesListParser
+                from uniden_assistant.favourites.favorites_parser import FavoritesListParser
                 try:
                     FavoritesListParser.parse_favorites_list(str(flist_path))
                 except Exception as exc:
@@ -680,7 +648,7 @@ class UnifiedImportViewSet(viewsets.ViewSet):
 
     def _process_scanner_settings(self, temp_dir):
         """Process scanner settings/profile configuration files and discovery data"""
-        from uniden_assistant.usersettings.parsers import UnidenFileParser
+        from uniden_assistant.favourites.parsers import UnidenFileParser
         
         config_files = [
             temp_dir / 'ubcdx36' / 'profile.cfg',

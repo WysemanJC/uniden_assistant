@@ -56,7 +56,7 @@ class FavoritesList(models.Model):
 
     class Meta:
         ordering = ['order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name_plural = "Favorites Lists"
 
 
@@ -103,7 +103,7 @@ class ConventionalSystem(models.Model):
 
     class Meta:
         ordering = ['favorites_list', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class CGroup(models.Model):
@@ -136,7 +136,7 @@ class CGroup(models.Model):
 
     class Meta:
         ordering = ['conventional_system', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "Conventional Group"
 
 
@@ -178,7 +178,7 @@ class CFreq(models.Model):
 
     class Meta:
         ordering = ['cgroup', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "Conventional Frequency"
 
 
@@ -233,7 +233,7 @@ class TrunkSystem(models.Model):
 
     class Meta:
         ordering = ['favorites_list', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class FleetMap(models.Model):
@@ -251,7 +251,7 @@ class FleetMap(models.Model):
 
     class Meta:
         ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class UnitId(models.Model):
@@ -275,7 +275,7 @@ class UnitId(models.Model):
 
     class Meta:
         ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class AvoidTgid(models.Model):
@@ -293,7 +293,7 @@ class AvoidTgid(models.Model):
 
     class Meta:
         ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class Site(models.Model):
@@ -336,7 +336,7 @@ class Site(models.Model):
 
     class Meta:
         ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class BandPlanP25(models.Model):
@@ -357,7 +357,7 @@ class BandPlanP25(models.Model):
         return f"P25 Band Plan for {self.site.name_tag}"
 
     class Meta:
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "P25 Band Plan"
 
 
@@ -379,7 +379,7 @@ class BandPlanMot(models.Model):
         return f"Motorola Band Plan for {self.site.name_tag}"
 
     class Meta:
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "Motorola Band Plan"
 
 
@@ -409,7 +409,7 @@ class TFreq(models.Model):
 
     class Meta:
         ordering = ['site', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "Trunk Frequency"
 
 
@@ -442,7 +442,7 @@ class TGroup(models.Model):
 
     class Meta:
         ordering = ['trunk_system', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "Trunk Group"
 
 
@@ -483,7 +483,7 @@ class TGID(models.Model):
 
     class Meta:
         ordering = ['tgroup', 'order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         verbose_name = "Talkgroup ID"
 
 
@@ -521,7 +521,7 @@ class Rectangle(models.Model):
 
     class Meta:
         ordering = ['order']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 # ============================================================================
@@ -544,7 +544,7 @@ class ScannerProfile(models.Model):
 
     class Meta:
         ordering = ['-updated_at']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class ChannelGroup(models.Model):
@@ -567,7 +567,7 @@ class ChannelGroup(models.Model):
 
     class Meta:
         ordering = ['name_tag']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class Frequency(models.Model):
@@ -604,7 +604,7 @@ class Frequency(models.Model):
 
     class Meta:
         ordering = ['frequency']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class Agency(models.Model):
@@ -619,7 +619,7 @@ class Agency(models.Model):
     class Meta:
         verbose_name_plural = "Agencies"
         ordering = ['name']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 # ============================================================================
@@ -640,7 +640,7 @@ class ScannerFileRecord(models.Model):
 
     class Meta:
         ordering = ['file_path', 'line_number']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         indexes = [
             models.Index(fields=['file_path', 'line_number']),
             models.Index(fields=['record_type']),
@@ -660,7 +660,7 @@ class ScannerRawFile(models.Model):
 
     class Meta:
         ordering = ['-upload_time']
-        app_label = 'usersettings'
+        app_label = 'favourites'
 
 
 class ScannerRawLine(models.Model):
@@ -672,7 +672,7 @@ class ScannerRawLine(models.Model):
 
     class Meta:
         ordering = ['raw_file', 'line_number']
-        app_label = 'usersettings'
+        app_label = 'favourites'
         indexes = [
             models.Index(fields=['raw_file', 'line_number']),
         ]

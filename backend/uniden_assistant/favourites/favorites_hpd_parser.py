@@ -22,7 +22,7 @@ from .models import (
     Rectangle,
     ScannerFileRecord,
 )
-from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
+from .record_parser.spec_field_maps import build_spec_field_map
 
 logger = logging.getLogger(__name__)
 

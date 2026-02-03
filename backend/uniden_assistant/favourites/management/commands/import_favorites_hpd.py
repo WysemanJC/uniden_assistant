@@ -5,8 +5,8 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from uniden_assistant.usersettings.models import FavoritesList
-from uniden_assistant.usersettings.favorites_hpd_parser import FavoritesHPDParser
+from uniden_assistant.favourites.models import FavoritesList
+from uniden_assistant.favourites.favorites_hpd_parser import FavoritesHPDParser
 
 
 class Command(BaseCommand):

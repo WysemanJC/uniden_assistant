@@ -11,79 +11,79 @@ const api = axios.create({
 
 export const profileAPI = {
   list() {
-    return api.get('/usersettings/profiles/')
+    return api.get('/favourites/profiles/')
   },
   get(id) {
-    return api.get(`/usersettings/profiles/${id}/`)
+    return api.get(`/favourites/profiles/${id}/`)
   },
   create(data) {
-    return api.post('/usersettings/profiles/', data)
+    return api.post('/favourites/profiles/', data)
   },
   update(id, data) {
-    return api.put(`/usersettings/profiles/${id}/`, data)
+    return api.put(`/favourites/profiles/${id}/`, data)
   },
   delete(id) {
-    return api.delete(`/usersettings/profiles/${id}/`)
+    return api.delete(`/favourites/profiles/${id}/`)
   },
   uploadFile(id, file) {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post(`/usersettings/profiles/${id}/upload_file/`, formData, {
+    return api.post(`/favourites/profiles/${id}/upload_file/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
   export(id) {
-    return api.get(`/usersettings/profiles/${id}/export/`)
+    return api.get(`/favourites/profiles/${id}/export/`)
   }
 }
 
 export const frequencyAPI = {
   list(profileId = null) {
     const params = profileId ? { profile: profileId } : {}
-    return api.get('/usersettings/frequencies/', { params })
+    return api.get('/favourites/frequencies/', { params })
   },
   get(id) {
-    return api.get(`/usersettings/frequencies/${id}/`)
+    return api.get(`/favourites/frequencies/${id}/`)
   },
   create(data) {
-    return api.post('/usersettings/frequencies/', data)
+    return api.post('/favourites/frequencies/', data)
   },
   update(id, data) {
-    return api.put(`/usersettings/frequencies/${id}/`, data)
+    return api.put(`/favourites/frequencies/${id}/`, data)
   },
   delete(id) {
-    return api.delete(`/usersettings/frequencies/${id}/`)
+    return api.delete(`/favourites/frequencies/${id}/`)
   }
 }
 
 export const sdAPI = {
   exportToSd() {
-    return api.post('/usersettings/sd/export/')
+    return api.post('/favourites/sd/export/')
   }
 }
 
 export const channelGroupAPI = {
   list(profileId = null) {
     const params = profileId ? { profile: profileId } : {}
-    return api.get('/usersettings/channel-groups/', { params })
+    return api.get('/favourites/channel-groups/', { params })
   },
   get(id) {
-    return api.get(`/usersettings/channel-groups/${id}/`)
+    return api.get(`/favourites/channel-groups/${id}/`)
   },
   create(data) {
-    return api.post('/usersettings/channel-groups/', data)
+    return api.post('/favourites/channel-groups/', data)
   },
   update(id, data) {
-    return api.put(`/usersettings/channel-groups/${id}/`)
+    return api.put(`/favourites/channel-groups/${id}/`)
   },
   delete(id) {
-    return api.delete(`/usersettings/channel-groups/${id}/`)
+    return api.delete(`/favourites/channel-groups/${id}/`)
   }
 }
 
 export const agencyAPI = {
   list() {
-    return api.get('/usersettings/agencies/')
+    return api.get('/favourites/agencies/')
   }
 }
 

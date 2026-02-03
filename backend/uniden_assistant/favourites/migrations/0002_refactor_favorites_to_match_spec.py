@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('usersettings', '0001_initial'),
+        ('favourites', '0001_initial'),
     ]
 
     operations = [

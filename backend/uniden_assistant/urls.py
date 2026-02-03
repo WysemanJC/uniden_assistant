@@ -1,13 +1,3 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import ScannerProfileViewSet, FrequencyViewSet, ChannelGroupViewSet, AgencyViewSet
-
-router = DefaultRouter()
-router.register(r'profiles', ScannerProfileViewSet)
-router.register(r'frequencies', FrequencyViewSet)
-router.register(r'channel-groups', ChannelGroupViewSet)
-router.register(r'agencies', AgencyViewSet)
-
-urlpatterns = [
-    path('', include(router.urls)),
-]
+# This file is kept for backward compatibility but is not used.
+# All API endpoints are defined in uniden_manager and favourites apps.
+# See urls_main.py for the active URL configuration.

@@ -61,10 +61,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'uniden_assistant.hpdb',
-    'uniden_assistant.usersettings',
+    'uniden_assistant.favourites',
     'uniden_assistant.uniden_manager',
-    'uniden_assistant.appconfig',
 ]
 
 MIDDLEWARE = [
@@ -99,22 +97,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'uniden_assistant.wsgi.application'
 
 # Database
-HPDB_MONGO_USER = get_setting('UNIDEN_HPDB_DB_USER', default='')
-HPDB_MONGO_PASSWORD = get_setting('UNIDEN_HPDB_DB_PASSWORD', default='')
-USERSETTINGS_MONGO_USER = get_setting('UNIDEN_USERSETTINGS_DB_USER', default='')
-USERSETTINGS_MONGO_PASSWORD = get_setting('UNIDEN_USERSETTINGS_DB_PASSWORD', default='')
-APPCONFIG_MONGO_USER = get_setting('UNIDEN_APP_DB_USER', default='')
-APPCONFIG_MONGO_PASSWORD = get_setting('UNIDEN_APP_DB_PASSWORD', default='')
+FAVOURITES_MONGO_USER = get_setting('UNIDEN_FAVOURITES_DB_USER', default='')
+FAVOURITES_MONGO_PASSWORD = get_setting('UNIDEN_FAVOURITES_DB_PASSWORD', default='')
 
-HPDB_DB_URI = get_setting('UNIDEN_HPDB_DB')
-USERSETTINGS_DB_URI = get_setting('UNIDEN_USERSETTINGS_DB')
-APPCONFIG_DB_URI = get_setting('UNIDEN_APP_DB')
+FAVOURITES_DB_URI = get_setting('UNIDEN_FAVOURITES_DB')
 
 missing_uris = [
     key for key, value in (
-        ('UNIDEN_HPDB_DB', HPDB_DB_URI),
-        ('UNIDEN_USERSETTINGS_DB', USERSETTINGS_DB_URI),
-        ('UNIDEN_APP_DB', APPCONFIG_DB_URI),
+        ('UNIDEN_FAVOURITES_DB', FAVOURITES_DB_URI),
     ) if not value
 ]
 if missing_uris:
@@ -155,39 +145,21 @@ def _force_ipv4(uri: str) -> str:
         # If resolution fails, return original URI
         return uri
 
-_reject_localhost(HPDB_DB_URI, 'UNIDEN_HPDB_DB')
-_reject_localhost(USERSETTINGS_DB_URI, 'UNIDEN_USERSETTINGS_DB')
-_reject_localhost(APPCONFIG_DB_URI, 'UNIDEN_APP_DB')
+_reject_localhost(FAVOURITES_DB_URI, 'UNIDEN_FAVOURITES_DB')
 
-HPDB_DB_URI = _force_ipv4(_ensure_direct_connection(HPDB_DB_URI))
-USERSETTINGS_DB_URI = _force_ipv4(_ensure_direct_connection(USERSETTINGS_DB_URI))
-APPCONFIG_DB_URI = _force_ipv4(_ensure_direct_connection(APPCONFIG_DB_URI))
+FAVOURITES_DB_URI = _force_ipv4(_ensure_direct_connection(FAVOURITES_DB_URI))
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     },
-    'hpdb': {
-        'ENGINE': 'django_mongodb_backend',
-        'NAME': 'uniden_hpdb_db',
-        'HOST': HPDB_DB_URI,
-        **({'USER': HPDB_MONGO_USER} if HPDB_MONGO_USER else {}),
-        **({'PASSWORD': HPDB_MONGO_PASSWORD} if HPDB_MONGO_PASSWORD else {}),
-    },
     'favorites': {
         'ENGINE': 'django_mongodb_backend',
-        'NAME': 'uniden_usersettings_db',
-        'HOST': USERSETTINGS_DB_URI,
-        **({'USER': USERSETTINGS_MONGO_USER} if USERSETTINGS_MONGO_USER else {}),
-        **({'PASSWORD': USERSETTINGS_MONGO_PASSWORD} if USERSETTINGS_MONGO_PASSWORD else {}),
-    },
-    'appconfig': {
-        'ENGINE': 'django_mongodb_backend',
-        'NAME': 'uniden_appconfig_db',
-        'HOST': APPCONFIG_DB_URI,
-        **({'USER': APPCONFIG_MONGO_USER} if APPCONFIG_MONGO_USER else {}),
-        **({'PASSWORD': APPCONFIG_MONGO_PASSWORD} if APPCONFIG_MONGO_PASSWORD else {}),
+        'NAME': 'uniden_favourites_db',
+        'HOST': FAVOURITES_DB_URI,
+        **({'USER': FAVOURITES_MONGO_USER} if FAVOURITES_MONGO_USER else {}),
+        **({'PASSWORD': FAVOURITES_MONGO_PASSWORD} if FAVOURITES_MONGO_PASSWORD else {}),
     },
 }
 

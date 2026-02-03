@@ -9,9 +9,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/uniden_manager/', include('uniden_assistant.uniden_manager.urls')),
-    path('api/hpdb/', include('uniden_assistant.hpdb.urls')),
-    path('api/usersettings/', include('uniden_assistant.usersettings.urls')),
-    path('api/appconfig/', include('uniden_assistant.appconfig.urls')),
+    path('api/favourites/', include('uniden_assistant.favourites.urls')),
 ]
 
 if settings.DEBUG:

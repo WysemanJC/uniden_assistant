@@ -2,13 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Index from '../pages/Index.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
 import FavoriteDetail from '../pages/FavoriteDetail.vue'
-import DatabaseDetail from '../pages/DatabaseDetail.vue'
 
 const routes = [
   {
     path: '/',
     component: Index,
-    meta: { title: 'Profiles' }
+    meta: { title: 'Favourites' }
   },
   {
     path: '/profile/:id',
@@ -19,11 +18,6 @@ const routes = [
     path: '/favorite/:id',
     component: FavoriteDetail,
     meta: { title: 'Favorite Detail' }
-  },
-  {
-    path: '/database/:id',
-    component: DatabaseDetail,
-    meta: { title: 'Agency Detail' }
   }
 ]
 

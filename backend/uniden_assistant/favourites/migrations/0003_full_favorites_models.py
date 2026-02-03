@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('usersettings', '0002_refactor_favorites_to_match_spec'),
+        ('favourites', '0002_refactor_favorites_to_match_spec'),
     ]
 
     operations = [

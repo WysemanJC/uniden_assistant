@@ -2,277 +2,10 @@
   <q-layout view="hHh Lpr fFf">
     <q-header elevated class="bg-primary text-white">
       <q-toolbar>
-        <q-btn flat dense round icon="menu" @click="leftDrawerOpen = !leftDrawerOpen" />
         <q-toolbar-title>Uniden Assistant</q-toolbar-title>
       </q-toolbar>
     </q-header>
 
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      :width="280"
-      :breakpoint="500"
-      bordered
-    >
-      <q-list>
-        <q-item-label header>Navigation</q-item-label>
-        
-        <q-item 
-          clickable 
-          @click="router.push('/')"
-          active-class="bg-primary text-white"
-        >
-          <q-item-section avatar>
-            <q-icon name="home" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Home</q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <q-expansion-item
-          icon="folder"
-          label="Data Management"
-          default-opened
-        >
-          <q-item 
-            clickable 
-            @click="navigateToDatabase"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section avatar>
-              <q-icon name="storage" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Database</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item 
-            clickable 
-            active
-            active-class="bg-primary text-white"
-            @click="navigateToFavorites"
-            class="q-pl-lg"
-          >
-            <q-item-section avatar>
-              <q-icon name="star" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Favourites</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item 
-            clickable 
-            @click="router.push('/?section=load-data')"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section avatar>
-              <q-icon name="cloud_upload" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Load Data</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-expansion-item>
-
-        <q-expansion-item
-          icon="description"
-          label="File Specifications"
-        >
-          <q-item 
-            clickable 
-            @click="router.push('/?section=spec-readme')"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section>
-              <q-item-label>Overview</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item 
-            clickable 
-            @click="router.push('/?section=global-rules')"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section>
-              <q-item-label>Global Parsing Rules</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-expansion-item
-            icon="article"
-            label="Record Types"
-            header-class="q-pl-lg"
-          >
-            <q-item 
-              clickable 
-              @click="router.push('/?section=hpdb-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>HPDB Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=system-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>System Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=favorites-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Favorites Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=scan-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Scan Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=profile-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Scanner/Profile Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=discovery-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Discovery Records</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-expansion-item>
-
-          <q-expansion-item
-            icon="table_chart"
-            label="Reference Tables"
-            header-class="q-pl-lg"
-          >
-            <q-item 
-              clickable 
-              @click="router.push('/?section=service-types')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Service Types</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=freq-ctcss-dcs')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>CTCSS/DCS Options</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=freq-p25')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>P25 NAC Options</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=freq-dmr')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>DMR Color Code</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=freq-nxdn')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>NXDN RAN/Area</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=display-opts')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Display Options</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=display-colors')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Display Colors</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              @click="router.push('/?section=display-layouts')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Display Layouts</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-expansion-item>
-        </q-expansion-item>
-      </q-list>
-    </q-drawer>
 
     <q-page-container>
       <q-page class="q-pa-md">
@@ -406,7 +139,6 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 
-const leftDrawerOpen = ref(true)
 const favoriteDetail = ref(null)
 const loading = ref(false)
 const selectedNodeId = ref(null)
@@ -462,14 +194,6 @@ const goBack = () => {
   router.push('/?section=favorites')
 }
 
-const navigateToDatabase = () => {
-  router.push('/?section=database')
-}
-
-const navigateToFavorites = () => {
-  router.push('/?section=favorites')
-}
-
 const selectNode = (node) => {
   if (node.type === 'department') {
     selectedDepartment.value = node
@@ -498,7 +222,7 @@ const getNodeColor = (node) => {
 const loadFavoriteDetail = async () => {
   loading.value = true
   try {
-    const { data } = await api.get(`/usersettings/favorites-lists/${route.params.id}/detail/`)
+    const { data } = await api.get(`/favourites/favorites-lists/${route.params.id}/detail/`)
     favoriteDetail.value = data
   } catch (error) {
     console.error('Error loading favorite detail:', error)

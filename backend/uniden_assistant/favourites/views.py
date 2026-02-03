@@ -160,6 +160,9 @@ class ExportFavoritesFolderView(APIView):
         for fav in favorites_lists:
             startup_keys = self._pad_list(fav.startup_keys, 10, 'Off')
             s_qkeys = self._pad_list(fav.s_qkeys, 100, 'Off')
+            # Convert boolean values to 'On'/'Off' strings
+            startup_keys = [self._to_on_off(val) for val in startup_keys]
+            s_qkeys = [self._to_on_off(val) for val in s_qkeys]
             fields = [
                 fav.user_name or '',
                 fav.filename or '',
@@ -411,6 +414,18 @@ class ExportFavoritesFolderView(APIView):
         if len(values) < length:
             values.extend([fill] * (length - len(values)))
         return values[:length]
+
+    @staticmethod
+    def _to_on_off(value) -> str:
+        """Convert boolean or string values to 'On' or 'Off' for F-List export."""
+        if isinstance(value, bool):
+            return 'On' if value else 'Off'
+        if isinstance(value, str):
+            if value.lower() in ('true', 'on', '1', 'yes'):
+                return 'On'
+            elif value.lower() in ('false', 'off', '0', 'no'):
+                return 'Off'
+        return str(value) if value else 'Off'
 
     @staticmethod
     def _format_decimal(value, places: int) -> str:
@@ -979,7 +994,7 @@ class FavoritesImportViewSet(viewsets.ViewSet):
     def create(self, request):
         """Import favorites lists from f_list.cfg and f_*.hpd files"""
         from .favorites_hpd_parser import FavoritesHPDParser
-        from .hpdb_parser import FavoritesListParser
+        from .favorites_parser import FavoritesListParser
         
         files = request.FILES.getlist('files')
         if not files:

@@ -4,7 +4,7 @@ Parser for Uniden scanner configuration files
 import os
 import re
 from .models import Frequency, ChannelGroup, Agency, ScannerFileRecord
-from uniden_assistant.record_parser.spec_field_maps import build_spec_field_map
+from .record_parser.spec_field_maps import build_spec_field_map
 
 
 class UnidenFileParser:

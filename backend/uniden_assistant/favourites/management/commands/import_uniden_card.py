@@ -4,8 +4,8 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from uniden_assistant.usersettings.models import ScannerProfile
-from uniden_assistant.usersettings.parsers import UnidenFileParser
+from uniden_assistant.favourites.models import ScannerProfile
+from uniden_assistant.favourites.parsers import UnidenFileParser
 
 
 class Command(BaseCommand):

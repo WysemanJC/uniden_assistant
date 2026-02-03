@@ -1,101 +1,53 @@
 # Uniden Assistant
 
-Minimal setup and run instructions.
+A web application for managing Uniden Scanner Favourites lists. Import, edit, and export scanner configuration files with an intuitive interface.
 
-## Quick start
+## Quick Start
 
-1. Setup environment and dependencies:
+1. **Setup** - Install dependencies and initialize the application:
+   ```bash
+   ./setup_uniden.sh
+   ```
 
-```bash
-./setup_uniden.sh
-```
+2. **Start** - Run the application:
+   ```bash
+   ./uniden_assistant start
+   ```
 
-2. Start the application:
+3. **Access** - Open in your browser:
+   - Frontend: http://localhost:9001
 
-```bash
-./uniden_assistant start
-```
+## Features
 
-3. Check status or logs if needed:
+- **Import** - Load Uniden scanner configuration files (.cfg, .hpd)
+- **Edit** - Manage favourites lists, scanner profiles, and channel groups
+- **Export** - Save your configurations back to scanner-compatible formats
+- **Organize** - Create and manage multiple favourites lists
 
-```bash
-./uniden_assistant status
-./uniden_assistant logs
-```
+## Architecture
+
+- **Backend** - Django 4.2 REST API with MongoDB storage
+- **Frontend** - Vue 3 with Quasar Framework
+- **Database** - MongoDB for user data, SQLite for Django core
 
 ## Configuration
 
-Edit [config.env](config.env) or start from [config.env.example](config.env.example).
+Edit [config.env](config.env) to customize settings:
 
 ```bash
 cp config.env.example config.env
+# Edit config.env with your settings
 ```
-
-## URLs
-
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/api
 
 ## Development
 
-### Backend
-- Django 4.2
-- Django REST Framework 3.14
-- Django CORS Headers
-- Python-decouple
+For detailed API architecture, see [docs/architecture.md](docs/architecture.md).
 
-### Frontend
-- Vue 3
-- Vue Router 4
-- Pinia (state management)
-- Quasar Framework (UI)
-- Axios (HTTP client)
-- Vite (build tool)
+## File Specifications
 
-## File Upload
-
-Supported file types:
-- `.hpd` - Uniden database files
-- `.cfg` - Configuration files
-
-Max file size: 5MB
-
-## Deployment
-
-### Django Backend
-```bash
-# Collect static files
-python manage.py collectstatic
-
-# Use gunicorn for production
-gunicorn uniden_assistant.wsgi:application
-```
-
-### Vue Frontend
-```bash
-# Build for production
-npm run build
-
-# Deploy the dist/ folder to a web server
-```
-
-## Troubleshooting
-
-### CORS Errors
-Ensure `CORS_ALLOWED_ORIGINS` includes your frontend URL in Django settings.
-
-### File Upload Fails
-Check file size and format. Maximum 5MB, `.hpd` or `.cfg` files only.
-
-### Port Already in Use
-Change the port in:
-- Django: `python manage.py runserver 0.0.0.0:8001`
-- Vue: Modify `vite.config.js` server port
+Documentation for supported file formats and record types is available in [docs/Input_File_Specification/](docs/Input_File_Specification/).
 
 ## License
 
 MIT
-
-## Contributing
-
 Pull requests welcome!

@@ -2,664 +2,39 @@
   <q-layout view="hHh Lpr fFf">
     <q-header elevated class="bg-primary text-white">
       <q-toolbar>
-        <q-btn flat dense round icon="menu" @click="leftDrawerOpen = !leftDrawerOpen" />
         <q-toolbar-title>Uniden Assistant</q-toolbar-title>
       </q-toolbar>
     </q-header>
 
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      :width="280"
-      :breakpoint="500"
-      bordered
-    >
-      <q-list>
-        <q-item-label header>Navigation</q-item-label>
-        
-        <q-item 
-          clickable 
-          :active="activeSection === 'home'" 
-          @click="activeSection = 'home'"
-          active-class="bg-primary text-white"
-        >
-          <q-item-section avatar>
-            <q-icon name="home" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>Home</q-item-label>
-          </q-item-section>
-        </q-item>
 
-        <q-expansion-item
-          icon="folder"
-          label="Data Management"
-          default-opened
-        >
-          <q-item 
-            clickable 
-            :active="activeSection === 'database'" 
-            @click="activeSection = 'database'"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section avatar>
-              <q-icon name="storage" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Database</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item 
-            clickable 
-            :active="activeSection === 'favorites'" 
-            @click="activeSection = 'favorites'"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section avatar>
-              <q-icon name="star" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Favourites</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item 
-            clickable 
-            :active="activeSection === 'load-data'" 
-            @click="activeSection = 'load-data'"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section avatar>
-              <q-icon name="cloud_upload" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>Load Data</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-expansion-item>
-
-        <q-expansion-item
-          icon="description"
-          label="File Specifications"
-        >
-          <q-item 
-            clickable 
-            :active="activeSection === 'spec-readme'"
-            @click="loadSpec('Input_File_Specification/README.md', 'spec-readme')"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section>
-              <q-item-label>Overview</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-item 
-            clickable 
-            :active="activeSection === 'global-rules'"
-            @click="loadSpec('Input_File_Specification/global_parsing_rules.md', 'global-rules')"
-            active-class="bg-primary text-white"
-            class="q-pl-lg"
-          >
-            <q-item-section>
-              <q-item-label>Global Parsing Rules</q-item-label>
-            </q-item-section>
-          </q-item>
-
-          <q-expansion-item
-            icon="article"
-            label="Record Types"
-            header-class="q-pl-lg"
-          >
-            <q-item 
-              clickable 
-              :active="activeSection === 'hpdb-records'"
-              @click="loadSpec('Input_File_Specification/record_types/hpdb_records.md', 'hpdb-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>HPDB Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'system-records'"
-              @click="loadSpec('Input_File_Specification/record_types/system_records.md', 'system-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>System Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'favorites-records'"
-              @click="loadSpec('Input_File_Specification/record_types/favorites_records.md', 'favorites-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Favorites Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'scan-records'"
-              @click="loadSpec('Input_File_Specification/record_types/scan_records.md', 'scan-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Scan Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'profile-records'"
-              @click="loadSpec('Input_File_Specification/record_types/scanner_profile_records.md', 'profile-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Scanner/Profile Records</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'discovery-records'"
-              @click="loadSpec('Input_File_Specification/record_types/discovery_records.md', 'discovery-records')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Discovery Records</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-expansion-item>
-
-          <q-expansion-item
-            icon="table_chart"
-            label="Reference Tables"
-            header-class="q-pl-lg"
-          >
-            <q-item 
-              clickable 
-              :active="activeSection === 'service-types'"
-              @click="loadSpec('Input_File_Specification/reference_tables/service_types.md', 'service-types')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Service Types</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'freq-ctcss-dcs'"
-              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_ctcss_dcs.md', 'freq-ctcss-dcs')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>CTCSS/DCS Options</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'freq-p25'"
-              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_p25.md', 'freq-p25')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>P25 NAC Options</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'freq-dmr'"
-              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_dmr.md', 'freq-dmr')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>DMR Color Code</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'freq-nxdn'"
-              @click="loadSpec('Input_File_Specification/reference_tables/frequency_options_nxdn.md', 'freq-nxdn')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>NXDN RAN/Area</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'display-opts'"
-              @click="loadSpec('Input_File_Specification/reference_tables/display_options.md', 'display-opts')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Display Options</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'display-colors'"
-              @click="loadSpec('Input_File_Specification/reference_tables/display_colors.md', 'display-colors')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Display Colors</q-item-label>
-              </q-item-section>
-            </q-item>
-
-            <q-item 
-              clickable 
-              :active="activeSection === 'display-layouts'"
-              @click="loadSpec('Input_File_Specification/reference_tables/display_layouts.md', 'display-layouts')"
-              active-class="bg-primary text-white"
-              class="q-pl-xl"
-            >
-              <q-item-section>
-                <q-item-label>Display Layouts</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-expansion-item>
-        </q-expansion-item>
-      </q-list>
-    </q-drawer>
 
     <q-page-container>
       <q-page class="q-pa-md">
         
-        <!-- Home Section -->
-        <div v-if="activeSection === 'home'">
-          <div class="text-h4 q-mb-md">HPDB and Favourites Statistics</div>
-          <div class="text-body1 q-mb-lg">
-            Live totals from the HPDB and Favourites databases.
-          </div>
-
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-lg-6">
-              <q-card flat bordered>
-                <q-card-section>
-                  <div class="text-h6 q-mb-sm">
-                    <q-icon name="storage" color="primary" size="sm" class="q-mr-sm" />
-                    HPDB Statistics
-                  </div>
-                  <div v-if="statsLoading" class="q-py-md">
-                    <q-spinner color="primary" size="24px" />
-                  </div>
-                  <div v-else-if="hpdbStats" class="row q-col-gutter-sm">
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Countries</div>
-                      <div class="text-h6">{{ hpdbStats.countries }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">States</div>
-                      <div class="text-h6">{{ hpdbStats.states }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Counties</div>
-                      <div class="text-h6">{{ hpdbStats.counties }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Agencies</div>
-                      <div class="text-h6">{{ hpdbStats.agencies }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Systems</div>
-                      <div class="text-h6">{{ hpdbStats.systems }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Departments</div>
-                      <div class="text-h6">{{ hpdbStats.departments }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Channel Groups</div>
-                      <div class="text-h6">{{ hpdbStats.channel_groups }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Channels</div>
-                      <div class="text-h6">{{ hpdbStats.channels }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Frequencies</div>
-                      <div class="text-h6">{{ hpdbStats.frequencies }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Conventional</div>
-                      <div class="text-h6">{{ hpdbStats.system_types?.conventional || 0 }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Trunk</div>
-                      <div class="text-h6">{{ hpdbStats.system_types?.trunk || 0 }}</div>
-                    </div>
-                  </div>
-                  <div v-else class="text-body2 text-grey-7">No HPDB statistics available.</div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-12 col-lg-6">
-              <q-card flat bordered>
-                <q-card-section>
-                  <div class="text-h6 q-mb-sm">
-                    <q-icon name="star" color="primary" size="sm" class="q-mr-sm" />
-                    Favourites Statistics
-                  </div>
-                  <div v-if="statsLoading" class="q-py-md">
-                    <q-spinner color="primary" size="24px" />
-                  </div>
-                  <div v-else-if="favoritesStats" class="row q-col-gutter-sm">
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Profiles</div>
-                      <div class="text-h6">{{ favoritesStats.profiles }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Favourites Lists</div>
-                      <div class="text-h6">{{ favoritesStats.favorites_lists }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Agencies</div>
-                      <div class="text-h6">{{ favoritesStats.agencies }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Channel Groups</div>
-                      <div class="text-h6">{{ favoritesStats.channel_groups }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Channels</div>
-                      <div class="text-h6">{{ favoritesStats.channels }}</div>
-                    </div>
-                    <div class="col-6">
-                      <div class="text-caption text-grey-7">Frequencies</div>
-                      <div class="text-h6">{{ favoritesStats.frequencies }}</div>
-                    </div>
-                  </div>
-                  <div v-else class="text-body2 text-grey-7">No favourites statistics available.</div>
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
-        </div>
-
-        <!-- Database Editor Section -->
-        <div v-if="activeSection === 'database'">
-          <div class="text-h5 q-mb-md">HomePatrol Database (HPDB)</div>
-          <div class="text-body2 text-grey-7 q-mb-lg">
-            Browse and search the Uniden Homepatrol database organized by Country &gt; State &gt; County
-          </div>
-
-          <div class="row q-col-gutter-md" style="height: calc(100vh - 280px);">
-            <!-- Left Pane: Country/State/County Tree -->
-            <div class="col-12 col-md-3">
-              <q-card flat bordered style="height: 100%;">
-                <q-card-section class="q-pa-sm">
-                  <q-input
-                    v-model="searchQuery"
-                    label="Search..."
-                    outlined
-                    dense
-                    class="q-mb-sm"
-                  >
-                    <template #prepend>
-                      <q-icon name="search" />
-                    </template>
-                  </q-input>
-
-                  <div class="text-caption text-weight-bold q-mb-sm">Hierarchy</div>
-                  <div style="height: calc(100vh - 400px); overflow-y: auto;">
-                    <q-tree
-                      :nodes="hpdbTree"
-                      node-key="id"
-                      label-key="name_tag"
-                      children-key="children"
-                      v-model:expanded="expandedNodes"
-                      v-model:selected="selectedNode"
-                      @lazy-load="onLazyLoad"
-                      :filter="searchQuery"
-                      :filter-method="filterMethod"
-                      selected-color="primary"
-                    >
-                      <template #default-header="prop">
-                        <div 
-                          class="row items-center q-gutter-xs cursor-pointer" 
-                          style="flex: 1;"
-                          @click.stop="selectNode(prop.node)"
-                        >
-                          <q-icon 
-                            :name="getNodeIcon(prop.node)" 
-                            :color="getNodeColor(prop.node)" 
-                            size="sm"
-                          />
-                          <span class="text-body2">{{ prop.node.name_tag }}</span>
-                          <q-badge 
-                            v-if="prop.node.type === 'agency' && prop.node.group_count"
-                            :label="prop.node.group_count"
-                            color="blue"
-                            class="q-ml-xs"
-                          />
-                        </div>
-                      </template>
-                    </q-tree>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <!-- Right Pane: Frequency List or Channel Groups -->
-            <div class="col-12 col-md-9">
-              <q-card flat bordered style="height: 100%;">
-                <q-card-section class="q-pa-sm">
-                  <!-- Show Agencies when County is selected -->
-                  <div v-if="selectedCounty && !selectedAgency">
-                    <div class="row items-center q-mb-md">
-                      <div class="col">
-                        <div class="text-h6">{{ selectedCounty.name_tag }}</div>
-                        <div class="text-caption text-grey-7">Agencies</div>
-                      </div>
-                    </div>
-
-                    <div v-if="countyAgencies.length > 0" style="height: calc(100vh - 340px); overflow-y: auto;">
-                      <q-table
-                        :rows="countyAgencies"
-                        :columns="agencyColumns"
-                        row-key="id"
-                        flat
-                        dense
-                        :rows-per-page-options="[0]"
-                        virtual-scroll
-                        @row-click="onAgencyRowClick"
-                        style="max-height: calc(100vh - 340px); cursor: pointer;"
-                      >
-                        <template #body-cell-avoid="props">
-                          <q-td :props="props">
-                            {{ props.value }}
-                          </q-td>
-                        </template>
-                      </q-table>
-                    </div>
-
-                    <div v-else-if="loadingFrequencies" class="text-center q-pa-xl">
-                      <q-spinner color="primary" size="2em" />
-                      <div class="q-mt-md text-caption">Loading agencies...</div>
-                    </div>
-
-                    <div v-else class="text-center q-pa-xl text-grey-7">
-                      <q-icon name="info" size="2em" />
-                      <div class="q-mt-md text-caption">No agencies found</div>
-                    </div>
-                  </div>
-
-                  <!-- Show Channel Groups when Agency is selected -->
-                  <div v-else-if="selectedAgency && !selectedChannelGroup">
-                    <div class="row items-center q-mb-md">
-                      <div class="col">
-                        <div class="text-h6">{{ selectedAgency.name_tag }}</div>
-                        <div class="text-caption text-grey-7">Channel Groups</div>
-                      </div>
-                    </div>
-
-                    <div v-if="agencyChannelGroups.length > 0" style="height: calc(100vh - 340px); overflow-y: auto;">
-                      <q-table
-                        :rows="agencyChannelGroups"
-                        :columns="channelGroupColumns"
-                        row-key="id"
-                        flat
-                        dense
-                        :rows-per-page-options="[0]"
-                        virtual-scroll
-                        @row-click="onChannelGroupRowClick"
-                        style="max-height: calc(100vh - 340px); cursor: pointer;"
-                      >
-                        <template #body-cell-avoid="props">
-                          <q-td :props="props">
-                            <q-icon 
-                              :name="props.row.enabled ? 'check_circle' : 'cancel'" 
-                              :color="props.row.enabled ? 'grey' : 'negative'"
-                              size="xs"
-                            />
-                          </q-td>
-                        </template>
-                        <template #body-cell-system_type="props">
-                          <q-td :props="props" class="cursor-pointer">
-                            <div class="row items-center q-gutter-xs">
-                              <span>{{ props.value }}</span>
-                              <q-btn
-                                v-if="(props.row.latitude && props.row.longitude) || (Array.isArray(props.row.rectangles) && props.row.rectangles.length > 0)"
-                                flat
-                                dense
-                                size="sm"
-                                icon="map"
-                                color="primary"
-                                @click.stop="openChannelGroupMap(props.row)"
-                              />
-                            </div>
-                          </q-td>
-                        </template>
-                      </q-table>
-                    </div>
-
-                    <div v-else-if="loadingFrequencies" class="text-center q-pa-xl">
-                      <q-spinner color="primary" size="2em" />
-                      <div class="q-mt-md text-caption">Loading channel groups...</div>
-                    </div>
-
-                    <div v-else class="text-center q-pa-xl text-grey-7">
-                      <q-icon name="info" size="2em" />
-                      <div class="q-mt-md text-caption">No channel groups found</div>
-                    </div>
-                  </div>
-
-                  <!-- Show Frequencies when Channel Group is selected -->
-                  <div v-else-if="selectedChannelGroup">
-                    <div class="row items-center q-mb-md">
-                      <div class="col">
-                        <div class="text-h6">{{ selectedChannelGroup.name_tag }}</div>
-                        <div class="text-caption text-grey-7">
-                          {{ selectedAgency?.name_tag || 'Agency' }}
-                        </div>
-                      </div>
-                      <div class="col-auto">
-                        <q-btn 
-                          flat 
-                          color="primary" 
-                          icon="open_in_new" 
-                          size="sm"
-                          label="Details"
-                          @click="openChannelGroupDetail(selectedChannelGroup)"
-                        />
-                      </div>
-                    </div>
-
-                    <q-separator class="q-mb-md" />
-
-                    <div v-if="loadingFrequencies" class="text-center q-pa-xl">
-                      <q-spinner color="primary" size="2em" />
-                      <div class="q-mt-md text-grey-7 text-caption">Loading frequencies...</div>
-                    </div>
-
-                    <div v-else-if="channelGroupFrequencies.length > 0">
-                      <div class="text-caption text-weight-bold q-mb-sm">Frequencies ({{ channelGroupFrequencies.length }})</div>
-                      <q-table
-                        :rows="channelGroupFrequencies"
-                        :columns="frequencyColumns"
-                        row-key="id"
-                        flat
-                        dense
-                        :rows-per-page-options="[0]"
-                        virtual-scroll
-                        style="max-height: calc(100vh - 480px);"
-                      >
-                        <template #body-cell-avoid="props">
-                          <q-td :props="props">
-                            <q-icon 
-                              :name="props.row.enabled ? 'check_circle' : 'cancel'" 
-                              :color="props.row.enabled ? 'grey' : 'negative'"
-                              size="xs"
-                            />
-                          </q-td>
-                        </template>
-                        <template #body-cell-frequency="props">
-                          <q-td :props="props">
-                            {{ (props.value / 1000000).toFixed(4) }} MHz
-                          </q-td>
-                        </template>
-                      </q-table>
-                    </div>
-
-                    <div v-else class="text-center q-pa-xl text-grey-7">
-                      <q-icon name="info" size="2em" />
-                      <div class="q-mt-md text-caption">No frequencies found</div>
-                    </div>
-                  </div>
-
-                  <div v-else class="text-center q-pa-xl text-grey-7">
-                    <q-icon name="waves" size="3em" />
-                    <div class="q-mt-md">Select a system/department to view frequencies</div>
-                  </div>
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
-        </div>
-
         <!-- Favourites Editor Section -->
         <div v-if="activeSection === 'favorites'">
-          <div class="text-h5 q-mb-md">Scanner Favourites</div>
-
           <!-- Tree + Table Layout for Favorites -->
           <div class="row q-col-gutter-md">
             <!-- Left Pane: Favorites Lists Tree -->
             <div class="col-12 col-md-3">
-              <q-card flat bordered style="height: 100%; min-height: 600px;">
+              <q-card flat bordered style="height: 85vh; overflow-y: auto;">
                 <q-card-section class="q-pa-sm">
-                  <div class="text-subtitle2 q-mb-sm">Favourites Lists</div>
+                  <div class="row justify-end q-mb-md q-gutter-sm">
+                    <q-btn
+                      color="primary"
+                      label="Load Favourites"
+                      icon="cloud_upload"
+                      size="sm"
+                      @click="loadFavourites"
+                    />
+                    <q-btn
+                      color="secondary"
+                      label="Download Favourites"
+                      icon="cloud_download"
+                      size="sm"
+                      @click="exportFavoritesFolder"
+                    />
+                  </div>
                   <q-tree
                     :nodes="favoritesTreeNodes"
                     node-key="id"
@@ -693,7 +68,7 @@
 
             <!-- Right Pane: Channels Table -->
             <div class="col-12 col-md-9">
-              <q-card flat bordered style="height: 100%; min-height: 600px;">
+              <q-card flat bordered style="height: 85vh; overflow-y: auto;">
                 <q-card-section class="q-pa-sm">
                   <!-- Favorites Root Node - Favorite Lists Table -->
                   <div v-if="selectedFavoritesNode && selectedFavoritesNode.type === 'root'">
@@ -750,7 +125,7 @@
                       row-key="id"
                       :pagination="{ rowsPerPage: 0 }"
                       hide-pagination
-                      style="height: calc(100vh - 280px)"
+                      style="height: 100%"
                     >
                       <template v-slot:header-cell-checkbox="props">
                         <q-th :props="props">
@@ -806,18 +181,6 @@
                         <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
                         <div class="text-caption text-grey-7">{{ selectedFavoritesList?.user_name || 'Favorites List' }}</div>
                       </div>
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        icon="edit"
-                        color="primary"
-                        size="sm"
-                        @click="editDepartment(selectedFavoritesNode.groupData)"
-                        class="q-mr-sm"
-                      >
-                        <q-tooltip>Edit Department Name</q-tooltip>
-                      </q-btn>
                       <q-btn
                         color="secondary"
                         label="Add Channel"
@@ -900,18 +263,6 @@
                         <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
                         <div class="text-caption text-grey-7">Systems</div>
                       </div>
-                      <q-btn
-                        flat
-                        round
-                        dense
-                        icon="edit"
-                        color="primary"
-                        size="sm"
-                        @click="editFavoritesList(selectedFavoritesNode.favData)"
-                        class="q-mr-sm"
-                      >
-                        <q-tooltip>Edit Favorites List Name</q-tooltip>
-                      </q-btn>
                       <q-btn
                         color="secondary"
                         label="Add System"
@@ -1041,261 +392,6 @@
                 </q-card-section>
               </q-card>
             </div>
-          </div>
-
-          <div class="row justify-end q-mt-md q-gutter-sm">
-            <q-btn
-              color="secondary"
-              label="Download Favourites"
-              icon="cloud_download"
-              @click="exportFavoritesFolder"
-            />
-            <q-btn
-              color="primary"
-              label="Load Favourites"
-              icon="cloud_upload"
-              @click="loadFavourites"
-            />
-          </div>
-        </div>
-
-        <!-- Load Data Section -->
-        <div v-if="activeSection === 'load-data'">
-          <div class="text-h5 q-mb-md">Load Data</div>
-          <div class="text-body2 text-grey-7 q-mb-lg">
-            Upload a directory containing HPDB database files, Favourites, or an entire SD card.
-          </div>
-
-          <q-card flat bordered>
-            <q-card-section>
-              <div class="text-h6 q-mb-sm">
-                <q-icon name="folder_open" color="primary" size="sm" class="q-mr-sm" />
-                Select Data Directory
-              </div>
-              <div class="text-body2 q-mb-md">
-                Choose one of:
-                <ul class="q-my-sm q-pl-md">
-                  <li>SD Card root directory</li>
-                  <li>HPDB database directory (containing hpdb.cfg and s_*.hpd files)</li>
-                  <li>Favourites directory (containing f_list.cfg and f_*.hpd files)</li>
-                </ul>
-                The system will automatically detect what you've uploaded.
-              </div>
-              
-              <q-file
-                ref="importFilePicker"
-                v-model="importFiles"
-                class="q-mt-md"
-                filled
-                multiple
-                use-chips
-                label="Select directory to upload"
-                accept=".cfg,.hpd,.avd,.dat,.inf"
-                :directory="true"
-                :webkitdirectory="true"
-              />
-              
-              <div v-if="importLoading && uploadProgress.totalBytes > 0" class="q-mt-md q-pa-md bg-primary-1 rounded-borders">
-                <div class="text-body2 text-weight-medium q-mb-sm">
-                  <q-icon name="cloud_upload" color="primary" />
-                  Uploading files...
-                </div>
-                <q-linear-progress
-                  :value="uploadProgressPercent / 100"
-                  color="primary"
-                  class="q-mt-xs"
-                />
-                <div class="row justify-between q-mt-xs">
-                  <div class="text-caption text-grey-7">
-                    {{ (uploadProgress.bytesUploaded / 1024 / 1024).toFixed(2) }} MB / {{ (uploadProgress.totalBytes / 1024 / 1024).toFixed(2) }} MB
-                  </div>
-                  <div class="text-caption text-weight-medium">{{ uploadProgressPercent }}%</div>
-                </div>
-              </div>
-              
-              <div v-if="importDetection" class="q-mt-md q-pa-md bg-blue-1 rounded-borders">
-                <div class="text-subtitle1 text-weight-medium">
-                  <q-icon name="info" color="primary" />
-                  Detected: {{ importDetection.description }}
-                </div>
-                <div class="text-body2 q-mt-xs">
-                  {{ importDetection.contains }}
-                </div>
-                <div class="text-caption text-grey-7 q-mt-xs">
-                  {{ importDetection.file_count }} file(s) uploaded
-                </div>
-              </div>
-
-              <!-- Processing Steps Display -->
-              <div v-if="hpdbImportProgress.status !== 'idle'" class="q-mt-md">
-                <q-card flat bordered>
-                  <q-card-section class="q-pa-md">
-                    <div class="text-subtitle1 text-weight-medium q-mb-md">
-                      <q-icon name="sync" color="primary" class="rotating" />
-                      Import Progress
-                    </div>
-                    
-                    <!-- Step 1: Upload -->
-                    <div class="q-mb-md">
-                      <div class="row items-center q-mb-xs">
-                        <q-icon 
-                          :name="hpdbImportProgress.status === 'uploading' ? 'radio_button_checked' : 'check_circle'" 
-                          :color="hpdbImportProgress.status === 'uploading' ? 'primary' : 'positive'"
-                          size="sm"
-                          class="q-mr-sm"
-                        />
-                        <span class="text-body2 text-weight-medium">
-                          Step 1: Upload Files
-                        </span>
-                        <q-space />
-                        <q-badge 
-                          v-if="hpdbImportProgress.status !== 'uploading'" 
-                          color="positive" 
-                          label="Complete"
-                        />
-                      </div>
-                    </div>
-                    
-                    <!-- Step 2: Processing -->
-                    <div class="q-mb-md">
-                      <div class="row items-center q-mb-xs">
-                        <q-icon 
-                          :name="hpdbImportProgress.status === 'processing' ? 'radio_button_checked' : hpdbImportProgress.status === 'completed' ? 'check_circle' : 'radio_button_unchecked'" 
-                          :color="hpdbImportProgress.status === 'processing' ? 'primary' : hpdbImportProgress.status === 'completed' ? 'positive' : 'grey'"
-                          size="sm"
-                          class="q-mr-sm"
-                        />
-                        <span class="text-body2 text-weight-medium">
-                          Step 2: Process Data
-                        </span>
-                        <q-space />
-                        <q-badge 
-                          v-if="hpdbImportProgress.status === 'completed'" 
-                          color="positive" 
-                          label="Complete"
-                        />
-                        <q-badge 
-                          v-else-if="hpdbImportProgress.status === 'processing'" 
-                          color="primary" 
-                          :label="`${hpdbImportProgress.processedFiles}/${hpdbImportProgress.totalFiles}`"
-                        />
-                      </div>
-                      
-                      <!-- Processing Details -->
-                      <div v-if="hpdbImportProgress.status === 'processing'" class="q-ml-lg q-pl-sm">
-                        <div v-if="hpdbImportProgress.stage" class="text-caption text-grey-7 q-mb-xs">
-                          Stage: {{ hpdbImportProgress.stage }}
-                        </div>
-                        <div v-if="hpdbImportProgress.message" class="text-caption text-weight-medium q-mb-sm text-primary">
-                          {{ hpdbImportProgress.message }}
-                        </div>
-                        <div v-if="hpdbImportProgress.currentFile" class="text-caption text-grey-7 q-mb-sm">
-                          File: {{ hpdbImportProgress.currentFile }}
-                        </div>
-                        <q-linear-progress
-                          :value="hpdbImportProgressPercent"
-                          color="primary"
-                          class="q-mb-xs"
-                          stripe
-                        />
-                        <div class="text-caption text-grey-7">
-                          {{ hpdbImportProgress.processedFiles }} / {{ hpdbImportProgress.totalFiles }} files
-                          <span v-if="hpdbImportProgress.currentRecords">
-                            ({{ hpdbImportProgress.currentRecords }} / {{ hpdbImportProgress.totalRecords }} records)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <!-- Info Message -->
-                    <div v-if="hpdbImportProgress.status === 'processing'" class="q-pa-sm bg-blue-1 rounded-borders">
-                      <q-icon name="info" color="primary" size="xs" />
-                      <span class="text-caption text-grey-8 q-ml-xs">
-                        Safe to navigate away - processing continues in background
-                      </span>
-                    </div>
-                  </q-card-section>
-                </q-card>
-              </div>
-            </q-card-section>
-            
-            <q-card-actions>
-              <q-btn
-                outline
-                color="primary"
-                label="Choose Directory"
-                icon="folder_open"
-                @click="openImportPicker"
-              />
-              <q-btn
-                outline
-                color="primary"
-                label="Analyze & Upload"
-                icon="upload"
-                :loading="importLoading"
-                :disable="!hasImportFiles"
-                @click="analyzeImport"
-              />
-              <q-space />
-              <q-btn
-                outline
-                color="primary"
-                label="Clean Temp Uploads"
-                icon="delete_sweep"
-                @click="cleanupTempUploads"
-              />
-              <q-btn
-                outline
-                color="primary"
-                label="Re-Parse Data from Last Upload"
-                :loading="hpdbImportLoading"
-                @click="reloadHpdbFromRaw"
-              />
-              <q-btn
-                outline
-                color="primary"
-                label="Export Favourites Folder"
-                icon="file_download"
-                @click="exportFavoritesFolder"
-              />
-              <q-btn
-                outline
-                color="warning"
-                label="Clear Raw Data"
-                @click="clearRawDataConfirm"
-              />
-              <q-btn
-                outline
-                color="negative"
-                label="Cancel Import & Clear Queue"
-                @click="cancelImportConfirm"
-              />
-              <q-btn
-                outline
-                color="negative"
-                label="Clear All Data"
-                @click="clearHpdbDataConfirm"
-              />
-            </q-card-actions>
-          </q-card>
-        </div>
-
-        <!-- Specifications Section -->
-        <div v-if="activeSection.startsWith('spec-') || activeSection.startsWith('global-') || 
-                   activeSection.endsWith('-records') || activeSection.startsWith('service-') || 
-                   activeSection.startsWith('freq-') || activeSection.startsWith('display-')">
-          <div v-if="specLoading" class="flex flex-center q-pa-xl">
-            <q-spinner color="primary" size="48px" />
-          </div>
-
-          <div v-else-if="specError" class="text-center q-pa-xl">
-            <q-icon name="error" size="48px" color="negative" />
-            <div class="text-h6 q-mt-md">{{ specError }}</div>
-          </div>
-
-          <div v-else-if="specContent" 
-               class="markdown-content"
-               v-html="specContent">
           </div>
         </div>
 
@@ -1632,7 +728,8 @@
           <div class="row q-gutter-sm q-mb-md">
             <div v-for="i in 10" :key="i" class="col-auto">
               <q-checkbox
-                v-model="newFavoritesList.startup_keys[i - 1]"
+                :model-value="newFavoritesList.startup_keys[i - 1] === 'On'"
+                @update:model-value="newFavoritesList.startup_keys[i - 1] = $event ? 'On' : 'Off'"
                 :label="String(i - 1)"
                 dense
                 style="min-width: 60px;"
@@ -1651,7 +748,8 @@
           <div class="row q-gutter-sm" style="max-height: 300px; overflow-y: auto;">
             <div v-for="i in 100" :key="i" class="col-auto">
               <q-checkbox
-                v-model="newFavoritesList.s_qkeys[i - 1]"
+                :model-value="newFavoritesList.s_qkeys[i - 1] === 'On'"
+                @update:model-value="newFavoritesList.s_qkeys[i - 1] = $event ? 'On' : 'Off'"
                 :label="String(i - 1).padStart(2, '0')"
                 dense
                 style="min-width: 70px;"
@@ -2079,8 +1177,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useScannerStore } from '../stores/scanner'
 import api, { sdAPI } from '../api'
 import { useQuasar, QSeparator, QCheckbox, QTable } from 'quasar'
-import { marked } from 'marked'
-import axios from 'axios'
 import ChannelGroupMapDialog from '../components/ChannelGroupMapDialog.vue'
 
 const route = useRoute()
@@ -2088,22 +1184,8 @@ const router = useRouter()
 const scanner = useScannerStore()
 const $q = useQuasar()
 
-// Configure marked for better rendering
-marked.setOptions({
-  gfm: true,
-  breaks: false,
-  headerIds: true,
-  mangle: false
-})
-
 // Navigation
-const leftDrawerOpen = ref(true)
-const activeSection = ref('home')
-
-// Specifications
-const specContent = ref('')
-const specLoading = ref(false)
-const specError = ref(null)
+const activeSection = ref('favorites')
 
 // HPDB Tree
 const hpdbTree = ref([])
@@ -2208,7 +1290,10 @@ const favoritesColumns = [
   { name: 'number_tag', label: 'Number Tag', field: 'number_tag', align: 'center', sortable: true },
   { name: 'startup_keys', label: 'Startup Keys', field: row => {
     if (!row.startup_keys || !Array.isArray(row.startup_keys)) return 'None';
-    const onKeys = row.startup_keys.map((val, idx) => val === 'On' ? idx : null).filter(x => x !== null);
+    // Handle both boolean and string values
+    const onKeys = row.startup_keys.map((val, idx) => {
+      return (val === true || val === 'On') ? idx : null;
+    }).filter(x => x !== null);
     return onKeys.length > 0 ? onKeys.join(', ') : 'None';
   }, align: 'center' }
 ]
@@ -2386,8 +1471,8 @@ const newFavoritesList = ref({
   monitor: 'On',
   quick_key: 'Off',
   number_tag: 'Off',
-  s_qkeys: Array(100).fill(false),
-  startup_keys: Array(10).fill(false)
+  s_qkeys: Array(100).fill('Off'),
+  startup_keys: Array(10).fill('Off')
 })
 const isEditMode = ref(false)
 const newChannel = ref({
@@ -2565,7 +1650,7 @@ const newProfile = ref({
 onMounted(async () => {
   // Check for section query parameter
   const section = route.query.section
-  if (section && ['home', 'database', 'favorites'].includes(section)) {
+  if (section && ['favorites'].includes(section)) {
     activeSection.value = section
   }
   
@@ -2598,14 +1683,20 @@ onMounted(async () => {
   }
   
   scanner.fetchProfiles()
-  loadHPDBTree()
   loadFavoritesList()
-  loadStats()
 })
 
 onBeforeUnmount(() => {
   stopHpdbImportPolling()
 })
+
+// Auto-select the root node when favorites tree loads
+watch(favoritesTreeNodes, (nodes) => {
+  if (nodes && nodes.length > 0 && nodes[0].type === 'root') {
+    selectedFavoritesNode.value = nodes[0]
+    selectedFavoritesNodeId.value = nodes[0].id
+  }
+}, { immediate: true })
 
 // Watch for section changes and reload favorites when needed
 watch(activeSection, (newSection) => {
@@ -2619,7 +1710,7 @@ const loadStats = async () => {
   try {
     const [hpdbResp, favResp] = await Promise.all([
       api.get('/hpdb/stats/'),
-      api.get('/usersettings/stats/')
+      api.get('/favourites/stats/')
     ])
     hpdbStats.value = hpdbResp.data
     favoritesStats.value = favResp.data
@@ -2667,7 +1758,7 @@ const expandAgencyGroups = async (agencyId) => {
 const loadFavoritesList = async () => {
   favoritesLoading.value = true
   try {
-    const { data } = await api.get('/usersettings/favorites-lists/')
+    const { data } = await api.get('/favourites/favorites-lists/')
     // Handle paginated response
     let favList = Array.isArray(data) ? data : (data.results || [])
     console.log('[DEBUG] Loaded', favList.length, 'favorites from API')
@@ -2679,7 +1770,7 @@ const loadFavoritesList = async () => {
     const favListsWithDetails = await Promise.all(
       favList.map(async (fav) => {
         try {
-          const { data: detailData } = await api.get(`/usersettings/favorites-lists/${fav.id}/detail/`)
+          const { data: detailData } = await api.get(`/favourites/favorites-lists/${fav.id}/detail/`)
           const merged = { ...fav, ...detailData }
           console.log('[DEBUG] Loaded details for', fav.user_name, '- groups:', merged.groups?.length || 0)
           return merged
@@ -2728,7 +1819,7 @@ const selectFavoritesNode = async (node) => {
       console.log('[selectFavoritesNode] Loading channels for:', node.label, 'groupId:', groupId, 'systemType:', systemType)
       
       if (systemType === 'Conventional') {
-        const { data } = await api.get(`/usersettings/cgroups/${groupId}/`)
+        const { data } = await api.get(`/favourites/cgroups/${groupId}/`)
         // Store frequencies in the node's groupData (normalize fields for UI)
         node.groupData.channels = (data.frequencies || []).map(freq => ({
           ...freq,
@@ -2739,7 +1830,7 @@ const selectFavoritesNode = async (node) => {
         }))
         console.log('[selectFavoritesNode] Loaded', data.frequencies?.length || 0, 'frequencies')
       } else if (systemType === 'Trunked') {
-        const { data } = await api.get(`/usersettings/tgroups/${groupId}/`)
+        const { data } = await api.get(`/favourites/tgroups/${groupId}/`)
         // Store TGIDs as channels in the node's groupData
         node.groupData.channels = (data.tgids || []).map(tgid => ({
           id: tgid.id,
@@ -2770,7 +1861,7 @@ const selectFavoritesNode = async (node) => {
 
     if (!systemsData.value?.length && favData?.id) {
       try {
-        const { data } = await api.get(`/usersettings/favorites-lists/${favData.id}/get-systems/`)
+        const { data } = await api.get(`/favourites/favorites-lists/${favData.id}/get-systems/`)
         systemsData.value = data.systems || []
       } catch (error) {
         console.error('[selectFavoritesNode] Error loading systems for id lookup:', error)
@@ -2822,7 +1913,7 @@ const selectFavoritesNode = async (node) => {
     // Load systems (ConventionalSystem and TrunkSystem) for this favorites list
     try {
       systemsLoading.value = true
-      const { data } = await api.get(`/usersettings/favorites-lists/${node.favData.id}/get-systems/`)
+      const { data } = await api.get(`/favourites/favorites-lists/${node.favData.id}/get-systems/`)
       systemsData.value = data.systems || []
       console.log('[selectFavoritesNode] Loaded', data.systems?.length || 0, 'systems')
     } catch (error) {
@@ -3119,8 +2210,8 @@ const onLazyLoad = async ({ node, key, done, fail }) => {
       
       if (systemType === 'Conventional') {
         // Fetch CFreqs for conventional group
-        console.log('[LAZY-LOAD] Fetching from:', `/usersettings/cgroups/${groupId}/`)
-        const { data } = await api.get(`/usersettings/cgroups/${groupId}/`)
+        console.log('[LAZY-LOAD] Fetching from:', `/favourites/cgroups/${groupId}/`)
+        const { data } = await api.get(`/favourites/cgroups/${groupId}/`)
         console.log('[LAZY-LOAD] Got data:', data)
         const freqNodes = (data.frequencies || []).map(freq => ({
           id: `freq_${freq.id}`,
@@ -3135,8 +2226,8 @@ const onLazyLoad = async ({ node, key, done, fail }) => {
         done(freqNodes)
       } else if (systemType === 'Trunked') {
         // Fetch TGIDs for trunk group
-        console.log('[LAZY-LOAD] Fetching from:', `/usersettings/tgroups/${groupId}/`)
-        const { data } = await api.get(`/usersettings/tgroups/${groupId}/`)
+        console.log('[LAZY-LOAD] Fetching from:', `/favourites/tgroups/${groupId}/`)
+        const { data } = await api.get(`/favourites/tgroups/${groupId}/`)
         console.log('[LAZY-LOAD] Got data:', data)
         const tgidNodes = (data.tgids || []).map(tgid => ({
           id: `tgid_${tgid.id}`,
@@ -3206,12 +2297,6 @@ const onLazyLoad = async ({ node, key, done, fail }) => {
 const filterMethod = (node, filter) => {
   const filt = filter.toLowerCase()
   return node.name_tag.toLowerCase().includes(filt)
-}
-
-const openAgencyDetail = (node) => {
-  // Extract numeric ID from node.id (format is "agency-123")
-  const agencyId = node.id.toString().replace('agency-', '')
-  router.push(`/database/${agencyId}`)
 }
 
 const openChannelGroupDetail = (node) => {
@@ -3494,7 +2579,7 @@ const performFavoritesImport = async (files) => {
   try {
     // First, clear existing data
     console.log('[DEBUG] Clearing existing favorites data...')
-    await api.post('/usersettings/clear-data/')
+    await api.post('/favourites/clear-data/')
     console.log('[DEBUG] Data cleared')
 
     // Prepare form data
@@ -3505,7 +2590,7 @@ const performFavoritesImport = async (files) => {
     // Upload and import
     console.log('[DEBUG] Starting import upload...')
     const { data } = await axios.post(
-      api.defaults.baseURL + '/usersettings/import-files/',
+      api.defaults.baseURL + '/favourites/import-files/',
       formData,
       {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -3754,7 +2839,7 @@ const clearRawData = async () => {
   try {
     await Promise.all([
       api.post('/hpdb/clear-raw-data/'),
-      api.post('/usersettings/clear-raw-data/')
+      api.post('/favourites/clear-raw-data/')
     ])
     $q.notify({ type: 'positive', message: 'Raw data cleared successfully' })
   } catch (error) {
@@ -3766,7 +2851,7 @@ const clearAllData = async () => {
   try {
     await Promise.all([
       api.post('/hpdb/clear-data/'),
-      api.post('/usersettings/clear-data/')
+      api.post('/favourites/clear-data/')
     ])
     $q.notify({ type: 'positive', message: 'All data cleared successfully' })
     await loadHPDBTree()
@@ -3850,7 +2935,7 @@ const exportSelectedFavoritesLists = async () => {
       return
     }
 
-    const response = await api.post('/usersettings/favorites-lists/export-json-multiple/', {
+    const response = await api.post('/favourites/favorites-lists/export-json-multiple/', {
       ids: selectedFavoritesListIds.value
     }, { responseType: 'blob' })
 
@@ -3887,7 +2972,7 @@ const importFavoritesJSON = async () => {
         formData.append('file', file)
 
         // Use a dummy ID since import creates new lists
-        const { data } = await api.post('/usersettings/favorites-lists/00000000000000000000000/import-json/', formData, {
+        const { data } = await api.post('/favourites/favorites-lists/00000000000000000000000/import-json/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
 
@@ -3953,7 +3038,7 @@ const deleteSelectedFavoritesLists = () => {
 
       for (const favId of selectedFavoritesListIds.value) {
         try {
-          await api.delete(`/usersettings/favorites-lists/${favId}/`)
+          await api.delete(`/favourites/favorites-lists/${favId}/`)
           deletedCount++
         } catch (error) {
           console.error(`Error deleting favorites list ${favId}:`, error)
@@ -3984,7 +3069,7 @@ const deleteSelectedFavoritesLists = () => {
 
 const exportFavoritesFolder = async () => {
   try {
-    const response = await api.get('/usersettings/export-favorites/', { responseType: 'blob' })
+    const response = await api.get('/favourites/export-favorites/', { responseType: 'blob' })
     const blob = new Blob([response.data], { type: 'application/zip' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -4003,7 +3088,7 @@ const exportFavoritesFolder = async () => {
 
 const exportFavoritesListCSV = async (favoritesList) => {
   try {
-    const response = await api.get(`/usersettings/favorites-lists/${favoritesList.id}/export-csv/`, { responseType: 'blob' })
+    const response = await api.get(`/favourites/favorites-lists/${favoritesList.id}/export-csv/`, { responseType: 'blob' })
     const blob = new Blob([response.data], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -4036,7 +3121,7 @@ const importFavoritesListCSV = async (favoritesList) => {
         const formData = new FormData()
         formData.append('file', file)
 
-        const { data } = await api.post(`/usersettings/favorites-lists/${favoritesList.id}/import-csv/`, formData, {
+        const { data } = await api.post(`/favourites/favorites-lists/${favoritesList.id}/import-csv/`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
 
@@ -4089,11 +3174,24 @@ const createNewFavoritesList = async () => {
     monitor: 'On',
     quick_key: 'Off',
     number_tag: 'Off',
-    s_qkeys: Array(100).fill(false),
-    startup_keys: Array(10).fill(false)
+    s_qkeys: Array(100).fill('Off'),
+    startup_keys: Array(10).fill('Off')
   }
   isEditFavoritesListMode.value = false
   showCreateFavoritesListDialog.value = true
+}
+
+const normalizeOnOffArray = (arr) => {
+  if (!Array.isArray(arr)) return arr
+  return arr.map(val => {
+    if (typeof val === 'boolean') {
+      return val ? 'On' : 'Off'
+    }
+    if (typeof val === 'string') {
+      return (val === 'On' || val === 'true' || val === '1') ? 'On' : 'Off'
+    }
+    return 'Off'
+  })
 }
 
 const editFavoritesList = (favoritesList) => {
@@ -4104,8 +3202,8 @@ const editFavoritesList = (favoritesList) => {
     monitor: favoritesList.monitor,
     quick_key: favoritesList.quick_key,
     number_tag: favoritesList.number_tag,
-    s_qkeys: Array.isArray(favoritesList.s_qkeys) ? [...favoritesList.s_qkeys] : Array(100).fill(false),
-    startup_keys: Array.isArray(favoritesList.startup_keys) ? [...favoritesList.startup_keys] : Array(10).fill(false)
+    s_qkeys: normalizeOnOffArray(favoritesList.s_qkeys) || Array(100).fill('Off'),
+    startup_keys: normalizeOnOffArray(favoritesList.startup_keys) || Array(10).fill('Off')
   }
   isEditFavoritesListMode.value = true
   showCreateFavoritesListDialog.value = true
@@ -4118,7 +3216,7 @@ const updateFavoritesList = async () => {
   }
 
   try {
-    await api.patch(`/usersettings/favorites-lists/${newFavoritesList.value.id}/`, {
+    await api.patch(`/favourites/favorites-lists/${newFavoritesList.value.id}/`, {
       user_name: newFavoritesList.value.user_name,
       location_control: newFavoritesList.value.location_control,
       monitor: newFavoritesList.value.monitor,
@@ -4159,7 +3257,7 @@ const submitCreateFavoritesList = async () => {
     const nextNum = maxNum + 1
     const filename = `f_${String(nextNum).padStart(6, '0')}.hpd`
 
-    const response = await api.post('/usersettings/favorites-lists/', {
+    const response = await api.post('/favourites/favorites-lists/', {
       user_name: newFavoritesList.value.user_name,
       filename: filename,
       location_control: newFavoritesList.value.location_control,
@@ -4203,7 +3301,7 @@ const deleteSingleFavoritesList = async (favoritesList) => {
     persistent: true
   }).onOk(async () => {
     try {
-      await api.delete(`/usersettings/favorites-lists/${favoritesList.id}/`)
+      await api.delete(`/favourites/favorites-lists/${favoritesList.id}/`)
       $q.notify({ type: 'positive', message: 'Favorites list deleted successfully!' })
       await loadFavoritesList()
     } catch (error) {
@@ -4214,11 +3312,11 @@ const deleteSingleFavoritesList = async (favoritesList) => {
 }
 
 const selectAllSQkeys = (value) => {
-  newFavoritesList.value.s_qkeys = Array(100).fill(value)
+  newFavoritesList.value.s_qkeys = Array(100).fill(value ? 'On' : 'Off')
 }
 
 const selectAllStartupKeys = (value) => {
-  newFavoritesList.value.startup_keys = Array(10).fill(value)
+  newFavoritesList.value.startup_keys = Array(10).fill(value ? 'On' : 'Off')
 }
 
 const deleteFavoritesList = () => {
@@ -4256,7 +3354,7 @@ const deleteFavoritesList = () => {
     persistent: true
   }).onOk(async () => {
     try {
-      await api.delete(`/usersettings/favorites-lists/${selectedFav.id}/`)
+      await api.delete(`/favourites/favorites-lists/${selectedFav.id}/`)
       $q.notify({ type: 'positive', message: 'Favorites list deleted successfully!' })
       selectedFavoritesNode.value = null
       selectedFavoritesNodeId.value = null
@@ -4313,7 +3411,7 @@ const addChannelToFavorites = async () => {
         priority_channel: newChannel.value.p_ch || 'Off'
       }
 
-      await api.post(`/usersettings/cgroups/${groupId}/add-frequency/`, payload)
+      await api.post(`/favourites/cgroups/${groupId}/add-frequency/`, payload)
       $q.notify({ type: 'positive', message: `Frequency "${newChannel.value.name_tag}" added successfully!` })
     } else if (isTrunkSystemType(systemType)) {
       // Validate TGID for trunked
@@ -4344,7 +3442,7 @@ const addChannelToFavorites = async () => {
         tdma_slot: newChannel.value.tdma_slot || 'Any'
       }
 
-      await api.post(`/usersettings/tgroups/${groupId}/add-tgid/`, payload)
+      await api.post(`/favourites/tgroups/${groupId}/add-tgid/`, payload)
       $q.notify({ type: 'positive', message: `TGID "${newChannel.value.name_tag}" added successfully!` })
     }
 
@@ -4449,8 +3547,8 @@ const deleteSystem = async (system) => {
     try {
       const isConventional = system.system_type === 'Conventional'
       const endpoint = isConventional 
-        ? `/usersettings/conventional-systems/${system.id}/`
-        : `/usersettings/trunk-systems/${system.id}/`
+        ? `/favourites/conventional-systems/${system.id}/`
+        : `/favourites/trunk-systems/${system.id}/`
       
       const { data } = await api.get(endpoint)
       
@@ -4487,8 +3585,8 @@ const deleteSystem = async (system) => {
         // Determine if it's a ConventionalSystem or TrunkSystem based on system_type
         const isConventional = system.system_type === 'Conventional'
         const apiEndpoint = isConventional 
-          ? `/usersettings/conventional-systems/${system.id}/`
-          : `/usersettings/trunk-systems/${system.id}/`
+          ? `/favourites/conventional-systems/${system.id}/`
+          : `/favourites/trunk-systems/${system.id}/`
         
         await api.delete(apiEndpoint)
         
@@ -4553,7 +3651,7 @@ const addSystemToFavorites = async () => {
       payload.site_hold_time = newSystem.value.hold_time
     }
 
-    await api.post(`/usersettings/favorites-lists/${favoritesList.id}/add-system/`, payload)
+    await api.post(`/favourites/favorites-lists/${favoritesList.id}/add-system/`, payload)
     $q.notify({ type: 'positive', message: `System "${newSystem.value.system_name}" added successfully!` })
 
     showSystemDialog.value = false
@@ -4588,7 +3686,7 @@ const updateSystem = async () => {
         digital_threshold_level: newSystem.value.digital_threshold_level
       }
 
-      await api.patch(`/usersettings/conventional-systems/${newSystem.value.id}/`, payload)
+      await api.patch(`/favourites/conventional-systems/${newSystem.value.id}/`, payload)
     } else {
       const payload = {
         name_tag: newSystem.value.system_name,
@@ -4609,7 +3707,7 @@ const updateSystem = async () => {
         digital_agc: newSystem.value.digital_agc
       }
 
-      await api.patch(`/usersettings/trunk-systems/${newSystem.value.id}/`, payload)
+      await api.patch(`/favourites/trunk-systems/${newSystem.value.id}/`, payload)
     }
 
     $q.notify({ type: 'positive', message: 'System updated successfully!' })
@@ -4693,9 +3791,9 @@ const addDepartmentToSystem = async () => {
     }
 
     if (!isTrunkSystemType(systemType)) {
-      await api.post(`/usersettings/conventional-systems/${systemId}/add-department/`, payload)
+      await api.post(`/favourites/conventional-systems/${systemId}/add-department/`, payload)
     } else {
-      await api.post(`/usersettings/trunk-systems/${systemId}/add-department/`, payload)
+      await api.post(`/favourites/trunk-systems/${systemId}/add-department/`, payload)
     }
 
     $q.notify({ type: 'positive', message: `Department "${newDepartment.value.name_tag}" added successfully!` })
@@ -4730,9 +3828,9 @@ const updateDepartment = async () => {
     }
 
     if (!isTrunkSystemType(newDepartment.value.system_type)) {
-      await api.patch(`/usersettings/cgroups/${newDepartment.value.id}/`, payload)
+      await api.patch(`/favourites/cgroups/${newDepartment.value.id}/`, payload)
     } else {
-      await api.patch(`/usersettings/tgroups/${newDepartment.value.id}/`, payload)
+      await api.patch(`/favourites/tgroups/${newDepartment.value.id}/`, payload)
     }
 
     $q.notify({ type: 'positive', message: 'Department updated successfully!' })
@@ -4755,10 +3853,10 @@ const deleteDepartment = async (department) => {
     let channelCount = 0
     try {
       if (systemType === 'Trunked') {
-        const { data } = await api.get(`/usersettings/tgroups/${department.id}/`)
+        const { data } = await api.get(`/favourites/tgroups/${department.id}/`)
         channelCount = data.tgids?.length || 0
       } else {
-        const { data } = await api.get(`/usersettings/cgroups/${department.id}/`)
+        const { data } = await api.get(`/favourites/cgroups/${department.id}/`)
         channelCount = data.frequencies?.length || 0
       }
     } catch (error) {
@@ -4775,9 +3873,9 @@ const deleteDepartment = async (department) => {
     }).onOk(async () => {
       try {
         if (systemType === 'Trunked') {
-          await api.delete(`/usersettings/tgroups/${department.id}/`)
+          await api.delete(`/favourites/tgroups/${department.id}/`)
         } else {
-          await api.delete(`/usersettings/cgroups/${department.id}/`)
+          await api.delete(`/favourites/cgroups/${department.id}/`)
         }
 
         $q.notify({ type: 'positive', message: 'Department deleted successfully!' })
@@ -4873,7 +3971,7 @@ const updateChannel = async () => {
       payload.alert_pattern = newChannel.value.alert_pattern
       
       console.log('CFreq Update Payload:', payload)
-      const response = await api.patch(`/usersettings/cfreqs/${newChannel.value.id}/`, payload)
+      const response = await api.patch(`/favourites/cfreqs/${newChannel.value.id}/`, payload)
       console.log('CFreq Update Response:', response.data)
     } else {
       payload.tgid = newChannel.value.frequency
@@ -4883,7 +3981,7 @@ const updateChannel = async () => {
       payload.alert_pattern = newChannel.value.alert_pattern
       payload.tdma_slot = newChannel.value.tdma_slot || 'Any'
       
-      await api.patch(`/usersettings/tgids/${newChannel.value.id}/`, payload)
+      await api.patch(`/favourites/tgids/${newChannel.value.id}/`, payload)
     }
     
     $q.notify({ type: 'positive', message: 'Channel updated successfully!' })
@@ -4916,9 +4014,9 @@ const deleteChannel = (channel) => {
       const systemType = selectedFavoritesNode.value?.system_type || channel.system_type
 
       if (systemType === 'Trunked') {
-        await api.delete(`/usersettings/tgids/${channel.id}/`)
+        await api.delete(`/favourites/tgids/${channel.id}/`)
       } else {
-        await api.delete(`/usersettings/cfreqs/${channel.id}/`)
+        await api.delete(`/favourites/cfreqs/${channel.id}/`)
       }
 
       $q.notify({ type: 'positive', message: 'Channel deleted successfully!' })
@@ -4975,27 +4073,7 @@ const deleteProfile = async (id) => {
 }
 
 // Specifications Methods
-const loadSpec = async (path, sectionId) => {
-  activeSection.value = sectionId
-  specLoading.value = true
-  specError.value = null
-  specContent.value = ''
 
-  try {
-    // Fetch markdown file from docs directory
-    const response = await axios.get(`/docs/${path}`, {
-      headers: { 'Accept': 'text/plain, text/markdown' }
-    })
-    
-    // Convert markdown to HTML
-    specContent.value = marked.parse(response.data)
-  } catch (err) {
-    console.error('Error loading documentation:', err)
-    specError.value = `Failed to load documentation: ${err.message}`
-  } finally {
-    specLoading.value = false
-  }
-}
 </script>
 
 <style scoped>

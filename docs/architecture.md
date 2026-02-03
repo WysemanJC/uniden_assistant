@@ -10,34 +10,31 @@ This application enforces a strict multi‑tier API hierarchy. The front end mus
 - **Rule:** Does **not** read from or write to any database.
 - **Behavior:** Proxies/aggregates data from the internal tier APIs below.
 
-### 2) HPDB API
-- **Base:** /api/hpdb/
-- **Purpose:** Read‑only HPDB data (countries, states, counties, agencies, channel groups, frequencies, tree).
-- **Database:** Dedicated MongoDB database (HPDB only).
-- **Rule:** Does **not** read or write any other database.
-
-### 3) User Settings API
-- **Base:** /api/usersettings/
-- **Purpose:** User‑scoped settings, profiles, favorites, and SD import/export.
-- **Database:** Dedicated MongoDB database (user settings only).
-- **Rule:** Does **not** read or write any other database.
-
-### 4) App Config API
-- **Base:** /api/appconfig/
-- **Purpose:** Static configuration (e.g., supported scanner models).
-- **Database:** Dedicated MongoDB database (app config only).
+### 2) Favourites API
+- **Base:** /api/favourites/
+- **Purpose:** User‑scoped favorites lists, scanner profiles, frequencies, and import/export functionality.
+- **Database:** Dedicated MongoDB database (favourites only).
 - **Rule:** Does **not** read or write any other database.
 
 ## Database Isolation
 
 - **SQLite:** Django core tables only (auth, admin, sessions, etc.).
 - **MongoDB:**
-  - HPDB data in its own database.
-  - User settings/favorites in its own database.
-  - App configuration in its own database.
+  - User favorites and scanner profiles in dedicated database.
 
 ## Front‑End Routing Rule
 
 **The front end MUST ONLY call** /api/uniden_manager/.
 
 All internal APIs are **server‑side only** and should never be invoked by the UI.
+
+## Simplified Architecture
+
+The application was originally designed with three separate MongoDB databases (HPDB, User Settings, App Config) but has been simplified to:
+
+- **Single MongoDB database** for all user-facing functionality (favourites, scanner profiles, frequencies)
+- **Removed:** HPDB (historical frequency database) functionality
+- **Removed:** App Config (unused scanner model configuration)
+- **Consolidated:** User settings renamed to "favourites" for clarity
+
+This simplification reduces operational complexity while maintaining the strict multi-tier API architecture.

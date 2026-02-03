@@ -2,7 +2,7 @@
 import os
 from django.core.management.base import BaseCommand
 from django.conf import settings
-from uniden_assistant.usersettings.hpdb_parser import FavoritesListParser
+from uniden_assistant.favourites.favorites_parser import FavoritesListParser
 
 
 class Command(BaseCommand):
