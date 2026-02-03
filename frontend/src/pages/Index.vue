@@ -1176,7 +1176,7 @@ import { ref, onMounted, computed, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useScannerStore } from '../stores/scanner'
 import api, { sdAPI } from '../api'
-import { useQuasar, QSeparator, QCheckbox, QTable } from 'quasar'
+import { useQuasar, QSeparator, QCheckbox, QTable, QTh, QTd } from 'quasar'
 import ChannelGroupMapDialog from '../components/ChannelGroupMapDialog.vue'
 
 const route = useRoute()
@@ -1187,43 +1187,9 @@ const $q = useQuasar()
 // Navigation
 const activeSection = ref('favorites')
 
-// HPDB Tree
-const hpdbTree = ref([])
-const expandedNodes = ref([])
-const selectedNode = ref(null)
-const searchQuery = ref('')
-const hpdbImportLoading = ref(false)
-const statsLoading = ref(false)
-const hpdbStats = ref(null)
-const favoritesStats = ref(null)
-const hpdbImportProgress = ref({
-  status: 'idle',
-  stage: '',
-  currentFile: '',
-  processedFiles: 0,
-  totalFiles: 0
-})
-const hpdbImportProgressPercent = computed(() => {
-  const total = hpdbImportProgress.value.totalFiles || 0
-  if (!total) {
-    return 0
-  }
-  return Math.min(1, hpdbImportProgress.value.processedFiles / total)
-})
-
-// Agency Details and Frequencies
-const selectedCounty = ref(null)
-const selectedAgency = ref(null)
-const selectedChannelGroup = ref(null)
-const countyAgencies = ref([])
-const agencyTreeNodes = ref([])
-const agencyFrequencies = ref([])
-const agencyChannelGroups = ref([])
-const channelGroupFrequencies = ref([])
-const loadingAgencies = ref(false)
-const loadingFrequencies = ref(false)
-const showChannelGroupMap = ref(false)
+// Favourites Data
 const mapChannelGroup = ref(null)
+const showChannelGroupMap = ref(false)
 
 const frequencyColumns = [
   { name: 'channel_name', label: 'Channel Name', field: row => row.name_tag || row.description || '', align: 'left', sortable: true },
@@ -1377,10 +1343,7 @@ const favoritesChannelColumnsBySystem = computed(() => {
 })
 
 const favoritesTreeNodes = computed(() => {
-  console.log('[favoritesTreeNodes] Computing tree nodes, favorites.value:', favorites.value)
-  
   const favoritesList = favorites.value.map((fav, idx) => {
-    console.log(`[favoritesTreeNodes] Processing favorite #${idx}: ${fav.user_name}`)
     
     // Group departments by their system
     const systemsMap = new Map()
@@ -1442,8 +1405,6 @@ const favoritesTreeNodes = computed(() => {
     }
   })
   
-  console.log('[favoritesTreeNodes] Computed list has', favoritesList.length, 'items')
-  
   // Wrap all favorites in a top-level "Favourites" node
   const result = [{
     id: 'favorites_root',
@@ -1452,7 +1413,6 @@ const favoritesTreeNodes = computed(() => {
     children: favoritesList
   }]
   
-  console.log('[favoritesTreeNodes] Final tree structure:', result)
   return result
 })
 
@@ -1654,49 +1614,48 @@ onMounted(async () => {
     activeSection.value = section
   }
   
-  // Check for ongoing import job from previous session
-  const storedJobId = localStorage.getItem('hpdb_import_job_id')
-  const storedTimestamp = localStorage.getItem('hpdb_import_timestamp')
-  
-  if (storedJobId && storedTimestamp) {
-    const jobAge = Date.now() - parseInt(storedTimestamp)
-    // Only resume if job is less than 24 hours old
-    if (jobAge < 86400000) {
-      console.log('Resuming import job:', storedJobId)
-      // Automatically switch to load-data section to show progress
-      activeSection.value = 'load-data'
-      // Set initial progress state
-      hpdbImportProgress.value = {
-        status: 'processing',
-        stage: 'Resuming import...',
-        currentFile: '',
-        processedFiles: 0,
-        totalFiles: 0
-      }
-      // Start polling the existing job
-      startHpdbImportPolling(storedJobId)
-    } else {
-      // Job is too old, clear it
-      localStorage.removeItem('hpdb_import_job_id')
-      localStorage.removeItem('hpdb_import_timestamp')
-    }
-  }
   
   scanner.fetchProfiles()
   loadFavoritesList()
 })
 
 onBeforeUnmount(() => {
-  stopHpdbImportPolling()
+  stopImportProgressPolling()
 })
 
 // Auto-select the root node when favorites tree loads
 watch(favoritesTreeNodes, (nodes) => {
-  if (nodes && nodes.length > 0 && nodes[0].type === 'root') {
+  if (nodes && nodes.length > 0 && nodes[0].type === 'root' && !selectedFavoritesNode.value) {
     selectedFavoritesNode.value = nodes[0]
     selectedFavoritesNodeId.value = nodes[0].id
   }
 }, { immediate: true })
+
+// Watch for tree selection changes and find the corresponding node
+watch(selectedFavoritesNodeId, async (nodeId) => {
+  if (!nodeId || !favoritesTreeNodes.value) return
+  
+  // Don't process if selecting root node
+  if (nodeId === 'favorites_root') return
+  
+  const findNode = (nodes) => {
+    for (const node of nodes) {
+      if (node.id === nodeId) {
+        return node
+      }
+      if (node.children) {
+        const found = findNode(node.children)
+        if (found) return found
+      }
+    }
+    return null
+  }
+  
+  const node = findNode(favoritesTreeNodes.value)
+  if (node) {
+    await selectFavoritesNode(node)
+  }
+})
 
 // Watch for section changes and reload favorites when needed
 watch(activeSection, (newSection) => {
@@ -1705,63 +1664,12 @@ watch(activeSection, (newSection) => {
   }
 })
 
-const loadStats = async () => {
-  statsLoading.value = true
-  try {
-    const [hpdbResp, favResp] = await Promise.all([
-      api.get('/hpdb/stats/'),
-      api.get('/favourites/stats/')
-    ])
-    hpdbStats.value = hpdbResp.data
-    favoritesStats.value = favResp.data
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to load statistics' })
-  } finally {
-    statsLoading.value = false
-  }
-}
-
-// HPDB Tree Methods
-const loadHPDBTree = async () => {
-  try {
-    const { data } = await api.get('/hpdb/tree/tree/')
-    hpdbTree.value = data
-  } catch (error) {
-    console.error('Error loading HPDB tree:', error)
-    $q.notify({ type: 'negative', message: 'Failed to load database tree' })
-  }
-}
-
-const expandAgencyGroups = async (agencyId) => {
-  try {
-    // Extract numeric ID from node ID (e.g., "agency-268" -> "268")
-    const numericId = agencyId.toString().replace('agency-', '')
-    const { data } = await api.get(`/hpdb/channel-groups/?agency=${numericId}`)
-    // Handle paginated response
-    const groups = data.results || []
-    return groups.map(group => ({
-      id: `group-${group.id}`,
-      type: 'group',
-      name_tag: group.name_tag,
-      location_type: group.location_type,
-      latitude: group.latitude,
-      longitude: group.longitude,
-      range_miles: group.range_miles,
-      frequency_count: group.frequency_count
-    }))
-  } catch (error) {
-    console.error('Error loading channel groups:', error)
-    return []
-  }
-}
-
 const loadFavoritesList = async () => {
   favoritesLoading.value = true
   try {
     const { data } = await api.get('/favourites/favorites-lists/')
     // Handle paginated response
     let favList = Array.isArray(data) ? data : (data.results || [])
-    console.log('[DEBUG] Loaded', favList.length, 'favorites from API')
     
     // Sort by filename
     favList.sort((a, b) => (a.filename || '').localeCompare(b.filename || ''))
@@ -1772,20 +1680,15 @@ const loadFavoritesList = async () => {
         try {
           const { data: detailData } = await api.get(`/favourites/favorites-lists/${fav.id}/detail/`)
           const merged = { ...fav, ...detailData }
-          console.log('[DEBUG] Loaded details for', fav.user_name, '- groups:', merged.groups?.length || 0)
           return merged
         } catch (err) {
-          console.error(`Error loading details for favorite ${fav.id}:`, err)
           return fav
         }
       })
     )
     
-    console.log('[DEBUG] Final favorites with details:', favListsWithDetails.length)
     favorites.value = favListsWithDetails
-    console.log('[DEBUG] Set favorites.value, tree nodes count:', favoritesTreeNodes.value.length)
   } catch (error) {
-    console.error('Error loading favorites list:', error)
     $q.notify({ type: 'negative', message: 'Failed to load favourites list' })
   } finally {
     favoritesLoading.value = false
@@ -1816,8 +1719,6 @@ const selectFavoritesNode = async (node) => {
       const groupId = node.groupId
       const systemType = node.system_type
       
-      console.log('[selectFavoritesNode] Loading channels for:', node.label, 'groupId:', groupId, 'systemType:', systemType)
-      
       if (systemType === 'Conventional') {
         const { data } = await api.get(`/favourites/cgroups/${groupId}/`)
         // Store frequencies in the node's groupData (normalize fields for UI)
@@ -1828,7 +1729,6 @@ const selectFavoritesNode = async (node) => {
           alert_light: freq.alert_light || freq.alert_color || 'Off',
           p_ch: freq.p_ch || freq.priority_channel || 'Off'
         }))
-        console.log('[selectFavoritesNode] Loaded', data.frequencies?.length || 0, 'frequencies')
       } else if (systemType === 'Trunked') {
         const { data } = await api.get(`/favourites/tgroups/${groupId}/`)
         // Store TGIDs as channels in the node's groupData
@@ -1848,10 +1748,8 @@ const selectFavoritesNode = async (node) => {
           number_tag: tgid.number_tag,
           priority_channel: tgid.priority_channel
         }))
-        console.log('[selectFavoritesNode] Loaded', data.tgids?.length || 0, 'TGIDs')
       }
     } catch (error) {
-      console.error('[selectFavoritesNode] Error loading channels:', error)
       $q.notify({ type: 'negative', message: 'Failed to load channels' })
     }
   } else if (node.type === 'system') {
@@ -1864,7 +1762,7 @@ const selectFavoritesNode = async (node) => {
         const { data } = await api.get(`/favourites/favorites-lists/${favData.id}/get-systems/`)
         systemsData.value = data.systems || []
       } catch (error) {
-        console.error('[selectFavoritesNode] Error loading systems for id lookup:', error)
+        // Error loading systems
       }
     }
 
@@ -1896,12 +1794,10 @@ const selectFavoritesNode = async (node) => {
             longitude: dept.groupData?.longitude ?? null,
             range_miles: dept.groupData?.range_miles ?? null
           }))
-        console.log('[selectFavoritesNode] Loaded', departmentsData.value.length, 'departments for system')
       } else {
         departmentsData.value = []
       }
     } catch (error) {
-      console.error('[selectFavoritesNode] Error loading departments:', error)
       $q.notify({ type: 'negative', message: 'Failed to load departments' })
     } finally {
       departmentsLoading.value = false
@@ -1917,7 +1813,6 @@ const selectFavoritesNode = async (node) => {
       systemsData.value = data.systems || []
       console.log('[selectFavoritesNode] Loaded', data.systems?.length || 0, 'systems')
     } catch (error) {
-      console.error('[selectFavoritesNode] Error loading systems:', error)
       $q.notify({ type: 'negative', message: 'Failed to load systems' })
     } finally {
       systemsLoading.value = false
@@ -1945,368 +1840,6 @@ const getFavoritesNodeColor = (node) => {
   }
 }
 
-const selectCounty = async (node) => {
-  selectedCounty.value = node
-  selectedAgency.value = null
-  selectedChannelGroup.value = null
-  agencyFrequencies.value = []
-  channelGroupFrequencies.value = []
-  agencyTreeNodes.value = []
-  loadingAgencies.value = true
-  countyAgencies.value = []
-  
-  try {
-    // Extract numeric ID from node ID (e.g., "county-268" -> "268")
-    const numericId = node.id.toString().replace('county-', '')
-    
-    // Load agencies for this county
-    const { data: agenciesResponse } = await api.get(`/hpdb/tree/agencies/?county=county-${numericId}`)
-    countyAgencies.value = agenciesResponse
-    
-    // Build tree nodes: agencies with channel groups as children
-    agencyTreeNodes.value = agenciesResponse.map(agency => ({
-      id: agency.id.toString().startsWith('agency-') ? agency.id.toString() : `agency-${agency.id}`,
-      type: 'agency',
-      name_tag: agency.name_tag,
-      system_type: agency.system_type,
-      enabled: agency.enabled,
-      group_count: agency.group_count || 0,
-      lazy: true  // Will load children on expand
-    }))
-    
-    console.log('Agency tree nodes built:', agencyTreeNodes.value)
-  } catch (error) {
-    console.error('Error loading county agencies:', error)
-    $q.notify({ type: 'negative', message: 'Failed to load systems' })
-  } finally {
-    loadingAgencies.value = false
-  }
-}
-
-const onAgencyLazyLoad = async ({ node, key, done, fail }) => {
-  console.log('[LAZY-LOAD] Triggered for node:', { node, key })
-  console.log('[LAZY-LOAD] Node type:', node.type)
-  console.log('[LAZY-LOAD] Node id:', node.id)
-  
-  // Load channel groups when agency node is expanded
-  if (node.type === 'agency') {
-    try {
-      const numericId = node.id.toString().replace(/^(agency-)+/, '')
-      console.log('[LAZY-LOAD] Extracted numeric ID:', numericId)
-      
-      // Only pass agency parameter - no need for county/state since agency is already scoped
-      const params = new URLSearchParams()
-      params.append('agency', `agency-${numericId}`)
-      
-      const url = `/hpdb/channel-groups/?${params.toString()}`
-      console.log('[LAZY-LOAD] Fetching from URL:', url)
-      
-      const response = await api.get(url)
-      console.log('[LAZY-LOAD] Got response:', response)
-      
-      const groupsResponse = response.data
-      console.log('[LAZY-LOAD] Response data:', groupsResponse)
-      
-      const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
-      console.log('[LAZY-LOAD] Parsed', groups.length, 'groups from response')
-      console.log('[LAZY-LOAD] Groups:', groups)
-      
-      const groupNodes = groups.map(group => {
-        console.log('[LAZY-LOAD] Processing group:', group)
-        return {
-          id: `cgroup-${group.id}`,
-          type: 'group',
-          name_tag: group.name_tag,
-          enabled: group.enabled,
-          latitude: group.latitude,
-          longitude: group.longitude,
-          range_miles: group.range_miles,
-          lazy: false
-        }
-      })
-      
-      console.log('[LAZY-LOAD] Created', groupNodes.length, 'group nodes:', groupNodes)
-      console.log('[LAZY-LOAD] Calling done() callback with nodes')
-      
-      done(groupNodes)
-      
-      console.log('[LAZY-LOAD] done() callback completed successfully')
-    } catch (error) {
-      console.error('[LAZY-LOAD] ERROR:', error)
-      console.error('[LAZY-LOAD] Error message:', error.message)
-      console.error('[LAZY-LOAD] Error stack:', error.stack)
-      console.log('[LAZY-LOAD] Calling fail() callback')
-      fail()
-    }
-  } else {
-    console.log('[LAZY-LOAD] Node is not an agency, calling done([]) and returning')
-    done([])
-  }
-}
-
-const selectNode = async (node) => {
-  console.log('[SELECT-NODE] Clicked on node:', node)
-  
-  if (node.type === 'county' || node.type === 'statewide') {
-    selectedCounty.value = node
-    selectedAgency.value = null
-    selectedChannelGroup.value = null
-    agencyChannelGroups.value = []
-    channelGroupFrequencies.value = []
-    countyAgencies.value = []
-    loadingFrequencies.value = true
-    
-    // Load agencies for this county
-    try {
-      const numericId = node.id.toString().replace(/^(county-|statewide-)+/, '')
-      console.log('Loading agencies for county:', numericId)
-      
-      const params = new URLSearchParams()
-      params.append('county', `county-${numericId}`)
-      
-      const { data: agenciesResponse } = await api.get(`/hpdb/agencies/?${params.toString()}`)
-      console.log('Agencies response:', agenciesResponse)
-      
-      const agencies = Array.isArray(agenciesResponse) ? agenciesResponse : (agenciesResponse.results || [])
-      countyAgencies.value = agencies
-      console.log('Agencies loaded:', agencies.length)
-    } catch (error) {
-      console.error('Error loading agencies:', error)
-      $q.notify({ type: 'negative', message: 'Failed to load agencies' })
-    } finally {
-      loadingFrequencies.value = false
-    }
-  } else if (node.type === 'agency') {
-    selectedAgency.value = node
-    selectedChannelGroup.value = null
-    channelGroupFrequencies.value = []
-    loadingFrequencies.value = true
-    agencyChannelGroups.value = []
-    
-    try {
-      const numericId = node.id.toString().replace(/^(agency-)+/, '')
-      console.log('Loading channel groups for agency:', numericId)
-      
-      const params = new URLSearchParams()
-      params.append('agency', `agency-${numericId}`)
-      
-      const { data: groupsResponse } = await api.get(`/hpdb/channel-groups/?${params.toString()}`)
-      console.log('Channel groups response:', groupsResponse)
-      
-      const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
-      agencyChannelGroups.value = groups
-      console.log('Channel groups loaded:', groups.length)
-    } catch (error) {
-      console.error('Error loading channel groups:', error)
-      $q.notify({ type: 'negative', message: 'Failed to load channel groups' })
-    } finally {
-      loadingFrequencies.value = false
-    }
-  } else if (node.type === 'group') {
-    // Load frequencies for this channel group
-    selectedChannelGroup.value = node
-    loadingFrequencies.value = true
-    channelGroupFrequencies.value = []
-    
-    try {
-      const numericId = node.id.toString().replace('cgroup-', '')
-      console.log('Loading frequencies for channel group:', numericId)
-      
-      const params = new URLSearchParams()
-      params.append('channel_group', `cgroup-${numericId}`)
-      
-      const { data: freqResponse } = await api.get(`/hpdb/frequencies/?${params.toString()}`)
-      console.log('Frequencies response:', freqResponse)
-      
-      const frequencies = Array.isArray(freqResponse) ? freqResponse : (freqResponse.results || [])
-      channelGroupFrequencies.value = frequencies
-      console.log('Frequencies loaded:', frequencies.length)
-    } catch (error) {
-      console.error('Error loading frequencies:', error)
-      $q.notify({ type: 'negative', message: 'Failed to load frequencies' })
-    } finally {
-      loadingFrequencies.value = false
-    }
-  }
-}
-
-const onAgencyRowClick = async (evt, row) => {
-  console.log('[AGENCY-CLICK] Row clicked:', row)
-  
-  // Create a node-like object to pass to selectNode
-  const agencyNode = {
-    id: `agency-${row.id}`,
-    type: 'agency',
-    name_tag: row.name_tag,
-    system_type: row.system_type,
-    enabled: row.enabled,
-    group_count: row.group_count || 0
-  }
-  
-  // Select this agency node which will load its channel groups
-  await selectNode(agencyNode)
-}
-
-const onChannelGroupRowClick = async (evt, row) => {
-  console.log('[CHANNEL-GROUP-CLICK] Row clicked:', row)
-  
-  // Create a node-like object to pass to selectNode
-  const groupNode = {
-    id: `cgroup-${row.id}`,
-    type: 'group',
-    name_tag: row.name_tag,
-    enabled: row.enabled,
-    latitude: row.latitude,
-    longitude: row.longitude,
-    range_miles: row.range_miles
-  }
-  
-  // Select this channel group node which will load its frequencies
-  await selectNode(groupNode)
-}
-
-const openChannelGroupMap = (channelGroup) => {
-  console.log('[OPEN-MAP] Opening map for channel group:', channelGroup)
-  mapChannelGroup.value = channelGroup
-  showChannelGroupMap.value = true
-}
-
-const getNodeIcon = (node) => {
-  switch (node.type) {
-    case 'country': return 'public'
-    case 'state': return 'map'
-    case 'county': return 'location_city'
-    case 'statewide': return 'language'
-    case 'agency': return 'radio'
-    case 'group': return 'waves'
-    default: return 'folder'
-  }
-}
-
-const getNodeColor = (node) => {
-  switch (node.type) {
-    case 'country': return 'blue'
-    case 'state': return 'green'
-    case 'county': return 'orange'
-    case 'statewide': return 'purple'
-    case 'agency': return node.enabled ? 'primary' : 'grey'
-    case 'group': return 'purple'
-    default: return 'grey'
-  }
-}
-
-const onLazyLoad = async ({ node, key, done, fail }) => {
-  console.log('[LAZY-LOAD] Triggered for node:', { node, key })
-  console.log('[LAZY-LOAD] Node type:', node.type)
-  console.log('[LAZY-LOAD] Node properties:', Object.keys(node))
-  
-  try {
-    if (node.type === 'department') {
-      // Load frequencies or TGIDs for this department/group
-      const groupId = node.groupId
-      const systemType = node.system_type
-      
-      console.log('[LAZY-LOAD] Loading frequencies for department:', node.label, 'groupId:', groupId, 'systemType:', systemType)
-      
-      if (systemType === 'Conventional') {
-        // Fetch CFreqs for conventional group
-        console.log('[LAZY-LOAD] Fetching from:', `/favourites/cgroups/${groupId}/`)
-        const { data } = await api.get(`/favourites/cgroups/${groupId}/`)
-        console.log('[LAZY-LOAD] Got data:', data)
-        const freqNodes = (data.frequencies || []).map(freq => ({
-          id: `freq_${freq.id}`,
-          label: `${freq.name_tag || 'Unnamed'} - ${(freq.frequency / 1000000).toFixed(4)} MHz`,
-          type: 'frequency',
-          frequency: freq.frequency,
-          modulation: freq.modulation,
-          avoid: freq.avoid,
-          lazy: false
-        }))
-        console.log('[LAZY-LOAD] Created', freqNodes.length, 'frequency nodes')
-        done(freqNodes)
-      } else if (systemType === 'Trunked') {
-        // Fetch TGIDs for trunk group
-        console.log('[LAZY-LOAD] Fetching from:', `/favourites/tgroups/${groupId}/`)
-        const { data } = await api.get(`/favourites/tgroups/${groupId}/`)
-        console.log('[LAZY-LOAD] Got data:', data)
-        const tgidNodes = (data.tgids || []).map(tgid => ({
-          id: `tgid_${tgid.id}`,
-          label: `${tgid.name_tag || 'Unnamed'} - TGID: ${tgid.tgid}`,
-          type: 'tgid',
-          tgid: tgid.tgid,
-          audio_type: tgid.audio_type,
-          avoid: tgid.avoid,
-          lazy: false
-        }))
-        console.log('[LAZY-LOAD] Created', tgidNodes.length, 'TGID nodes')
-        done(tgidNodes)
-      } else {
-        console.log('[LAZY-LOAD] Unknown system type:', systemType)
-        done([])
-      }
-    } else if (node.type === 'state') {
-      // Load counties for the state
-      const { data } = await api.get(`/hpdb/tree/counties/?state=${node.id}`)
-      done(data)
-    } else if (node.type === 'county' || node.type === 'statewide') {
-      // Load agencies for this county or statewide
-      const { data: agenciesResponse } = await api.get(`/hpdb/tree/agencies/?county=${node.id}`)
-      
-      const agencyNodes = agenciesResponse.map(agency => ({
-        id: agency.id.toString().startsWith('agency-') ? agency.id.toString() : `agency-${agency.id}`,
-        type: 'agency',
-        name_tag: agency.name_tag,
-        system_type: agency.system_type,
-        enabled: agency.enabled,
-        group_count: agency.group_count || 0,
-        lazy: true
-      }))
-      
-      done(agencyNodes)
-    } else if (node.type === 'agency') {
-      // Load channel groups for this agency
-      const numericId = node.id.toString().replace(/^(agency-)+/, '')
-      const params = new URLSearchParams()
-      params.append('agency', `agency-${numericId}`)
-      
-      const { data: groupsResponse } = await api.get(`/hpdb/channel-groups/?${params.toString()}`)
-      const groups = Array.isArray(groupsResponse) ? groupsResponse : (groupsResponse.results || [])
-      
-      const groupNodes = groups.map(group => ({
-        id: `cgroup-${group.id}`,
-        type: 'group',
-        name_tag: group.name_tag,
-        enabled: group.enabled,
-        latitude: group.latitude,
-        longitude: group.longitude,
-        range_miles: group.range_miles,
-        lazy: false
-      }))
-      
-      done(groupNodes)
-    } else {
-      done([])
-    }
-  } catch (error) {
-    console.error('[LAZY-LOAD] ERROR:', error)
-    fail()
-    $q.notify({ type: 'negative', message: 'Failed to load data' })
-  }
-}
-
-const filterMethod = (node, filter) => {
-  const filt = filter.toLowerCase()
-  return node.name_tag.toLowerCase().includes(filt)
-}
-
-const openChannelGroupDetail = (node) => {
-  // Extract numeric ID from node.id (format is "cgroup-123")
-  const cgroupId = node.id.toString().replace('cgroup-', '')
-  // Could navigate to a channel group detail page if available
-  console.log('Opening channel group details:', cgroupId)
-  $q.notify({ type: 'info', message: `Channel Group: ${node.name_tag}` })
-}
-
 // Import/Export Methods
 
 const openImportPicker = () => {
@@ -2319,67 +1852,6 @@ const loadFavourites = () => {
 
 const openFavoritesImportPicker = () => {
   triggerFilePicker(favoritesImportFilePicker)
-}
-
-const analyzeImport = async () => {
-  const files = Array.isArray(importFiles.value)
-    ? importFiles.value
-    : Array.from(importFiles.value || [])
-  
-  if (files.length === 0) {
-    openImportPicker()
-    return
-  }
-
-  importLoading.value = true
-  importDetection.value = null
-  uploadProgress.value = { bytesUploaded: 0, totalBytes: 0, percent: 0 }
-  
-  try {
-    // Calculate total bytes
-    const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
-    uploadProgress.value.totalBytes = totalBytes
-    
-    const formData = new FormData()
-    files.forEach(file => formData.append('files', file))
-    
-    const { data } = await axios.post(
-      api.defaults.baseURL + '/import/detect/',
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          uploadProgress.value.bytesUploaded = progressEvent.loaded
-          uploadProgress.value.percent = Math.round((progressEvent.loaded / totalBytes) * 100)
-        }
-      }
-    )
-
-    if (importFocus.value === 'favorites' && data.detection?.type !== 'favorites') {
-      $q.notify({
-        type: 'negative',
-        message: 'Please upload a Favourites directory (f_list.cfg + f_*.hpd files)'
-      })
-      importDetection.value = null
-      importSession.value = null
-      importTempPath.value = null
-      importFocus.value = null
-      return
-    }
-
-    importSession.value = data.session_id
-    importDetection.value = data.detection
-    importTempPath.value = data.temp_path
-    showImportConfirm.value = true
-    
-  } catch (error) {
-    $q.notify({ 
-      type: 'negative', 
-      message: 'Detection failed: ' + (error.response?.data?.error || error.message) 
-    })
-  } finally {
-    importLoading.value = false
-  }
 }
 
 const analyzeFavoritesImport = async () => {
@@ -2425,35 +1897,10 @@ const confirmImport = async (mode) => {
     return
   }
 
-  console.log('Starting import process:', { 
-    mode, 
-    session: importSession.value, 
-    type: importDetection.value.type 
-  })
-
   importLoading.value = true
   showImportConfirm.value = false
   
-  // Show processing status immediately (files already uploaded during detect)
-  hpdbImportProgress.value = {
-    status: 'processing',
-    stage: 'Processing data (this may take a few minutes for large imports)...',
-    currentFile: '',
-    processedFiles: 0,
-    totalFiles: 0
-  }
-  
   try {
-    console.log('Calling process endpoint...')
-    console.log('API baseURL:', api.defaults.baseURL)
-    console.log('Full URL will be:', api.defaults.baseURL + '/import/process/')
-    console.log('Request data:', {
-      session_id: importSession.value,
-      mode: mode,
-      type: importDetection.value.type,
-      temp_path: importTempPath.value
-    })
-    
     const { data } = await api.post('/import/process/', {
       session_id: importSession.value,
       mode: mode,
@@ -2463,29 +1910,12 @@ const confirmImport = async (mode) => {
       timeout: 300000 // 5 minute timeout
     })
     
-    console.log('Process response received!')
-    console.log('Process response:', data)
-    
     // Start polling for progress updates
     if (data.job_id) {
       startImportProgressPolling(data.job_id)
     }
     
     // Handle different import types
-    if (data.type === 'hpdb' || (data.type === 'sd_card' && data.results?.hpdb)) {
-      const hpdbJobId = data.results?.hpdb?.job_id
-      if (hpdbJobId) {
-        hpdbImportProgress.value = {
-          status: 'processing',
-          stage: 'systems',
-          currentFile: '',
-          processedFiles: 0,
-          totalFiles: 0
-        }
-        startHpdbImportPolling(hpdbJobId)
-      }
-    }
-    
     if (data.type === 'favorites' || (data.type === 'sd_card' && data.results?.favorites)) {
       const favResults = data.type === 'favorites' ? data : data.results.favorites
       if (favResults.errors?.length) {
@@ -2501,19 +1931,6 @@ const confirmImport = async (mode) => {
       }
       await scanner.fetchProfiles()
       await loadFavoritesList()
-      
-      // If this is favorites-only (not SD card with HPDB), clear progress
-      if (data.type === 'favorites') {
-        resetHpdbImportProgress()
-      }
-    }
-    
-    if (data.type === 'sd_card') {
-      $q.notify({ 
-        type: 'positive', 
-        message: 'SD card import started - processing both HPDB and favourites' 
-      })
-      await loadHPDBTree()
     }
     
   } catch (error) {
@@ -2528,8 +1945,6 @@ const confirmImport = async (mode) => {
       type: 'negative', 
       message: 'Import failed: ' + (error.response?.data?.error || error.message) 
     })
-    // Reset progress on error
-    resetHpdbImportProgress()
   } finally {
     console.log('Import finally block')
     importLoading.value = false
@@ -2639,27 +2054,7 @@ const triggerFilePicker = (pickerRef) => {
   input?.click()
 }
 
-let hpdbImportTimer = null
 
-const resetHpdbImportProgress = () => {
-  hpdbImportProgress.value = {
-    status: 'idle',
-    stage: '',
-    currentFile: '',
-    processedFiles: 0,
-    totalFiles: 0
-  }
-  // Clear stored job ID when resetting
-  localStorage.removeItem('hpdb_import_job_id')
-  localStorage.removeItem('hpdb_import_timestamp')
-}
-
-const stopHpdbImportPolling = () => {
-  if (hpdbImportTimer) {
-    clearInterval(hpdbImportTimer)
-    hpdbImportTimer = null
-  }
-}
 
 let importProgressTimer = null
 
@@ -2681,37 +2076,19 @@ const startImportProgressPolling = (jobId) => {
       
       console.log('Import progress update:', data)
       
-      hpdbImportProgress.value = {
-        status: data.status || 'processing',
-        stage: data.stage || '',
-        currentFile: data.current_file || '',
-        processedFiles: data.processed_files || 0,
-        totalFiles: data.total_files || 0,
-        message: data.message || ''
-      }
-
-      if (data.hpdb_job_id && !hpdbImportTimer) {
-        startHpdbImportPolling(data.hpdb_job_id)
-      }
-      
       if (data.status === 'completed') {
         stopImportProgressPolling()
         $q.notify({ type: 'positive', message: 'Import completed successfully!' })
-        await loadHPDBTree()
         await loadFavoritesList()
-        await loadStats()
         await scanner.fetchProfiles()
-        setTimeout(resetHpdbImportProgress, 2000)
       } else if (data.status === 'failed') {
         stopImportProgressPolling()
         $q.notify({ type: 'negative', message: `Import failed: ${data.message || 'Unknown error'}` })
-        resetHpdbImportProgress()
       }
     } catch (error) {
       console.error('Failed to get import progress:', error)
       if (error?.response?.status === 404) {
         stopImportProgressPolling()
-        resetHpdbImportProgress()
       }
       // Continue polling even on error
     }
@@ -2721,186 +2098,35 @@ const startImportProgressPolling = (jobId) => {
   importProgressTimer = setInterval(poll, 1000)
 }
 
-const startHpdbImportPolling = (jobId) => {
-  stopHpdbImportPolling()
-  
-  // Store job ID in localStorage for page navigation resilience
-  localStorage.setItem('hpdb_import_job_id', jobId)
-  localStorage.setItem('hpdb_import_timestamp', Date.now().toString())
 
-  const poll = async () => {
-    try {
-      const { data } = await api.get('/hpdb/import-progress/', {
-        params: { job_id: jobId }
-      })
 
-      hpdbImportProgress.value = {
-        status: data.status || 'processing',
-        stage: data.stage || '',
-        currentFile: data.current_file || '',
-        processedFiles: data.processed_files || 0,
-        totalFiles: data.total_files || 0
-      }
 
-      if (data.status === 'completed') {
-        stopHpdbImportPolling()
-        hpdbImportLoading.value = false
-        if (data.result?.systems !== undefined) {
-          $q.notify({ type: 'positive', message: `HPDB import completed (${data.result.systems} files)` })
-        } else {
-          $q.notify({ type: 'positive', message: 'HPDB import completed' })
-        }
-        await loadHPDBTree()
-        setTimeout(resetHpdbImportProgress, 2000)
-      } else if (data.status === 'failed') {
-        stopHpdbImportPolling()
-        hpdbImportLoading.value = false
-        $q.notify({ type: 'negative', message: 'HPDB import failed: ' + (data.error_message || 'Unknown error') })
-      }
-    } catch (error) {
-      console.error('Error polling HPDB import progress:', error)
-      if (error?.response?.status === 404) {
-        stopHpdbImportPolling()
-        resetHpdbImportProgress()
-      }
-      // Continue polling even on error - the job may still be processing
-    }
-  }
 
-  poll()
-  hpdbImportTimer = setInterval(poll, 1000)
-}
 
-const reloadHpdbFromRaw = () => {
-  $q.dialog({
-    title: 'Re-parse HPDB From Last Loaded Data',
-    message: 'This will rebuild all HPDB data (countries, states, counties, agencies, channel groups, frequencies) from the most recently loaded raw files. The raw data itself will not be deleted. Continue?',
-    ok: {
-      label: 'Re-parse',
-      color: 'primary'
-    },
-    cancel: true,
-    persistent: true
-  }).onOk(async () => {
-    hpdbImportLoading.value = true
-    hpdbImportProgress.value = {
-      status: 'processing',
-      stage: 'systems',
-      currentFile: '',
-      processedFiles: 0,
-      totalFiles: 0
-    }
-    try {
-      const { data } = await api.post('/hpdb/reload-from-raw/')
-      if (!data.job_id) {
-        throw new Error('Missing job id from reload response')
-      }
-      startHpdbImportPolling(data.job_id)
-    } catch (error) {
-      stopHpdbImportPolling()
-      $q.notify({ type: 'negative', message: 'HPDB re-parse failed: ' + (error.response?.data?.error || error.message) })
-      hpdbImportLoading.value = false
-      resetHpdbImportProgress()
-    }
-  })
-}
 
-const clearHpdbDataConfirm = () => {
-  $q.dialog({
-    title: 'Clear All Data',
-    message: 'This will delete ALL data in the system:\n\n• All HPDB database records (countries, states, counties, agencies, frequencies)\n• All Favourites profiles and channel configurations\n\nThis cannot be undone. Continue?',
-    ok: {
-      label: 'Delete Everything',
-      color: 'negative'
-    },
-    cancel: true,
-    persistent: true
-  }).onOk(() => {
-    clearAllData()
-  })
-}
 
-const clearRawDataConfirm = () => {
-  $q.dialog({
-    title: 'Clear Raw Data',
-    message: 'This will delete all uploaded raw files:\n\n• HPDB raw files and lines\n• Scanner configuration raw files and lines\n\nYou can re-import from source files. Continue?',
-    ok: {
-      label: 'Clear Raw Data',
-      color: 'warning'
-    },
-    cancel: true,
-    persistent: true
-  }).onOk(() => {
-    clearRawData()
-  })
-}
 
-const clearRawData = async () => {
-  try {
-    await Promise.all([
-      api.post('/hpdb/clear-raw-data/'),
-      api.post('/favourites/clear-raw-data/')
-    ])
-    $q.notify({ type: 'positive', message: 'Raw data cleared successfully' })
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to clear raw data: ' + (error.response?.data?.error || error.message) })
-  }
-}
 
-const clearAllData = async () => {
-  try {
-    await Promise.all([
-      api.post('/hpdb/clear-data/'),
-      api.post('/favourites/clear-data/')
-    ])
-    $q.notify({ type: 'positive', message: 'All data cleared successfully' })
-    await loadHPDBTree()
-    await loadFavoritesList()
-    await loadStats()
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to clear data: ' + (error.response?.data?.error || error.message) })
-  }
-}
 
-const cancelImportConfirm = () => {
-  $q.dialog({
-    title: 'Cancel Import & Clear Queue',
-    message: 'This will:\n\n• Stop any in-progress imports\n• Clear the job queue\n• Cancel pending processing\n\nContinue?',
-    ok: {
-      label: 'Cancel & Clear',
-      color: 'negative'
-    },
-    cancel: true,
-    persistent: true
-  }).onOk(() => {
-    cancelImport()
-  })
-}
 
-const cancelImport = async () => {
-  try {
-    await api.post('/hpdb/cancel-import/')
-    $q.notify({ type: 'positive', message: 'Import cancelled and queue cleared' })
-    resetHpdbImportProgress()
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'Failed to cancel import: ' + (error.response?.data?.error || error.message) })
-  }
-}
 
-const cleanupTempUploads = async () => {
-  try {
-    const { data } = await api.post('/import/cleanup/')
-    $q.notify({ 
-      type: 'positive', 
-      message: data.message || `Cleaned up temporary uploads` 
-    })
-  } catch (error) {
-    $q.notify({ 
-      type: 'negative', 
-      message: 'Cleanup failed: ' + (error.response?.data?.error || error.message) 
-    })
-  }
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Multi-favorite list export/import functions
 const toggleFavoritesListSelection = (favId) => {
@@ -3084,64 +2310,6 @@ const exportFavoritesFolder = async () => {
   } catch (error) {
     $q.notify({ type: 'negative', message: 'Export failed: ' + (error.response?.data?.error || error.message) })
   }
-}
-
-const exportFavoritesListCSV = async (favoritesList) => {
-  try {
-    const response = await api.get(`/favourites/favorites-lists/${favoritesList.id}/export-csv/`, { responseType: 'blob' })
-    const blob = new Blob([response.data], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${favoritesList.user_name || 'favorites'}.csv`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-
-    $q.notify({ type: 'positive', message: 'Favourites List CSV exported' })
-  } catch (error) {
-    $q.notify({ type: 'negative', message: 'CSV export failed: ' + (error.response?.data?.error || error.message) })
-  }
-}
-
-const importFavoritesListCSV = async (favoritesList) => {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.csv'
-    input.onchange = async (e) => {
-      const file = e.target.files[0]
-      if (!file) {
-        resolve()
-        return
-      }
-
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-
-        const { data } = await api.post(`/favourites/favorites-lists/${favoritesList.id}/import-csv/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-
-        if (data.success) {
-          $q.notify({ 
-            type: 'positive', 
-            message: `Imported ${data.imported} items from CSV` 
-          })
-          await loadFavoritesList()
-        } else {
-          const errorMsg = data.errors?.length > 0 ? `${data.errors[0]}` : 'Import failed'
-          $q.notify({ type: 'negative', message: `CSV import failed: ${errorMsg}` })
-        }
-      } catch (error) {
-        $q.notify({ type: 'negative', message: 'CSV import error: ' + (error.response?.data?.error || error.message) })
-      }
-      resolve()
-    }
-    input.click()
-  })
 }
 
 const exportToSd = async () => {
