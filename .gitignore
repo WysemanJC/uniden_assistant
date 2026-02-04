@@ -51,7 +51,6 @@ media/
 .env
 .env.local
 .env.*.local
-config.env
 config.env.bak
 favourites.sqlite3
 favourites.sqlite3-journal
@@ -92,5 +91,6 @@ htmlcov/
 tmp/
 temp/
 SAMPLE_DATA/
+Specifications/
 
 
