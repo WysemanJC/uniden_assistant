@@ -182,13 +182,35 @@
                         <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
                         <div class="text-caption text-grey-7">{{ selectedFavoritesList?.user_name || 'Favorites List' }}</div>
                       </div>
-                      <q-btn
-                        color="secondary"
-                        label="Add Channel"
-                        icon="add"
-                        size="sm"
-                        @click="openAddChannelDialog"
-                      />
+                      <div class="q-gutter-sm">
+                        <q-btn
+                          v-if="selectedChannels.length > 0"
+                          color="orange"
+                          label="Set Avoid On"
+                          icon="block"
+                          size="sm"
+                          @click="bulkSetAvoid('On')"
+                        >
+                          <q-badge color="red" floating>{{ selectedChannels.length }}</q-badge>
+                        </q-btn>
+                        <q-btn
+                          v-if="selectedChannels.length > 0"
+                          color="green"
+                          label="Set Avoid Off"
+                          icon="check_circle"
+                          size="sm"
+                          @click="bulkSetAvoid('Off')"
+                        >
+                          <q-badge color="red" floating>{{ selectedChannels.length }}</q-badge>
+                        </q-btn>
+                        <q-btn
+                          color="secondary"
+                          label="Add Channel"
+                          icon="add"
+                          size="sm"
+                          @click="openAddChannelDialog"
+                        />
+                      </div>
                     </div>
 
                     <div v-if="favoritesChannels.length > 0" style="height: calc(100vh - 380px); overflow-y: auto;">
@@ -201,6 +223,9 @@
                         :rows-per-page-options="[0]"
                         virtual-scroll
                         style="max-height: calc(100vh - 380px);"
+                        selection="multiple"
+                        v-model:selected="selectedChannels"
+                        @row-dblclick="(evt, row) => editChannel(row)"
                       >
                         <template #body-cell-frequency="props">
                           <q-td :props="props">
@@ -264,13 +289,35 @@
                         <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
                         <div class="text-caption text-grey-7">Systems</div>
                       </div>
-                      <q-btn
-                        color="secondary"
-                        label="Add System"
-                        icon="add"
-                        size="sm"
-                        @click="openAddSystemDialog"
-                      />
+                      <div class="q-gutter-sm">
+                        <q-btn
+                          v-if="selectedSystems.length > 0"
+                          color="orange"
+                          label="Set Avoid On"
+                          icon="block"
+                          size="sm"
+                          @click="bulkSetSystemAvoid('On')"
+                        >
+                          <q-badge color="red" floating>{{ selectedSystems.length }}</q-badge>
+                        </q-btn>
+                        <q-btn
+                          v-if="selectedSystems.length > 0"
+                          color="green"
+                          label="Set Avoid Off"
+                          icon="check_circle"
+                          size="sm"
+                          @click="bulkSetSystemAvoid('Off')"
+                        >
+                          <q-badge color="red" floating>{{ selectedSystems.length }}</q-badge>
+                        </q-btn>
+                        <q-btn
+                          color="secondary"
+                          label="Add System"
+                          icon="add"
+                          size="sm"
+                          @click="openAddSystemDialog"
+                        />
+                      </div>
                     </div>
 
                     <!-- Systems table -->
@@ -284,6 +331,8 @@
                         :rows-per-page-options="[0]"
                         virtual-scroll
                         style="max-height: calc(100vh - 380px); cursor: pointer"
+                        selection="multiple"
+                        v-model:selected="selectedSystems"
                         @row-click="onSystemRowClick"
                       >
                         <template #body-cell-actions="props">
@@ -329,13 +378,35 @@
                         <div class="text-h6">{{ selectedFavoritesNode.label }}</div>
                         <div class="text-caption text-grey-7">Departments</div>
                       </div>
-                      <q-btn
-                        color="secondary"
-                        label="Add Department"
-                        icon="add"
-                        size="sm"
-                        @click="openAddDepartmentDialog"
-                      />
+                      <div class="q-gutter-sm">
+                        <q-btn
+                          v-if="selectedDepartments.length > 0"
+                          color="orange"
+                          label="Set Avoid On"
+                          icon="block"
+                          size="sm"
+                          @click="bulkSetDepartmentAvoid('On')"
+                        >
+                          <q-badge color="red" floating>{{ selectedDepartments.length }}</q-badge>
+                        </q-btn>
+                        <q-btn
+                          v-if="selectedDepartments.length > 0"
+                          color="green"
+                          label="Set Avoid Off"
+                          icon="check_circle"
+                          size="sm"
+                          @click="bulkSetDepartmentAvoid('Off')"
+                        >
+                          <q-badge color="red" floating>{{ selectedDepartments.length }}</q-badge>
+                        </q-btn>
+                        <q-btn
+                          color="secondary"
+                          label="Add Department"
+                          icon="add"
+                          size="sm"
+                          @click="openAddDepartmentDialog"
+                        />
+                      </div>
                     </div>
 
                     <!-- Departments table -->
@@ -349,6 +420,8 @@
                         :rows-per-page-options="[0]"
                         virtual-scroll
                         style="max-height: calc(100vh - 380px); cursor: pointer"
+                        selection="multiple"
+                        v-model:selected="selectedDepartments"
                         @row-click="onDepartmentRowClick"
                       >
                         <template #body-cell-actions="props">
@@ -1245,6 +1318,9 @@ const selectedFavoritesNodeId = ref(null)
 const selectedFavoritesNode = ref(null)
 const selectedFavoritesList = ref(null)
 const expandedFavoritesNodes = ref(['favorites_root'])
+const selectedChannels = ref([])
+const selectedSystems = ref([])
+const selectedDepartments = ref([])
 const systemsData = ref([])
 const systemsLoading = ref(false)
 const departmentsData = ref([])
@@ -1273,7 +1349,7 @@ const favoritesChannelColumnsConventional = [
   { name: 'frequency', label: 'Frequency', field: 'frequency', align: 'left', sortable: true },
   { name: 'modulation', label: 'Modulation', field: 'modulation', align: 'left', sortable: true },
   { name: 'audio_option', label: 'Audio Option', field: 'audio_option', align: 'left', sortable: true },
-  { name: 'func_tag_id', label: 'Service Type', field: 'func_tag_id', align: 'center', sortable: true },
+  { name: 'func_tag_id', label: 'Service Type', field: row => getServiceTypeName(row.func_tag_id), align: 'center', sortable: true },
   { name: 'attenuator', label: 'Attenuator', field: 'attenuator', align: 'center', sortable: true },
   { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
   { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center', sortable: true },
@@ -1290,7 +1366,7 @@ const favoritesChannelColumnsTrunk = [
   { name: 'avoid', label: 'Avoid', field: 'avoid', align: 'center', sortable: true },
   { name: 'frequency', label: 'TGID', field: row => row.tgid ?? row.frequency, align: 'left', sortable: true },
   { name: 'tdma_slot', label: 'TDMA Slot', field: row => row.tdma_slot || 'Any', align: 'center', sortable: true },
-  { name: 'func_tag_id', label: 'Service Type', field: 'func_tag_id', align: 'center', sortable: true },
+  { name: 'func_tag_id', label: 'Service Type', field: row => getServiceTypeName(row.func_tag_id), align: 'center', sortable: true },
   { name: 'delay', label: 'Delay', field: 'delay', align: 'center', sortable: true },
   { name: 'alert_tone', label: 'Alert Tone', field: 'alert_tone', align: 'center', sortable: true },
   { name: 'alert_color', label: 'Alert Color', field: 'alert_color', align: 'center', sortable: true },
@@ -1351,17 +1427,25 @@ const favoritesTreeNodes = computed(() => {
     // Group departments by their system
     const systemsMap = new Map()
     
-    // First, process actual systems from systemsData
+    // First, process actual systems from systemsData - ONLY for current favorites list
     if (systemsData.value && systemsData.value.length > 0) {
       systemsData.value.forEach((system) => {
-        const systemKey = `${system.system_type}_${system.system_name}`
-        if (!systemsMap.has(systemKey)) {
-          systemsMap.set(systemKey, {
-            system_name: system.system_name,
-            system_type: system.system_type,
-            systemId: system.id,
-            departments: []
-          })
+        // Only include systems that belong to this favorites list
+        // Check if the system appears in this fav's groups
+        const belongsToThisFav = fav.groups && fav.groups.some(group => 
+          group.system_name === system.system_name && group.system_type === system.system_type
+        )
+        
+        if (belongsToThisFav) {
+          const systemKey = `${system.system_type}_${system.system_name}`
+          if (!systemsMap.has(systemKey)) {
+            systemsMap.set(systemKey, {
+              system_name: system.system_name,
+              system_type: system.system_type,
+              systemId: system.id,
+              departments: []
+            })
+          }
         }
       })
     }
@@ -1527,6 +1611,55 @@ const serviceTypes = [
 
 const showSystemDialog = ref(false)
 const isEditSystemMode = ref(false)
+
+// Service Type (FuncTagId) Mapping
+const serviceTypeMap = {
+  1: 'Multi-Dispatch',
+  2: 'Law Dispatch',
+  3: 'Fire Dispatch',
+  4: 'EMS Dispatch',
+  6: 'Multi-Tac',
+  7: 'Law Tac',
+  8: 'Fire-Tac',
+  9: 'EMS-Tac',
+  11: 'Interop',
+  12: 'Hospital',
+  13: 'Ham',
+  14: 'Public Works',
+  15: 'Aircraft',
+  16: 'Federal',
+  17: 'Business',
+  20: 'Railroad',
+  21: 'Other',
+  22: 'Multi-Talk',
+  23: 'Law Talk',
+  24: 'Fire-Talk',
+  25: 'EMS-Talk',
+  26: 'Transportation',
+  29: 'Emergency Ops',
+  30: 'Military',
+  31: 'Media',
+  32: 'Schools',
+  33: 'Security',
+  34: 'Utilities',
+  37: 'Corrections',
+  208: 'Custom 1',
+  209: 'Custom 2',
+  210: 'Custom 3',
+  211: 'Custom 4',
+  212: 'Custom 5',
+  213: 'Custom 6',
+  214: 'Custom 7',
+  215: 'Custom 8',
+  216: 'Racing Officials',
+  217: 'Racing Teams'
+}
+
+const getServiceTypeName = (funcTagId) => {
+  const id = parseInt(funcTagId)
+  return serviceTypeMap[id] || `Unknown (${id})`
+}
+
 const systemTypeOptions = [
   'Conventional',
   'Motorola',
@@ -1726,6 +1859,9 @@ const openFavoriteDetail = (evt, row) => {
 const selectFavoritesNode = async (node) => {
   selectedFavoritesNode.value = node
   selectedFavoritesNodeId.value = node.id
+  selectedChannels.value = []
+  selectedSystems.value = []
+  selectedDepartments.value = []
   
   if (node.type === 'root') {
     // Root node - show multi-export view
@@ -3194,6 +3330,108 @@ const editChannel = (channel) => {
   showAddChannelDialog.value = true
 }
 
+const bulkSetAvoid = async (avoidValue) => {
+  if (selectedChannels.value.length === 0) {
+    $q.notify({ type: 'warning', message: 'No channels selected' })
+    return
+  }
+
+  try {
+    const isTrunk = isTrunkSystemType(selectedFavoritesNode.value?.system_type)
+    const endpoint = isTrunk ? 'tgids' : 'cfreqs'
+    
+    // Update each selected channel
+    const updatePromises = selectedChannels.value.map(channel => {
+      const payload = { avoid: avoidValue }
+      return api.patch(`/favourites/${endpoint}/${channel.id}/`, payload)
+    })
+    
+    await Promise.all(updatePromises)
+    
+    $q.notify({ 
+      type: 'positive', 
+      message: `Updated ${selectedChannels.value.length} channel(s) - Avoid set to ${avoidValue}` 
+    })
+    
+    // Clear selection
+    selectedChannels.value = []
+    
+    // Reload the channels for the current department
+    if (selectedFavoritesNode.value && selectedFavoritesNode.value.type === 'department') {
+      await selectFavoritesNode(selectedFavoritesNode.value)
+    }
+  } catch (error) {
+    console.error('Error bulk updating channels:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update channels' })
+  }
+}
+
+const bulkSetSystemAvoid = async (avoidValue) => {
+  if (selectedSystems.value.length === 0) {
+    $q.notify({ type: 'warning', message: 'No systems selected' })
+    return
+  }
+
+  try {
+    // Update each selected system
+    const updatePromises = selectedSystems.value.map(system => {
+      const payload = { avoid: avoidValue }
+      return api.patch(`/favourites/systems/${system.id}/`, payload)
+    })
+    
+    await Promise.all(updatePromises)
+    
+    $q.notify({ 
+      type: 'positive', 
+      message: `Updated ${selectedSystems.value.length} system(s) - Avoid set to ${avoidValue}` 
+    })
+    
+    // Clear selection
+    selectedSystems.value = []
+    
+    // Reload the systems for the current favorites list
+    if (selectedFavoritesNode.value && selectedFavoritesNode.value.type === 'favorites_list') {
+      await selectFavoritesNode(selectedFavoritesNode.value)
+    }
+  } catch (error) {
+    console.error('Error bulk updating systems:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update systems' })
+  }
+}
+
+const bulkSetDepartmentAvoid = async (avoidValue) => {
+  if (selectedDepartments.value.length === 0) {
+    $q.notify({ type: 'warning', message: 'No departments selected' })
+    return
+  }
+
+  try {
+    // Update each selected department
+    const updatePromises = selectedDepartments.value.map(department => {
+      const payload = { avoid: avoidValue }
+      return api.patch(`/favourites/cgroups/${department.id}/`, payload)
+    })
+    
+    await Promise.all(updatePromises)
+    
+    $q.notify({ 
+      type: 'positive', 
+      message: `Updated ${selectedDepartments.value.length} department(s) - Avoid set to ${avoidValue}` 
+    })
+    
+    // Clear selection
+    selectedDepartments.value = []
+    
+    // Reload the departments for the current system
+    if (selectedFavoritesNode.value && selectedFavoritesNode.value.type === 'system') {
+      await selectFavoritesNode(selectedFavoritesNode.value)
+    }
+  } catch (error) {
+    console.error('Error bulk updating departments:', error)
+    $q.notify({ type: 'negative', message: 'Failed to update departments' })
+  }
+}
+
 const updateChannel = async () => {
   if (!newChannel.value.name_tag || newChannel.value.name_tag.trim() === '') {
     $q.notify({ type: 'negative', message: 'Channel name is required' })
@@ -3468,5 +3706,14 @@ const deleteProfile = async (id) => {
 
 .rotating {
   animation: rotate 2s linear infinite;
+}
+
+/* Make table rows appear clickable */
+:deep(.q-table tbody tr) {
+  cursor: pointer;
+}
+
+:deep(.q-table tbody tr:hover) {
+  background-color: rgba(0, 0, 0, 0.03);
 }
 </style>
