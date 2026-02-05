@@ -19,21 +19,30 @@
             <div class="col-12 col-md-3">
               <q-card flat bordered style="height: 85vh; overflow-y: auto;">
                 <q-card-section class="q-pa-sm">
-                  <div class="row justify-end q-mb-md q-gutter-sm">
+                  <div class="row items-center justify-between q-mb-md">
                     <q-btn
-                      color="primary"
-                      label="Load Favourites"
-                      icon="cloud_upload"
+                      color="info"
+                      label="Quick Reference"
+                      icon="menu_book"
                       size="sm"
-                      @click="loadFavourites"
+                      @click="router.push('/quick-reference')"
                     />
-                    <q-btn
-                      color="secondary"
-                      label="Download Favourites"
-                      icon="cloud_download"
-                      size="sm"
-                      @click="exportFavoritesFolder"
-                    />
+                    <div class="row q-gutter-sm">
+                      <q-btn
+                        color="primary"
+                        label="Load Favourites"
+                        icon="cloud_upload"
+                        size="sm"
+                        @click="loadFavourites"
+                      />
+                      <q-btn
+                        color="secondary"
+                        label="Download Favourites"
+                        icon="cloud_download"
+                        size="sm"
+                        @click="exportFavoritesFolder"
+                      />
+                    </div>
                   </div>
                   <q-tree
                     :nodes="favoritesTreeNodes"

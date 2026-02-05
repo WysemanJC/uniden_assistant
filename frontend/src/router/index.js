@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Index from '../pages/Index.vue'
 import ProfilePage from '../pages/ProfilePage.vue'
 import FavoriteDetail from '../pages/FavoriteDetail.vue'
+import QuickReference from '../pages/QuickReference.vue'
 
 const routes = [
   {
@@ -18,6 +19,11 @@ const routes = [
     path: '/favorite/:id',
     component: FavoriteDetail,
     meta: { title: 'Favorite Detail' }
+  },
+  {
+    path: '/quick-reference',
+    component: QuickReference,
+    meta: { title: 'Quick Reference' }
   }
 ]
 
