@@ -4,7 +4,7 @@ from .views import (
     ScannerProfileViewSet, FrequencyViewSet, ChannelGroupViewSet, AgencyViewSet, SDCardViewSet,
     FavoritesListViewSet, FavoritesImportViewSet, UserSettingsStatsView, ClearUserSettingsDataView,
     ClearScannerRawDataView, ExportFavoritesFolderView, CGroupViewSet, TGroupViewSet,
-    CFreqViewSet, TGIDViewSet, ConventionalSystemViewSet, TrunkSystemViewSet,
+    CFreqViewSet, TGIDViewSet, ConventionalSystemViewSet, TrunkSystemViewSet, UserPreferencesView,
 )
 
 router = DefaultRouter()
@@ -27,5 +27,6 @@ urlpatterns = [
     path('clear-data/', ClearUserSettingsDataView.as_view()),
     path('clear-raw-data/', ClearScannerRawDataView.as_view()),
     path('export-favorites/', ExportFavoritesFolderView.as_view()),
+    path('preferences/', UserPreferencesView.as_view()),
     path('', include(router.urls)),
 ]

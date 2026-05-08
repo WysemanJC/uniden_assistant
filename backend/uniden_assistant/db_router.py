@@ -22,6 +22,7 @@ FAVORITES_MODELS = {
     'fleetmap',
     'unitid',
     'avoidtgid',
+    'userpreference',
 }
 
 

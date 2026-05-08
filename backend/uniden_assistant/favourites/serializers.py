@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList,
     ConventionalSystem, TrunkSystem, CGroup, CFreq, Site, BandPlanP25, BandPlanMot,
-    TFreq, TGroup, TGID, Rectangle, FleetMap, UnitId, AvoidTgid
+    TFreq, TGroup, TGID, Rectangle, FleetMap, UnitId, AvoidTgid, UserPreference
 )
 
 
@@ -48,6 +48,15 @@ class ScannerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScannerProfile
         fields = ['id', 'name', 'model', 'firmware_version', 'user_id', 'data_file', 'frequencies', 'channel_groups', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class UserPreferenceSerializer(serializers.ModelSerializer):
+    id = ObjectIdField(read_only=True)
+
+    class Meta:
+        model = UserPreference
+        fields = ['id', 'dark_mode', 'created_at', 'updated_at']
         read_only_fields = ['created_at', 'updated_at']
 
 

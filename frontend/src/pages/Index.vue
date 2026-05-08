@@ -3,6 +3,8 @@
     <q-header elevated class="bg-primary text-white">
       <q-toolbar>
         <q-toolbar-title>Uniden Assistant</q-toolbar-title>
+        <q-space />
+        <UserPreferencesButton />
       </q-toolbar>
     </q-header>
 
@@ -1263,6 +1265,7 @@ import { useScannerStore } from '../stores/scanner'
 import api, { sdAPI } from '../api'
 import { useQuasar, QSeparator, QCheckbox, QTable, QTh, QTd } from 'quasar'
 import ChannelGroupMapDialog from '../components/ChannelGroupMapDialog.vue'
+import UserPreferencesButton from '../components/UserPreferencesButton.vue'
 
 const route = useRoute()
 const router = useRouter()

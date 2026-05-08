@@ -15,13 +15,13 @@ import zipfile
 from .models import (
     ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList, ScannerRawFile, ScannerRawLine,
     ConventionalSystem, TrunkSystem, CGroup, CFreq, Site, BandPlanP25, BandPlanMot, TFreq, TGroup,
-    TGID, Rectangle, FleetMap, UnitId, AvoidTgid
+    TGID, Rectangle, FleetMap, UnitId, AvoidTgid, UserPreference
 )
 from .serializers import (
     ScannerProfileSerializer, FrequencySerializer, ChannelGroupSerializer,
     AgencySerializer, FavoritesListSerializer, FavoritesListDetailSerializer,
     CFreqSerializer, TGIDSerializer, ConventionalSystemWriteSerializer, TrunkSystemWriteSerializer,
-    CGroupWriteSerializer, TGroupWriteSerializer
+    CGroupWriteSerializer, TGroupWriteSerializer, UserPreferenceSerializer
 )
 from .parsers import UnidenFileParser
 import tempfile
@@ -91,6 +91,7 @@ class ClearUserSettingsDataView(APIView):
             FleetMap.objects.using('favorites').all().delete()
             UnitId.objects.using('favorites').all().delete()
             AvoidTgid.objects.using('favorites').all().delete()
+            UserPreference.objects.using('favorites').all().delete()
             
             logger.info("Cleared all user settings and favourites data successfully")
             return Response({'success': True, 'message': 'All user settings and favourites data cleared'})
@@ -122,6 +123,30 @@ class ClearScannerRawDataView(APIView):
         except Exception as e:
             logger.exception("Failed to clear scanner raw data", exc_info=e)
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserPreferencesView(APIView):
+    """Read and update app-wide user preferences."""
+
+    def _get_preferences(self):
+        preferences, _ = UserPreference.objects.using('favorites').get_or_create(
+            id=1,
+            defaults={'dark_mode': 'system'},
+        )
+        return preferences
+
+    def get(self, request):
+        preferences = self._get_preferences()
+        return Response(UserPreferenceSerializer(preferences).data)
+
+    def put(self, request):
+        preferences = self._get_preferences()
+        serializer = UserPreferenceSerializer(preferences, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    patch = put
 
 
 class ExportFavoritesFolderView(APIView):

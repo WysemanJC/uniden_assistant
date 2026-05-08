@@ -15,6 +15,29 @@ SCANNER_MODEL_CHOICES = [
 ]
 
 
+DARK_MODE_CHOICES = [
+    ('system', 'System Default'),
+    ('on', 'On'),
+    ('off', 'Off'),
+]
+
+
+class UserPreference(models.Model):
+    """App-wide user preferences stored in the favourites database."""
+
+    dark_mode = models.CharField(max_length=20, choices=DARK_MODE_CHOICES, default='system')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"User preferences ({self.dark_mode})"
+
+    class Meta:
+        app_label = 'favourites'
+        verbose_name = 'User Preference'
+        verbose_name_plural = 'User Preferences'
+
+
 # ============================================================================
 # FAVORITES LIST (f_list.cfg)
 # ============================================================================

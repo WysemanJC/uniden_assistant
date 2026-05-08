@@ -3,6 +3,8 @@
     <q-header elevated class="bg-primary text-white">
       <q-toolbar>
         <q-toolbar-title>Uniden Assistant</q-toolbar-title>
+        <q-space />
+        <UserPreferencesButton />
       </q-toolbar>
     </q-header>
 
@@ -134,6 +136,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import api from '../api'
+import UserPreferencesButton from '../components/UserPreferencesButton.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -62,6 +62,15 @@ export const sdAPI = {
   }
 }
 
+export const preferencesAPI = {
+  get() {
+    return api.get('/favourites/preferences/')
+  },
+  update(data) {
+    return api.put('/favourites/preferences/', data)
+  }
+}
+
 export const channelGroupAPI = {
   list(profileId = null) {
     const params = profileId ? { profile: profileId } : {}

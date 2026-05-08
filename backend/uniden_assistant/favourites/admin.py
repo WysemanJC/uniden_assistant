@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList
+from .models import ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList, UserPreference
 
 
 @admin.register(ScannerProfile)
@@ -34,3 +34,8 @@ class FavoritesListAdmin(admin.ModelAdmin):
     list_display = ['user_name', 'filename', 'location_control', 'monitor', 'number_tag', 'order']
     list_filter = ['location_control', 'monitor']
     search_fields = ['user_name', 'filename']
+
+
+@admin.register(UserPreference)
+class UserPreferenceAdmin(admin.ModelAdmin):
+    list_display = ['dark_mode', 'updated_at']

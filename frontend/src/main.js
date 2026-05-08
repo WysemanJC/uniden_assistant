@@ -33,6 +33,7 @@ import {
   QTabPanels,
   QTabPanel,
   QToggle,
+  QBtnToggle,
   QChip,
   QTree,
   QExpansionItem,
@@ -46,10 +47,12 @@ import '@quasar/extras/material-icons/material-icons.css'
 import 'quasar/dist/quasar.css'
 import App from './App.vue'
 import router from './router'
+import { useUserPreferencesStore } from './stores/userPreferences'
 
 const app = createApp(App)
+const pinia = createPinia()
 
-app.use(createPinia())
+app.use(pinia)
 app.use(router)
 app.use(Quasar, {
   plugins: {
@@ -86,6 +89,7 @@ app.use(Quasar, {
     QTabPanels,
     QTabPanel,
     QToggle,
+    QBtnToggle,
     QChip,
     QTree,
     QExpansionItem,
@@ -103,4 +107,11 @@ app.use(Quasar, {
   }
 })
 
-app.mount('#app')
+const preferences = useUserPreferencesStore(pinia)
+
+const bootstrap = async () => {
+  await preferences.initialize()
+  app.mount('#app')
+}
+
+bootstrap()
