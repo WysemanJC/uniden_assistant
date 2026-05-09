@@ -25,23 +25,26 @@ The container is configured entirely from environment variables.
 
 Required or strongly recommended values:
 
-- `SECRET_KEY` - Django secret key.
-- `ALLOWED_HOSTS` - Comma-separated Django host allowlist, such as `localhost,127.0.0.1,my-host`.
-- `UNIDEN_DATA_DIR` - Base persistent data directory, default `/data/uniden_assistant`.
-- `UNIDEN_DB_DIR` - Database directory, default `/data/uniden_assistant/db`.
+- `SECRET_KEY` — Django secret key. Always set this in production.
+- `EXTERNAL_URL` — The full public URL the app is accessed from, including scheme. For example `https://scanner.example.com` or `http://192.168.1.10:8080`. Setting this one variable automatically configures `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS`. **This is the recommended way to deploy behind a reverse proxy or with a custom hostname.**
+- `UNIDEN_DATA_DIR` — Base persistent data directory, default `/data/uniden_assistant`.
+- `UNIDEN_DB_DIR` — Database directory, default `/data/uniden_assistant/db`.
 
 Optional values:
 
-- `DEBUG` - Set to `0` for production.
-- `MEDIA_ROOT` - Override media storage location.
-- `STATIC_ROOT` - Override collected static output location.
-- `CORS_ALLOWED_ORIGINS` - Comma-separated list of allowed browser origins when cross-origin access is required.
-- `CORS_ALLOW_ALL_ORIGINS` - Set to `1` only if you explicitly want to allow all origins.
-- `CORS_ALLOW_CREDENTIALS` - Defaults to `1`.
-- `CSRF_TRUSTED_ORIGINS` - Comma-separated list of trusted origins with scheme, such as `http://localhost`.
-- `GUNICORN_WORKERS` - Number of gunicorn workers, default `3`.
+- `DEBUG` — Set to `0` (default) for production.
+- `MEDIA_ROOT` — Override media storage location.
+- `STATIC_ROOT` — Override collected static output location.
+- `GUNICORN_WORKERS` — Number of gunicorn workers, default `3`.
+- `GUNICORN_LOG_LEVEL` — Gunicorn log verbosity (`debug`, `info`, `warning`, `error`), default `info`.
 
-For the normal single-port deployment, the frontend and backend are same-origin through nginx, so CORS can usually stay empty.
+Advanced overrides (normally derived automatically from `EXTERNAL_URL`):
+
+- `ALLOWED_HOSTS` — Comma-separated Django host allowlist. Overrides `EXTERNAL_URL` host if set. Loopback addresses are always included regardless.
+- `CORS_ALLOWED_ORIGINS` — Comma-separated list of allowed browser origins. Overrides `EXTERNAL_URL` if set.
+- `CORS_ALLOW_ALL_ORIGINS` — Set to `1` only if you explicitly want to allow all origins.
+- `CORS_ALLOW_CREDENTIALS` — Defaults to `1`.
+- `CSRF_TRUSTED_ORIGINS` — Comma-separated list of trusted origins with scheme. Overrides `EXTERNAL_URL` if set.
 
 ## Build
 
@@ -119,8 +122,19 @@ Example Docker run command:
 docker run --rm \
   -p 80:80 \
   -e SECRET_KEY='change-me' \
-  -e ALLOWED_HOSTS='localhost,127.0.0.1,my-host' \
-  -e DEBUG=0 \
+  -e EXTERNAL_URL='https://uniden.example.com' \
+  -e UNIDEN_DATA_DIR=/data/uniden_assistant \
+  -v uniden_assistant_data:/data/uniden_assistant \
+  uniden-assistant:latest
+```
+
+For a local/LAN deployment without a hostname:
+
+```bash
+docker run --rm \
+  -p 80:80 \
+  -e SECRET_KEY='change-me' \
+  -e EXTERNAL_URL='http://192.168.1.10' \
   -e UNIDEN_DATA_DIR=/data/uniden_assistant \
   -v uniden_assistant_data:/data/uniden_assistant \
   uniden-assistant:latest
@@ -139,5 +153,6 @@ When the container starts it will:
 ## Notes
 
 - The container only exposes port `80` externally.
-- API calls should use the same-origin `/api` base path.
-- If you place the app behind another proxy or TLS terminator, update `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS`, and `CSRF_TRUSTED_ORIGINS` accordingly.
+- API calls use the same-origin `/api` base path — no CORS configuration is needed when accessing through the container's own nginx.
+- When placing the app behind a reverse proxy or TLS terminator (e.g. Traefik, Nginx Proxy Manager), set `EXTERNAL_URL` to the public URL. This is sufficient for `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to be configured correctly.
+- The container automatically trusts `X-Forwarded-Proto` headers from an upstream proxy so HTTPS is detected correctly.
