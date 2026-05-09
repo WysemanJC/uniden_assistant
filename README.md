@@ -2,74 +2,85 @@
 
 A web application for managing Uniden Scanner Favourites lists. Import, edit, and export scanner configuration files with an intuitive interface.
 
-## Quick Start
-
-1. **Setup** - Install dependencies and initialize the application:
-   ```bash
-   ./setup_uniden.sh
-   ```
-   
-   For a clean installation (removes old dependencies):
-   ```bash
-   ./setup_uniden.sh --clean
-   ```
-
-2. **Start** - Run the application:
-   ```bash
-   ./uniden_assistant start
-   ```
-
-3. **Access** - Open in your browser:
-   - Frontend: http://localhost:9001
-
-## System Requirements
-
-- **OS**: Debian/Ubuntu Linux or WSL (Windows Subsystem for Linux)
-- **Python**: 3.8 or higher
-- **Node.js**: 16 or higher (auto-installed if missing)
-- **Disk Space**: ~500MB (including dependencies)
-
-## Setup Script Features
-
-The setup script (`setup_uniden.sh`) automatically:
-- Installs required OS packages (Python, Node.js, build tools)
-- Creates and configures Python virtual environment
-- Installs Python dependencies with pinned versions
-- Installs frontend Node.js dependencies
-- Sets up configuration files
-- Initializes SQLite databases
-- Validates system prerequisites
-
-**Usage**:
-```bash
-./setup_uniden.sh              # Standard setup
-./setup_uniden.sh --clean      # Clean install (removes old dependencies)
-```
-
-**WSL Users**: The script detects WSL and provides helpful reminders about file locations and accessing the app from Windows.
-
 ## Features
 
-- **Import** - Load Uniden scanner configuration files (.cfg, .hpd)
+- **Import** - Load Uniden scanner configuration files (`.cfg`, `.hpd`)
 - **Edit** - Manage favourites lists, scanner profiles, and channel groups
 - **Export** - Save your configurations back to scanner-compatible formats
 - **Organize** - Create and manage multiple favourites lists
 
-## Architecture
+## Running in Docker
 
-- **Backend** - Django 4.2 REST API
-- **Frontend** - Vue 3 with Quasar Framework
-- **Database** - SQLite for Django core and favourites (separate database files)
+Running the published container image is the easiest way to use Uniden Assistant.
 
-## Configuration
+Published image:
 
-The application is configured with environment variables. For Docker deployment details and the full variable list, see [docs/docker.md](docs/docker.md).
+- `ghcr.io/wysemanjc/uniden_assistant:stable`
 
-For local development, set the same environment variables before starting the app.
+The container serves the frontend and backend together, so you only need to publish one port and mount persistent storage for the SQLite databases.
 
-## Development
+### Quick start with `docker run`
 
-For detailed API architecture, see [docs/architecture.md](docs/architecture.md).
+```bash
+docker run --rm \
+   -p 8080:80 \
+   -e EXTERNAL_URL='http://localhost:8080' \
+   -v uniden_assistant_data:/data/uniden_assistant \
+   ghcr.io/wysemanjc/uniden_assistant:stable
+```
+
+Then open `http://localhost:8080` in your browser.
+
+Example for access from another machine on your LAN:
+
+```bash
+docker run --rm \
+   -p 8080:80 \
+   -e EXTERNAL_URL='http://192.168.1.10:8080' \
+   -v uniden_assistant_data:/data/uniden_assistant \
+   ghcr.io/wysemanjc/uniden_assistant:stable
+```
+
+### Example `docker-compose.yml`
+
+```yaml
+services:
+   uniden-assistant:
+      image: ghcr.io/wysemanjc/uniden_assistant:stable
+      container_name: uniden_assistant
+      restart: unless-stopped
+      ports:
+         - "8080:80"
+      environment:
+         EXTERNAL_URL: http://localhost:8080
+      volumes:
+         - uniden_assistant_data:/data/uniden_assistant
+
+volumes:
+   uniden_assistant_data:
+```
+
+Start it with:
+
+```bash
+docker compose up -d
+```
+
+### `EXTERNAL_URL`
+
+`EXTERNAL_URL` is the full public URL used to reach the application, including the scheme and port when needed.
+
+Examples:
+
+- `http://localhost:8080`
+- `http://192.168.1.10:8080`
+- `https://scanner.example.com`
+
+In most deployments, this is the only environment variable you need to set explicitly. The application derives the host, CORS, and CSRF settings from this value automatically. For long-lived production deployments, you may also want to review the additional environment variables documented in [docs/docker.md](docs/docker.md).
+
+## Development Environment
+
+If you want to run the project from source instead of the published container, see [docs/development.md](docs/development.md). That guide covers local setup, the supported management scripts, browser access during development, system requirements, and the application architecture.
 
 ## File Specifications
 
@@ -78,4 +89,5 @@ Documentation for supported file formats and record types is available in [docs/
 ## License
 
 Apache License 2.0
-Pull requests welcome!
+
+Pull requests welcome.
