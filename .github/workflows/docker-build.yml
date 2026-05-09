@@ -124,13 +124,20 @@ jobs:
             type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
             type=raw,value=${{ steps.tags.outputs.moving_tags }}
 
+      - name: Create Docker-safe version
+        id: docker_version
+        run: |
+          safe_version="${{ steps.version.outputs.version }}"
+          safe_version="${safe_version//+/-}"
+          echo "safe_version=${safe_version}" >> "$GITHUB_OUTPUT"
+
       - name: Build Docker image (PR — no push)
         if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
-          tags: uniden-assistant:${{ steps.version.outputs.version }}
+          tags: uniden-assistant:${{ steps.docker_version.outputs.safe_version }}
           build-args: |
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
