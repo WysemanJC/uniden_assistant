@@ -251,10 +251,11 @@ setup_backend() {
         print_warning "requirements.txt not found"
     fi
     
-    # Run migrations (uses config.env loader)
+    # Run migrations
     print_status "Running database migrations..."
-    "$VENV_PY" run_with_config.py migrate --noinput --database=default 2>/dev/null || print_warning "Default database migrations encountered issues"
-    "$VENV_PY" run_with_config.py migrate --noinput --database=favorites 2>/dev/null || print_warning "Favorites database migrations encountered issues"
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
+    "$VENV_PY" manage.py migrate --noinput --database=default 2>/dev/null || print_warning "Default database migrations encountered issues"
+    "$VENV_PY" manage.py migrate --noinput --database=favorites 2>/dev/null || print_warning "Favorites database migrations encountered issues"
     print_success "Database migrations completed"
     
     # Create directories
@@ -320,26 +321,6 @@ setup_frontend() {
     print_success "Frontend setup complete"
 }
 
-# Function to create config.env file if it doesn't exist
-setup_env() {
-    print_status "Checking environment configuration..."
-    
-    if [ ! -f "$SCRIPT_DIR/config.env" ]; then
-        print_status "Creating config.env file from template..."
-        if [ -f "$SCRIPT_DIR/config.env.example" ]; then
-            cp "$SCRIPT_DIR/config.env.example" "$SCRIPT_DIR/config.env"
-            print_success "config.env file created"
-            print_warning "Please review $SCRIPT_DIR/config.env and update if needed"
-        else
-            print_warning "config.env not found. Exiting setup."
-            print_error "Please create config.env from config.env.example and set required values."
-            exit 1
-        fi
-    else
-        print_success "config.env file already exists"
-    fi
-}
-
 # Function to create frontend .env.local if it doesn't exist
 setup_env_frontend() {
     print_status "Checking frontend environment configuration..."
@@ -360,6 +341,7 @@ check_databases() {
     print_status "Checking database connectivity..."
     
     cd "$SCRIPT_DIR/backend"
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
     
     # Test database connection by running a simple check
     "$SCRIPT_DIR/backend/venv/bin/python" -c "
@@ -374,7 +356,7 @@ try:
 except Exception as e:
     print(f'Database connection failed: {e}')
     exit(1)
-" 2>/dev/null && print_success "Database connectivity check passed" || print_warning "Database connectivity check failed (check config.env and setup)"
+" 2>/dev/null && print_success "Database connectivity check passed" || print_warning "Database connectivity check failed (check setup and environment variables)"
 }
 
 # Main setup flow
@@ -429,7 +411,6 @@ main() {
     echo ""
     
     # Setup environment files
-    setup_env
     setup_env_frontend
     echo ""
     

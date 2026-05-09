@@ -44,22 +44,8 @@ print_info() {
     echo -e "${CYAN}[i]${NC} $1"
 }
 
-# Function to load config.env into environment
-load_env_file() {
-    local env_file="$SCRIPT_DIR/config.env"
-    if [ -f "$env_file" ]; then
-        set -a
-        # shellcheck disable=SC1090
-        . "$env_file"
-        set +a
-    fi
-}
-
 # Function to determine FQDN and set backend URL
 set_backend_url() {
-    # Load config to get BACKEND_URL
-    load_env_file
-    
     # Get FQDN for use in configuration
     local fqdn=$(hostname -f 2>/dev/null || hostname)
     export FQDN="$fqdn"
@@ -184,6 +170,7 @@ prepare_databases() {
     load_env_file
     
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
     
     if [ ! -f "$SCRIPT_DIR/backend/venv/bin/activate" ]; then
         print_error "Backend virtual environment not found."
@@ -206,8 +193,8 @@ prepare_databases() {
     fi
     
     # Check if databases exist
-    local default_db="$SCRIPT_DIR/backend/db.sqlite3"
-    local favorites_db="$SCRIPT_DIR/backend/favourites.sqlite3"
+    local default_db="${UNIDEN_DB_DIR}/uniden_assistant.sqlite3"
+    local favorites_db="${UNIDEN_DB_DIR}/uniden_assistant_favourites.sqlite3"
     
     local db_missing=0
     if [ ! -f "$default_db" ]; then
@@ -284,9 +271,9 @@ start_backend() {
     
     # Start backend
     cd "$SCRIPT_DIR/backend"
-    load_env_file
     
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
     export ALLOWED_HOSTS
     export CORS_ALLOWED_ORIGINS
     
@@ -313,8 +300,7 @@ start_backend() {
     # Clear old log
     > "$BACKEND_LOG"
     
-    # Start using virtual environment's Python with wrapper that loads config.env
-    nohup python run_with_config.py runserver 0.0.0.0:$BACKEND_PORT >> "$BACKEND_LOG" 2>&1 &
+    nohup python manage.py runserver 0.0.0.0:$BACKEND_PORT >> "$BACKEND_LOG" 2>&1 &
     local pid=$!
     echo $pid > "$BACKEND_PID_FILE"
     deactivate
