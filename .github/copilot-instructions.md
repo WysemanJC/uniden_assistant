@@ -14,7 +14,6 @@ The Uniden Assistant project uses **TWO AND ONLY TWO** management scripts. Adher
   - Installs Python dependencies from requirements.txt
   - Installs frontend dependencies via npm
   - Runs database migrations
-  - Creates config.env from template if missing
   - Tests database connectivity
   - **Rerunnable and idempotent** - safe to run multiple times
 - **Usage**: `./setup_uniden.sh`
@@ -51,17 +50,13 @@ The Uniden Assistant project uses **TWO AND ONLY TWO** management scripts. Adher
 7. **NEVER** use bare `python` command - always use explicit venv path: `venv/bin/python`
 8. **NEVER** bypass the orchestration script for application lifecycle management
 9. **NEVER** add functionality to scripts without updating this documentation
-ALL application lifecycle management
-3. **ALWAYS** use explicit venv Python paths: `venv/bin/python` (NEVER bare `python`)
-4. **ALWAYS** keep `setup_uniden.sh` updated when adding new dependencies
-5. **ALWAYS** update both scripts together when infrastructure changes
-6. **ALWAYS** refer users to these scripts for setup and startup issues
-7. **ALWAYS** check these scripts are executable (chmod +x)
-8. **ALWAYS** use the orchestration script for debugging - check logs with `./uniden_assistant logs`
-9. **ALWAYS** read full log files directly with `cat` if needed, NEVER use `head` or `tail` in commandsw dependencies
-4. **ALWAYS** update both scripts together when infrastructure changes
-5. **ALWAYS** refer users to these scripts for setup and startup issues
-6. **ALWAYS** check these scripts are executable (chmod +x)
+1. **ALWAYS** use explicit venv Python paths: `venv/bin/python` (NEVER bare `python`)
+2. **ALWAYS** keep `setup_uniden.sh` updated when adding new dependencies
+3. **ALWAYS** update both scripts together when infrastructure changes
+4. **ALWAYS** refer users to these scripts for setup and startup issues
+5. **ALWAYS** check these scripts are executable (chmod +x)
+6. **ALWAYS** use the orchestration script for debugging - check logs with `./uniden_assistant logs`
+7. **ALWAYS** read full log files directly with `cat` if needed, NEVER use `head` or `tail` in commands
 
 ### Script Maintenance Rules:
 - When adding Python packages: Update backend/requirements.txt AND run `./setup_uniden.sh`
@@ -111,7 +106,7 @@ The application must adhere to a strict multi‑tier API hierarchy:
 
 ## Configuration
 
-- Environment variables are stored in `config.env` (not `.env`)
+- Environment variables are sourced from the shell environment and frontend `.env.local` only
 - Frontend environment: `frontend/.env.local`
 - Do NOT create or reference `.env` or `.env.example` files
 

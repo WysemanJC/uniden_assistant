@@ -1,0 +1,13 @@
+# Local container registry configuration for scripts/build_push_local_registry.sh
+# Copy this file to scripts/local_registry.conf and fill in your values.
+# REGISTRY_URL must be host only (no https:// prefix).
+
+REGISTRY_URL="registry.example.com"
+REGISTRY_USERNAME="your-gitea-username"
+REGISTRY_PASSWORD="your-gitea-token-or-password"
+
+# Registry repository/namespace path (owner or owner/project path)
+REGISTRY_REPOSITORY="your-gitea-owner"
+
+# Optional image name override
+IMAGE_NAME="uniden-assistant"

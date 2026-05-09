@@ -29,7 +29,7 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 
-def _favorites_db_host():
+def _favorites_db_path():
     return str(settings.DATABASES.get('favorites', {}).get('NAME'))
 
 
@@ -37,7 +37,7 @@ class UserSettingsStatsView(APIView):
     """Aggregate statistics for user settings and favourites data."""
 
     def get(self, request):
-        logger.info("Favourites stats request", extra={"host": _favorites_db_host(), "env_path": str(settings.ENV_PATH)})
+        logger.info("Favourites stats request", extra={"db_path": _favorites_db_path()})
         try:
             frequency_count = Frequency.objects.using('favorites').count()
             channel_group_count = ChannelGroup.objects.using('favorites').count()
@@ -60,7 +60,7 @@ class UserSettingsStatsView(APIView):
                 'channels': 0,
                 'frequencies': 0,
                 'error': str(exc),
-                'host': _favorites_db_host(),
+                'db_path': _favorites_db_path(),
             })
 
 

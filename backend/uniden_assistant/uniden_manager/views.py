@@ -24,10 +24,12 @@ class ProxyAPIView(APIView):
     upstream_prefix = ''
 
     def _build_upstream_url(self, request, path_suffix=''):
-        base = request.build_absolute_uri('/')[:-1]
+        # Always call the upstream directly via localhost to avoid routing through
+        # an external reverse proxy (which may be HTTPS-only or unreachable from inside the container).
+        upstream_base = 'http://127.0.0.1:8000'
         query = request.META.get('QUERY_STRING', '')
         path = f"/api/{self.upstream_prefix}{path_suffix}"
-        url = f"{base}{path}"
+        url = f"{upstream_base}{path}"
         if query:
             url = f"{url}?{query}"
         return url

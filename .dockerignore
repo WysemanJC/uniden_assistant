@@ -1,0 +1,62 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Editor / IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Python artifacts
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
+backend/**/*.pyd
+backend/.pytest_cache/
+backend/**/.pytest_cache/
+backend/*.egg-info/
+backend/.mypy_cache/
+backend/.ruff_cache/
+
+# Django runtime artifacts
+backend/staticfiles/
+backend/media/
+
+# SQLite databases (never bake into image)
+backend/*.sqlite3
+backend/**/*.sqlite3
+
+# Legacy filenames
+backend/db.sqlite3
+backend/favourites.sqlite3
+
+# Frontend artifacts
+frontend/node_modules/
+frontend/dist/
+
+# Dev orchestration
+.logs/
+.pids/
+*.log
+
+# Sample / test data
+SAMPLE_DATA/
+
+# CI/CD tooling scripts (not needed in image)
+setup_uniden.sh
+uniden_assistant
+
+# Docs and screenshots
+docs/
+README.md
+LICENSE
+
+# Temporary / OS files
+.DS_Store
+Thumbs.db
+*.tmp

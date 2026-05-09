@@ -8,47 +8,60 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-def find_config_env(start: Path) -> Path:
-    """Find config.env by walking up from the given path."""
-    for candidate_root in [start, *start.parents]:
-        candidate = candidate_root / 'config.env'
-        if candidate.exists():
-            return candidate
-    raise RuntimeError("config.env not found in any parent directory")
 
-# Load config.env from workspace root (required)
-ENV_PATH = find_config_env(BASE_DIR)
-ENV_VARS = {}
-
-def load_env(path: Path) -> None:
-    if not path.exists():
-        return
-    with path.open('r', encoding='utf-8') as fh:
-        for raw_line in fh:
-            line = raw_line.strip()
-            if not line or line.startswith('#') or '=' not in line:
-                continue
-            key, value = line.split('=', 1)
-            key = key.strip()
-            value = value.strip()
-            ENV_VARS[key] = value
-            os.environ[key] = value
-
-load_env(ENV_PATH)
-
-def get_setting(key, default=None, cast=None):
-    value = ENV_VARS.get(key, os.environ.get(key, default))
-    if cast is not None and value is not None:
-        return cast(value)
+def get_env(key, default=None):
+    value = os.environ.get(key)
+    if value is None:
+        return default
+    value = value.strip()
+    if value == '':
+        return default
     return value
 
+
+def get_env_bool(key, default=False):
+    value = get_env(key)
+    if value is None:
+        return default
+    return value.lower() in {'1', 'true', 'yes', 'on'}
+
+
+def get_env_list(key, default=''):
+    value = get_env(key, default)
+    if not value:
+        return []
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+def get_env_path(key, default):
+    return Path(get_env(key, default)).expanduser()
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = get_setting('SECRET_KEY', default='django-insecure-dev-key-change-in-production')
+SECRET_KEY = get_env('SECRET_KEY', default='django-insecure-dev-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = get_setting('DEBUG', default=True, cast=bool)
+DEBUG = get_env_bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = get_setting('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+# EXTERNAL_URL: single env var for the public URL of this deployment.
+# e.g. https://uniden.homeofdata.com  or  http://192.168.1.10:8080
+# All of ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, and CORS_ALLOWED_ORIGINS are
+# derived from it automatically. The individual env vars still work as overrides.
+_external_url = get_env('EXTERNAL_URL', default='')
+_external_host = ''
+if _external_url:
+    from urllib.parse import urlparse as _urlparse
+    _parsed = _urlparse(_external_url)
+    _external_host = _parsed.hostname or ''
+
+# ALLOWED_HOSTS — always includes loopback for the internal proxy
+_allowed_hosts_env = get_env_list('ALLOWED_HOSTS', default='')
+ALLOWED_HOSTS = _allowed_hosts_env if _allowed_hosts_env else (
+    [_external_host] if _external_host else ['localhost', '127.0.0.1', '[::1]']
+)
+for _loopback in ('127.0.0.1', 'localhost', '[::1]'):
+    if _loopback not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_loopback)
 
 # Application definition
 INSTALLED_APPS = [
@@ -96,12 +109,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'uniden_assistant.wsgi.application'
 
 # Database
-FAVOURITES_DB_PATH = BASE_DIR / 'favourites.sqlite3'
+UNIDEN_DATA_DIR = get_env_path('UNIDEN_DATA_DIR', default='/data/uniden_assistant')
+UNIDEN_DB_DIR = get_env_path('UNIDEN_DB_DIR', default=str(UNIDEN_DATA_DIR / 'db'))
+FAVOURITES_DB_PATH = UNIDEN_DB_DIR / 'uniden_assistant_favourites.sqlite3'
+DEFAULT_DB_PATH = UNIDEN_DB_DIR / 'uniden_assistant.sqlite3'
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': DEFAULT_DB_PATH,
     },
     'favorites': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -135,11 +151,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -154,17 +168,22 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = get_setting(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:9001,http://localhost:8080,http://127.0.0.1:9001',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+# Reverse proxy / HTTPS settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
 
-CORS_ALLOW_CREDENTIALS = True
+# CORS / CSRF — derived from EXTERNAL_URL, overridable individually
+_csrf_env = get_env_list('CSRF_TRUSTED_ORIGINS', default='')
+CSRF_TRUSTED_ORIGINS = _csrf_env if _csrf_env else ([_external_url] if _external_url else [])
+
+_cors_env = get_env_list('CORS_ALLOWED_ORIGINS', default='')
+CORS_ALLOW_ALL_ORIGINS = get_env_bool('CORS_ALLOW_ALL_ORIGINS', default=False)
+CORS_ALLOWED_ORIGINS = _cors_env if _cors_env else ([_external_url] if _external_url else [])
+CORS_ALLOW_CREDENTIALS = get_env_bool('CORS_ALLOW_CREDENTIALS', default=True)
 
 # File upload settings
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_NUMBER_FILES = 10000  # Allow up to 10,000 files per upload
-UNIDEN_DATA_DIR = get_setting('UNIDEN_DATA_DIR', default=str(BASE_DIR.parent / 'data'))
+MEDIA_ROOT = get_env_path('MEDIA_ROOT', default=str(UNIDEN_DATA_DIR / 'media'))
+STATIC_ROOT = get_env_path('STATIC_ROOT', default=str(BASE_DIR / 'staticfiles'))
