@@ -18,8 +18,9 @@ if ! command -v git &>/dev/null; then
     exit 1
 fi
 
-# Get the latest tag matching v*
-LATEST_TAG=$(git describe --tags --match 'v*' 2>/dev/null || echo "v0.0.0")
+# Get the latest reachable tag name matching v*.
+# --abbrev=0 avoids describe suffixes like -4-g<sha>, which break semver parsing.
+LATEST_TAG=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "v0.0.0")
 
 # Extract version from tag (strip leading 'v')
 LATEST_VERSION="${LATEST_TAG#v}"
