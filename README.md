@@ -63,12 +63,9 @@ The setup script (`setup_uniden.sh`) automatically:
 
 ## Configuration
 
-Edit [config.env](config.env) to customize settings:
+The application is configured with environment variables. For Docker deployment details and the full variable list, see [docs/docker.md](docs/docker.md).
 
-```bash
-cp config.env.example config.env
-# Edit config.env with your settings
-```
+For local development, set the same environment variables before starting the app.
 
 ## Development
 
