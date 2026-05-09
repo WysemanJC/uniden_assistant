@@ -27,7 +27,7 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_NAME="Uniden Assistant"
 PYTHON_MIN_VERSION="3.8"
-NODE_MIN_VERSION="16"
+NODE_MIN_VERSION="20"
 
 # Ensure system paths take priority over Windows paths (for WSL)
 # This must be done early to ensure WSL tools are used
@@ -444,7 +444,7 @@ main() {
     echo "  4. Open in browser:"
     echo -e "     ${BLUE}http://localhost:9001${NC}"
     echo ""
-    echo "For more commands, run: ${BLUE}./uniden_assistant help${NC}"
+    echo -e "For more commands, run: ${BLUE}./uniden_assistant help${NC}"
     echo ""
 }
 
