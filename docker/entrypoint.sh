@@ -29,6 +29,7 @@ python manage.py collectstatic --noinput --clear
 gunicorn uniden_assistant.wsgi:application \
     --bind 127.0.0.1:8000 \
     --workers "${GUNICORN_WORKERS:-3}" \
+    --log-level "${GUNICORN_LOG_LEVEL:-info}" \
     --access-logfile - \
     --error-logfile - &
 

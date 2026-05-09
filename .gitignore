@@ -55,6 +55,7 @@ uniden_assistant_favourites.sqlite3-journal
 .env
 .env.local
 .env.*.local
+scripts/local_registry.conf
 
 # Frontend
 node_modules/

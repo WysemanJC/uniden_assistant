@@ -5,17 +5,11 @@ ARG APP_VERSION=""
 
 WORKDIR /workspace
 
-# Copy git history and scripts to calculate version
-COPY .git/ /workspace/.git/
-COPY scripts/version.sh /workspace/scripts/version.sh
-
-RUN chmod +x /workspace/scripts/version.sh
-
-# If APP_VERSION is provided, use it; otherwise calculate from Git
+# Use APP_VERSION when provided by build scripts; otherwise use a safe fallback.
 RUN if [ -n "${APP_VERSION}" ]; then \
         echo "${APP_VERSION}" > /version.txt; \
     else \
-        /workspace/scripts/version.sh > /version.txt; \
+        echo "0.0.0-dev+unknown" > /version.txt; \
     fi
 
 FROM node:20-bookworm-slim AS frontend-build
@@ -65,6 +59,7 @@ RUN export UNIDEN_ASSISTANT_VERSION=$(cat /app/.version) && \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx ca-certificates \
+    && rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

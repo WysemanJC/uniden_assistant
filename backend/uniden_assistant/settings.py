@@ -43,7 +43,25 @@ SECRET_KEY = get_env('SECRET_KEY', default='django-insecure-dev-key-change-in-pr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_env_bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = get_env_list('ALLOWED_HOSTS', default='localhost,127.0.0.1,[::1]')
+# EXTERNAL_URL: single env var for the public URL of this deployment.
+# e.g. https://uniden.homeofdata.com  or  http://192.168.1.10:8080
+# All of ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, and CORS_ALLOWED_ORIGINS are
+# derived from it automatically. The individual env vars still work as overrides.
+_external_url = get_env('EXTERNAL_URL', default='')
+_external_host = ''
+if _external_url:
+    from urllib.parse import urlparse as _urlparse
+    _parsed = _urlparse(_external_url)
+    _external_host = _parsed.hostname or ''
+
+# ALLOWED_HOSTS — always includes loopback for the internal proxy
+_allowed_hosts_env = get_env_list('ALLOWED_HOSTS', default='')
+ALLOWED_HOSTS = _allowed_hosts_env if _allowed_hosts_env else (
+    [_external_host] if _external_host else ['localhost', '127.0.0.1', '[::1]']
+)
+for _loopback in ('127.0.0.1', 'localhost', '[::1]'):
+    if _loopback not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_loopback)
 
 # Application definition
 INSTALLED_APPS = [
@@ -150,11 +168,18 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS settings
+# Reverse proxy / HTTPS settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
+# CORS / CSRF — derived from EXTERNAL_URL, overridable individually
+_csrf_env = get_env_list('CSRF_TRUSTED_ORIGINS', default='')
+CSRF_TRUSTED_ORIGINS = _csrf_env if _csrf_env else ([_external_url] if _external_url else [])
+
+_cors_env = get_env_list('CORS_ALLOWED_ORIGINS', default='')
 CORS_ALLOW_ALL_ORIGINS = get_env_bool('CORS_ALLOW_ALL_ORIGINS', default=False)
-CORS_ALLOWED_ORIGINS = get_env_list('CORS_ALLOWED_ORIGINS')
+CORS_ALLOWED_ORIGINS = _cors_env if _cors_env else ([_external_url] if _external_url else [])
 CORS_ALLOW_CREDENTIALS = get_env_bool('CORS_ALLOW_CREDENTIALS', default=True)
-CSRF_TRUSTED_ORIGINS = get_env_list('CSRF_TRUSTED_ORIGINS')
 
 # File upload settings
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
