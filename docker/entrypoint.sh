@@ -7,6 +7,11 @@ DB_DIR="${UNIDEN_DB_DIR:-${DATA_DIR}/db}"
 MEDIA_DIR="${MEDIA_ROOT:-${DATA_DIR}/media}"
 STATIC_DIR="${STATIC_ROOT:-/app/staticfiles}"
 
+# Read version from build artifact (if exists)
+if [ -f "/app/.version" ]; then
+    export UNIDEN_ASSISTANT_VERSION=$(cat /app/.version)
+fi
+
 mkdir -p "${DB_DIR}" "${MEDIA_DIR}" "${STATIC_DIR}"
 
 export UNIDEN_DATA_DIR="${DATA_DIR}"

@@ -1,3 +1,23 @@
+FROM python:3.11-slim AS version-builder
+
+# Allow version to be provided as build argument for reproducible builds
+ARG APP_VERSION=""
+
+WORKDIR /workspace
+
+# Copy git history and scripts to calculate version
+COPY .git/ /workspace/.git/
+COPY scripts/version.sh /workspace/scripts/version.sh
+
+RUN chmod +x /workspace/scripts/version.sh
+
+# If APP_VERSION is provided, use it; otherwise calculate from Git
+RUN if [ -n "${APP_VERSION}" ]; then \
+        echo "${APP_VERSION}" > /version.txt; \
+    else \
+        /workspace/scripts/version.sh > /version.txt; \
+    fi
+
 FROM node:20-bookworm-slim AS frontend-build
 
 WORKDIR /workspace/frontend
@@ -35,6 +55,13 @@ ENV UNIDEN_DATA_DIR=/data/uniden_assistant
 ENV UNIDEN_DB_DIR=/data/uniden_assistant/db
 ENV MEDIA_ROOT=/data/uniden_assistant/media
 ENV STATIC_ROOT=/app/staticfiles
+
+# Copy version from builder
+COPY --from=version-builder /version.txt /app/.version
+
+# Set version in environment (read by application at startup)
+RUN export UNIDEN_ASSISTANT_VERSION=$(cat /app/.version) && \
+    echo "UNIDEN_ASSISTANT_VERSION=${UNIDEN_ASSISTANT_VERSION}" >> /etc/environment
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx ca-certificates \

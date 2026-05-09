@@ -2,7 +2,10 @@
   <q-layout view="hHh Lpr fFf">
     <q-header elevated class="bg-primary text-white">
       <q-toolbar>
-        <q-toolbar-title>Uniden Assistant</q-toolbar-title>
+        <div>
+          <div class="text-h6">Uniden Assistant</div>
+          <div class="text-caption" v-if="appVersion">v{{ appVersion }}</div>
+        </div>
         <q-space />
         <UserPreferencesButton />
       </q-toolbar>
@@ -1272,6 +1275,9 @@ const router = useRouter()
 const scanner = useScannerStore()
 const $q = useQuasar()
 
+// Application version
+const appVersion = ref('')
+
 // Navigation
 const activeSection = ref('favorites')
 
@@ -1777,6 +1783,17 @@ const newProfile = ref({
 })
 
 onMounted(async () => {
+  // Fetch application version
+  try {
+    const response = await api.get('/version/')
+    if (response.data.version) {
+      appVersion.value = response.data.version
+    }
+  } catch (error) {
+    console.warn('Failed to fetch version:', error)
+    // Version is optional, don't block page load
+  }
+
   // Check for section query parameter
   const section = route.query.section
   if (section && ['favorites'].includes(section)) {

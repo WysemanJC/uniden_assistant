@@ -51,11 +51,65 @@ Use the build helper script:
 ./scripts/build_docker.sh
 ```
 
-You can pass a custom image tag:
+By default, the script will:
+- Calculate semantic version from Git state using `scripts/version.sh`
+- Build the image and tag it with both the calculated version and `latest`
+- Example tags: `uniden-assistant:1.4.0`, `uniden-assistant:latest`
+
+You can also pass a custom image tag:
 
 ```bash
 ./scripts/build_docker.sh my-registry/uniden-assistant:latest
 ```
+
+## Versioning
+
+The application uses semantic versioning derived from Git tags:
+
+- **Release versions**: Created from Git tags matching `v*.*.* (e.g., `v1.4.0` → image tagged `1.4.0`)
+- **Development versions**: Main branch commits produce `1.4.1-dev+gabc1234` format
+- **Test versions**: CI builds on test branches produce `1.4.1-test+gabc1234` format
+
+### Version calculation
+
+The `scripts/version.sh` script calculates the semantic version based on:
+1. Latest Git tag matching `v*` pattern (e.g., `v1.4.0`)
+2. Number of commits since that tag
+3. Current branch or CI environment
+4. Current commit short SHA
+
+### Version availability
+
+The calculated version is available:
+
+- **Docker image tag**: Image is tagged with the version (e.g., `uniden-assistant:1.4.0`)
+- **API endpoint**: `GET /api/uniden_manager/version/` returns version details
+- **Environment variable**: `UNIDEN_ASSISTANT_VERSION` available inside container
+- **Runtime module**: `backend/uniden_assistant/version.py` exports `VERSION_INFO` dict
+
+### Example API response
+
+```bash
+curl http://localhost/api/uniden_manager/version/
+```
+
+```json
+{
+  "version": "1.4.0",
+  "semver": "1.4.0",
+  "is_release": true,
+  "pre_release": "",
+  "build_metadata": ""
+}
+```
+
+### Creating a release
+
+To create a release:
+
+1. Create a Git tag: `git tag v1.4.0`
+2. Push to main: `git push origin main --tags`
+3. CI/CD automatically builds and tags image as `uniden-assistant:1.4.0`
 
 ## Run
 
