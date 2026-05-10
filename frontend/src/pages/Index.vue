@@ -1188,7 +1188,7 @@
 
         <q-card-section>
           <div class="text-body2 q-mb-md">
-            Upload a favourites directory containing f_list.cfg and f_*.hpd files.
+            Please select a "favourites_list" directory to upload.
           </div>
 
           <q-file
@@ -1198,7 +1198,7 @@
             filled
             multiple
             use-chips
-            label="Select favourites directory (f_list.cfg + f_*.hpd files)"
+            label="Click here to select folder"
             accept=".cfg,.hpd"
             :directory="true"
             :webkitdirectory="true"
@@ -1233,14 +1233,6 @@
 
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="Cancel" @click="closeFavoritesImportDialog" />
-          <q-btn
-            outline
-            label="Browse Files"
-            color="primary"
-            icon="folder_open"
-            @click="openFavoritesImportPicker"
-            :disable="favoritesImportLoading"
-          />
           <q-btn
             unelevated
             label="Import & Replace"
@@ -3810,29 +3802,29 @@ const deleteProfile = async (id) => {
 }
 
 .favorites-import-warning-card {
-  background: #fff3e0;
-  border: 1px solid #ffcc80;
+  background: #ffe0e0;
+  border: 1px solid #cc0000;
 }
 
 .favorites-import-warning-text {
-  color: #8a4f00;
+  color: #8b0000;
 }
 
 .favorites-import-warning-icon {
-  color: #e08a00;
+  color: #cc0000;
 }
 
 :deep(body.body--dark) .favorites-import-warning-card {
-  background: #3a2b0d;
-  border-color: #8a5a1e;
+  background: #ffe0e0;
+  border-color: #cc0000;
 }
 
 :deep(body.body--dark) .favorites-import-warning-text {
-  color: #ffd89a;
+  color: #8b0000;
 }
 
 :deep(body.body--dark) .favorites-import-warning-icon {
-  color: #ffb74d;
+  color: #cc0000;
 }
 
 /* Make table rows appear clickable */
