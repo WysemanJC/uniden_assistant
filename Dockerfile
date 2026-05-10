@@ -9,7 +9,7 @@ WORKDIR /workspace
 RUN if [ -n "${APP_VERSION}" ]; then \
         echo "${APP_VERSION}" > /version.txt; \
     else \
-        echo "0.0.0-dev+unknown" > /version.txt; \
+        echo "0.0.0-dev.gunknown" > /version.txt; \
     fi
 
 FROM node:20-bookworm-slim AS frontend-build

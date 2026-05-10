@@ -71,8 +71,8 @@ You can also pass a custom image tag:
 The application uses semantic versioning derived from Git tags:
 
 - **Release versions**: Created from Git tags matching `v*.*.* (e.g., `v1.4.0` → image tagged `1.4.0`)
-- **Development versions**: Main branch commits produce `1.4.1-dev+gabc1234` format
-- **Test versions**: CI builds on test branches produce `1.4.1-test+gabc1234` format
+- **Development versions**: Main branch commits produce `1.4.1-dev.gabc1234` format
+- **Test versions**: CI builds on test branches produce `1.4.1-test.gabc1234` format
 
 ### Version calculation
 

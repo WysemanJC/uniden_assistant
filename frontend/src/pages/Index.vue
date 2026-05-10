@@ -3801,30 +3801,34 @@ const deleteProfile = async (id) => {
   animation: rotate 2s linear infinite;
 }
 
+
+
 .favorites-import-warning-card {
-  background: #ffe0e0;
-  border: 1px solid #cc0000;
+  background: #ffeaea;
+  border: 1.5px solid #a30000;
 }
 
 .favorites-import-warning-text {
-  color: #8b0000;
+  color: #a30000;
+  font-weight: 600;
 }
 
 .favorites-import-warning-icon {
-  color: #cc0000;
+  color: #a30000;
 }
 
 :deep(body.body--dark) .favorites-import-warning-card {
-  background: #ffe0e0;
-  border-color: #cc0000;
+  background: #2a1818;
+  border-color: #ff4d4d;
 }
 
 :deep(body.body--dark) .favorites-import-warning-text {
-  color: #8b0000;
+  color: #ff4d4d;
+  font-weight: 700;
 }
 
 :deep(body.body--dark) .favorites-import-warning-icon {
-  color: #cc0000;
+  color: #ff4d4d;
 }
 
 /* Make table rows appear clickable */
