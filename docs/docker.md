@@ -35,6 +35,7 @@ Optional values:
 - `DEBUG` — Set to `0` (default) for production.
 - `MEDIA_ROOT` — Override media storage location.
 - `STATIC_ROOT` — Override collected static output location.
+- `USE_X_FORWARDED_HOST` — Defaults to `0`. Leave this disabled unless your upstream proxy rewrites `X-Forwarded-Host` to a Django-safe hostname and you explicitly need Django to trust it.
 - `GUNICORN_WORKERS` — Number of gunicorn workers, default `3`.
 - `GUNICORN_LOG_LEVEL` — Gunicorn log verbosity (`debug`, `info`, `warning`, `error`), default `info`.
 
@@ -70,8 +71,8 @@ You can also pass a custom image tag:
 The application uses semantic versioning derived from Git tags:
 
 - **Release versions**: Created from Git tags matching `v*.*.* (e.g., `v1.4.0` → image tagged `1.4.0`)
-- **Development versions**: Main branch commits produce `1.4.1-dev+gabc1234` format
-- **Test versions**: CI builds on test branches produce `1.4.1-test+gabc1234` format
+- **Development versions**: Main branch commits produce `1.4.1-dev.gabc1234` format
+- **Test versions**: CI builds on test branches produce `1.4.1-test.gabc1234` format
 
 ### Version calculation
 
@@ -156,3 +157,4 @@ When the container starts it will:
 - API calls use the same-origin `/api` base path — no CORS configuration is needed when accessing through the container's own nginx.
 - When placing the app behind a reverse proxy or TLS terminator (e.g. Traefik, Nginx Proxy Manager), set `EXTERNAL_URL` to the public URL. This is sufficient for `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to be configured correctly.
 - The container automatically trusts `X-Forwarded-Proto` headers from an upstream proxy so HTTPS is detected correctly.
+- The container does not trust `X-Forwarded-Host` by default. This avoids `400 Bad Request` failures when an upstream proxy forwards public hostnames that Django rejects, such as names containing underscores.

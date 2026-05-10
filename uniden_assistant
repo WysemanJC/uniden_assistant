@@ -14,14 +14,32 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_DB_DIR="$SCRIPT_DIR/DEVELOPMENT/Databases"
+DEV_LOG_DIR="$SCRIPT_DIR/DEVELOPMENT/logs"
 BACKEND_PORT=8001
 FRONTEND_PORT=9001
 PID_DIR="$SCRIPT_DIR/.pids"
 BACKEND_PID_FILE="$PID_DIR/backend.pid"
 FRONTEND_PID_FILE="$PID_DIR/frontend.pid"
-LOG_DIR="$SCRIPT_DIR/.logs"
-BACKEND_LOG="$LOG_DIR/backend.log"
-FRONTEND_LOG="$LOG_DIR/frontend.log"
+BACKEND_LOG_DIR="$DEV_LOG_DIR/backend"
+FRONTEND_LOG_DIR="$DEV_LOG_DIR/frontend"
+LOG_DIR="$DEV_LOG_DIR"
+BACKEND_LOG="$BACKEND_LOG_DIR/runserver.log"
+FRONTEND_LOG="$FRONTEND_LOG_DIR/vite.log"
+
+normalize_dir_path() {
+    local path="$1"
+
+    if [[ -f "$path" ]]; then
+        mv "$path" "$path.legacy"
+    fi
+
+    mkdir -p "$path"
+}
+
+load_env_file() {
+    :
+}
 
 # Function to print colored output
 print_status() {
@@ -133,7 +151,9 @@ kill_port_process() {
 
 # Function to create necessary directories
 setup_directories() {
-    mkdir -p "$PID_DIR" "$LOG_DIR"
+    mkdir -p "$PID_DIR"
+    normalize_dir_path "$BACKEND_LOG_DIR"
+    normalize_dir_path "$FRONTEND_LOG_DIR"
 }
 
 # Function to validate setup
@@ -170,7 +190,8 @@ prepare_databases() {
     load_env_file
     
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
-    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$DEV_DB_DIR}"
+    mkdir -p "$UNIDEN_DB_DIR"
     
     if [ ! -f "$SCRIPT_DIR/backend/venv/bin/activate" ]; then
         print_error "Backend virtual environment not found."
@@ -273,7 +294,8 @@ start_backend() {
     cd "$SCRIPT_DIR/backend"
     
     export DJANGO_SETTINGS_MODULE=uniden_assistant.settings
-    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$DEV_DB_DIR}"
+    export UNIDEN_LOG_DIR="${UNIDEN_LOG_DIR:-$BACKEND_LOG_DIR}"
     export ALLOWED_HOSTS
     export CORS_ALLOWED_ORIGINS
     
@@ -297,6 +319,8 @@ start_backend() {
         return 1
     fi
     
+    mkdir -p "$BACKEND_LOG_DIR"
+
     # Clear old log
     > "$BACKEND_LOG"
     
@@ -367,6 +391,8 @@ EOF
     # Export variables for vite.config.js
     export BACKEND_URL
     export FQDN
+
+    mkdir -p "$FRONTEND_LOG_DIR"
     
     nohup npm run dev >> "$FRONTEND_LOG" 2>&1 &
     local pid=$!

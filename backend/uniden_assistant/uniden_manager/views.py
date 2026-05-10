@@ -338,7 +338,7 @@ class UnifiedImportViewSet(viewsets.ViewSet):
         flist_path = next((f for f in files if f.name.lower() == 'f_list.cfg'), None)
         if flist_path:
             import_progress_store[job_id]['message'] = 'Parsing f_list.cfg...'
-            from uniden_assistant.favourites.hpdb_parser import FavoritesListParser
+            from uniden_assistant.favourites.favorites_parser import FavoritesListParser
             try:
                 FavoritesListParser.parse_favorites_list(str(flist_path))
                 import_progress_store[job_id]['message'] = '✓ f_list.cfg parsed'
@@ -349,27 +349,26 @@ class UnifiedImportViewSet(viewsets.ViewSet):
         hpd_files = [f for f in files if f.name.lower().endswith('.hpd')]
         import_progress_store[job_id]['total_files'] = len(hpd_files)
         
-        from uniden_assistant.favourites.models import ScannerProfile
-        from uniden_assistant.favourites.parsers import UnidenFileParser
+        from uniden_assistant.favourites.favorites_hpd_parser import FavoritesHPDParser
+        from uniden_assistant.favourites.models import FavoritesList
         
-        parser = UnidenFileParser()
         imported = 0
         errors = []
         
         for idx, file_path in enumerate(hpd_files, 1):
             import_progress_store[job_id]['processed_files'] = idx - 1
             import_progress_store[job_id]['current_file'] = f"Processing {file_path.name}..."
-            
-            profile_name = file_path.stem.replace('_', ' ')
-            profile, _ = ScannerProfile.objects.get_or_create(
-                name=profile_name,
-                defaults={'model': 'Uniden', 'firmware_version': ''}
-            )
+
+            favorites_list = FavoritesList.objects.using('favorites').filter(filename=file_path.name).first()
+            if not favorites_list:
+                errors.append({'file': file_path.name, 'error': 'No matching F-List entry found'})
+                import_progress_store[job_id]['message'] = f"✗ {file_path.name} failed: No matching F-List entry found"
+                continue
             
             try:
-                with open(file_path, 'rb') as fh:
-                    import_progress_store[job_id]['message'] = f"Parsing {file_path.name}..."
-                    parser.parse(fh, profile)
+                import_progress_store[job_id]['message'] = f"Parsing {file_path.name}..."
+                parser = FavoritesHPDParser()
+                parser.parse_file(str(file_path), favorites_list)
                 imported += 1
                 import_progress_store[job_id]['message'] = f"✓ {file_path.name} imported"
             except Exception as exc:
@@ -540,8 +539,9 @@ class UnifiedImportViewSet(viewsets.ViewSet):
     def _process_favorites(self, temp_dir, mode, request):
         """Process favorites files directly without modifying request"""
         from pathlib import Path
-        from uniden_assistant.favourites.models import ScannerProfile
-        from uniden_assistant.parsers import UnidenFileParser
+        from uniden_assistant.favourites.favorites_hpd_parser import FavoritesHPDParser
+        from uniden_assistant.favourites.favorites_parser import FavoritesListParser
+        from uniden_assistant.favourites.models import FavoritesList
         from django.db.utils import DatabaseError
         import logging
         
@@ -564,29 +564,26 @@ class UnifiedImportViewSet(viewsets.ViewSet):
             # Parse f_list.cfg first to create FavoritesList records
             flist_path = next((f for f in files if f.name.lower() == 'f_list.cfg'), None)
             if flist_path:
-                from uniden_assistant.favourites.favorites_parser import FavoritesListParser
                 try:
                     FavoritesListParser.parse_favorites_list(str(flist_path))
                 except Exception as exc:
                     logger.exception(f"Failed to parse f_list.cfg", exc_info=exc)
-            
-            parser = UnidenFileParser()
+
             imported = 0
             errors = []
             
             for file_path in files:
                 if not file_path.name.lower().endswith('.hpd'):
                     continue
-                    
-                profile_name = file_path.stem.replace('_', ' ')
-                profile, _ = ScannerProfile.objects.get_or_create(
-                    name=profile_name,
-                    defaults={'model': 'Uniden', 'firmware_version': ''}
-                )
+
+                favorites_list = FavoritesList.objects.using('favorites').filter(filename=file_path.name).first()
+                if not favorites_list:
+                    errors.append({'file': file_path.name, 'error': 'No matching F-List entry found'})
+                    continue
                 
                 try:
-                    with open(file_path, 'rb') as fh:
-                        parser.parse(fh, profile)
+                    parser = FavoritesHPDParser()
+                    parser.parse_file(str(file_path), favorites_list)
                     imported += 1
                 except Exception as exc:
                     errors.append({'file': file_path.name, 'error': str(exc)})

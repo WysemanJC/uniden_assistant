@@ -14,11 +14,11 @@ class FavoritesListParser:
     def parse_favorites_list(file_path: str):
         """Parse f_list.cfg file"""
         from .models import FavoritesList
-        import json
         
         logger.info(f"Parsing favorites list: {file_path}")
         
-        FavoritesList.objects.all().delete()  # Clear existing
+        FavoritesList.objects.using('favorites').all().delete()  # Clear existing
+        ScannerFileRecord.objects.using('favorites').filter(file_path='favorites_lists/f_list.cfg').delete()
 
         target_model = 'BCDx36HP'
         format_version = '1.00'
@@ -47,7 +47,7 @@ class FavoritesListParser:
                     ))
 
                     if len(records_buffer) >= 2000:
-                        ScannerFileRecord.objects.bulk_create(records_buffer)
+                        ScannerFileRecord.objects.using('favorites').bulk_create(records_buffer)
                         records_buffer.clear()
 
                 line = raw_line.strip()
@@ -97,8 +97,7 @@ class FavoritesListParser:
                         number_tag=number_tag,
                         order=order,
                         startup_keys=startup_keys,
-                        s_qkeys=s_qkeys,
-                        raw_data=line
+                        s_qkeys=s_qkeys
                     )
                     
                     order += 1
@@ -108,6 +107,6 @@ class FavoritesListParser:
                     logger.warning(f"Error parsing favorites list: {parts} - {e}")
         
         if records_buffer:
-            ScannerFileRecord.objects.bulk_create(records_buffer)
+            ScannerFileRecord.objects.using('favorites').bulk_create(records_buffer)
 
         logger.info(f"Parsed {order} favorites lists")

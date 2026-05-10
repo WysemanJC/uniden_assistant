@@ -5,6 +5,7 @@
 - **[../README.md](../README.md)** - Application overview and quick start
 - **[development.md](development.md)** - Local development setup and architecture summary
 - **[architecture.md](architecture.md)** - API architecture and database design
+- **[merge-readiness.md](merge-readiness.md)** - Pre-merge compliance checklist and blockers
 - **[docker.md](docker.md)** - Container deployment details and environment variables
 - **[Input_File_Specification/](Input_File_Specification/)** - Scanner file format specifications
 

@@ -1188,7 +1188,7 @@
 
         <q-card-section>
           <div class="text-body2 q-mb-md">
-            Upload a favourites directory containing f_list.cfg and f_*.hpd files.
+            Please select a "favourites_list" directory to upload.
           </div>
 
           <q-file
@@ -1198,7 +1198,7 @@
             filled
             multiple
             use-chips
-            label="Select favourites directory (f_list.cfg + f_*.hpd files)"
+            label="Click here to select folder"
             accept=".cfg,.hpd"
             :directory="true"
             :webkitdirectory="true"
@@ -1223,9 +1223,9 @@
             </div>
           </div>
 
-          <div class="q-mt-md q-pa-md bg-orange-1 rounded-borders">
-            <div class="text-caption text-weight-medium text-orange-9">
-              <q-icon name="warning" color="orange" />
+          <div class="q-mt-md q-pa-md rounded-borders favorites-import-warning-card">
+            <div class="text-caption text-weight-medium favorites-import-warning-text">
+              <q-icon name="warning" class="favorites-import-warning-icon" />
               <strong>Warning:</strong> Importing will overwrite all existing favourites data.
             </div>
           </div>
@@ -1233,14 +1233,6 @@
 
         <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="Cancel" @click="closeFavoritesImportDialog" />
-          <q-btn
-            outline
-            label="Browse Files"
-            color="primary"
-            icon="folder_open"
-            @click="openFavoritesImportPicker"
-            :disable="favoritesImportLoading"
-          />
           <q-btn
             unelevated
             label="Import & Replace"
@@ -1470,12 +1462,15 @@ const favoritesTreeNodes = computed(() => {
     
     // Then, process departments and system placeholders from fav.groups
     if (fav.groups && fav.groups.length > 0) {
+      console.log(`[TreeNodes] ${fav.user_name}: Processing ${fav.groups.length} groups`)
       fav.groups.forEach((group, gIdx) => {
+        console.log(`  [TreeNodes] Group ${gIdx}: ${group.name_tag} (${group.system_type}/${group.system_name})`)
         const systemName = group.system_name || 'Unknown System'
         const systemType = group.system_type || 'Conventional'
         const systemKey = `${systemType}_${systemName}`
         
         if (!systemsMap.has(systemKey)) {
+          console.log(`    [TreeNodes] Creating new system entry: ${systemKey}`)
           systemsMap.set(systemKey, {
             system_name: systemName,
             system_type: systemType,
@@ -1489,6 +1484,7 @@ const favoritesTreeNodes = computed(() => {
         
         // Only add to departments if it's NOT a system placeholder
         if (!group.is_system_placeholder) {
+          console.log(`    [TreeNodes] Adding department to ${systemKey}`)
           systemsMap.get(systemKey).departments.push({
             id: `dept_${fav.id}_${gIdx}`,
             label: `${group.name_tag || `Department ${gIdx + 1}`} (${group.freq_count || 0})`,
@@ -1501,6 +1497,8 @@ const favoritesTreeNodes = computed(() => {
           })
         }
       })
+    } else {
+      console.log(`[TreeNodes] ${fav.user_name}: NO GROUPS! groups=${fav.groups}, length=${fav.groups?.length}`)
     }
     
     // Convert systems map to tree nodes
@@ -1522,6 +1520,10 @@ const favoritesTreeNodes = computed(() => {
       })
     })
     
+    if (fav.groups && fav.groups.length > 0 && systemsChildren.length === 0) {
+      console.log(`[TreeNodes] WARNING: ${fav.user_name} has ${fav.groups.length} groups but 0 systems children`, fav.groups)
+    }
+    
     return {
       id: `fav_${fav.id}`,
       label: `${fav.user_name} (${fav.filename})`,
@@ -1538,6 +1540,11 @@ const favoritesTreeNodes = computed(() => {
     type: 'root',
     children: favoritesList
   }]
+  
+  console.log(`[TreeNodes] Computed tree with ${favoritesList.length} favorites:`)
+  favoritesList.slice(0, 3).forEach(fav => {
+    console.log(`  - ${fav.label}: ${fav.children?.length || 0} systems`)
+  })
   
   return result
 })
@@ -1674,7 +1681,10 @@ const serviceTypeMap = {
 }
 
 const getServiceTypeName = (funcTagId) => {
-  const id = parseInt(funcTagId)
+  const id = Number.parseInt(funcTagId, 10)
+  if (Number.isNaN(id)) {
+    return serviceTypeMap[21]
+  }
   return serviceTypeMap[id] || `Unknown (${id})`
 }
 
@@ -1859,21 +1869,69 @@ const loadFavoritesList = async () => {
     
     // Sort by filename
     favList.sort((a, b) => (a.filename || '').localeCompare(b.filename || ''))
-    
-    // Load detailed info (groups/channels) for each favorite
-    const favListsWithDetails = await Promise.all(
-      favList.map(async (fav) => {
+    console.log(`[Favorites] Loaded ${favList.length} favorites from API`)
+
+    // Load detailed info (groups/channels) for each favorite.
+    // Do this sequentially with retry because some deployments use SQLite on
+    // network storage where bursts of parallel requests can intermittently fail.
+    const favListsWithDetails = []
+    for (const fav of favList) {
+      let merged = fav
+      let detailLoaded = false
+
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
           const { data: detailData } = await api.get(`/favourites/favorites-lists/${fav.id}/detail/`)
-          const merged = { ...fav, ...detailData }
-          return merged
+          merged = { ...fav, ...detailData }
+          detailLoaded = true
+          console.log(`[Favorites] Detail loaded for ${fav.user_name} (attempt ${attempt}): ${detailData.groups?.length || 0} groups`)
+          break
         } catch (err) {
-          return fav
+          console.log(`[Favorites] Detail failed for ${fav.user_name} attempt ${attempt}: ${err.message}`)
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 150 * attempt))
+          }
         }
-      })
-    )
+      }
+
+      if (!detailLoaded) {
+        console.log(`[Favorites] Detail failed for ${fav.user_name}, trying get-systems fallback`)
+        try {
+          const { data: systemsDataForFav } = await api.get(`/favourites/favorites-lists/${fav.id}/get-systems/`)
+          const systemPlaceholders = (systemsDataForFav.systems || []).map(system => ({
+            id: `sys_${system.id}`,
+            system_id: String(system.id),
+            name_tag: `[${system.system_name || system.name || 'System'}]`,
+            frequency_count: 0,
+            freq_count: 0,
+            system_type: system.type || system.system_type || 'Conventional',
+            system_name: system.system_name || system.name || 'System',
+            avoid: 'Off',
+            location_type: 'Circle',
+            quick_key: 'Off',
+            is_system_placeholder: true
+          }))
+
+          merged = {
+            ...fav,
+            groups: systemPlaceholders,
+            total_groups: systemPlaceholders.length,
+            total_frequencies: 0,
+            conventional_systems: systemsDataForFav.conventional_count || 0,
+            trunk_systems: systemsDataForFav.trunk_count || 0
+          }
+          console.log(`[Favorites] Fallback successful for ${fav.user_name}: ${systemPlaceholders.length} systems`)
+        } catch (err) {
+          console.log(`[Favorites] Fallback failed for ${fav.user_name}: ${err.message}`)
+          merged = fav
+        }
+      }
+
+      favListsWithDetails.push(merged)
+    }
     
     favorites.value = favListsWithDetails
+    console.log(`[Favorites] Tree computed with ${favListsWithDetails.length} favorites`)
   } catch (error) {
     $q.notify({ type: 'negative', message: 'Failed to load favourites list' })
   } finally {
@@ -1915,27 +1973,33 @@ const selectFavoritesNode = async (node) => {
           ...freq,
           audio_option: freq.audio_option || '',
           func_tag_id: freq.func_tag_id ?? 21,
+          alert_color: freq.alert_color || freq.alert_light || 'Off',
           alert_light: freq.alert_light || freq.alert_color || 'Off',
+          alert_pattern: freq.alert_pattern || 'On',
           p_ch: freq.p_ch || freq.priority_channel || 'Off'
         }))
       } else if (systemType === 'Trunked') {
         const { data } = await api.get(`/favourites/tgroups/${groupId}/`)
         // Store TGIDs as channels in the node's groupData
         node.groupData.channels = (data.tgids || []).map(tgid => ({
+          ...tgid,
           id: tgid.id,
           name_tag: tgid.name_tag,
           avoid: tgid.avoid,
           frequency: tgid.tgid,  // Use TGID value as "frequency" for display
           modulation: tgid.audio_type,
           audio_option: '',  // TGIDs don't have audio_option
-          func_tag_id: tgid.func_tag_id,
+          func_tag_id: tgid.func_tag_id ?? 21,
           attenuator: '',  // TGIDs don't have attenuator
           delay: tgid.delay,
           alert_tone: tgid.alert_tone,
-          alert_light: tgid.alert_color,
+          alert_color: tgid.alert_color || tgid.alert_light || 'Off',
+          alert_light: tgid.alert_light || tgid.alert_color || 'Off',
+          alert_pattern: tgid.alert_pattern || 'On',
           volume_offset: tgid.volume_offset,
           number_tag: tgid.number_tag,
-          priority_channel: tgid.priority_channel
+          priority_channel: tgid.priority_channel || 'Off',
+          p_ch: tgid.p_ch || tgid.priority_channel || 'Off'
         }))
       }
     } catch (error) {
@@ -3735,6 +3799,36 @@ const deleteProfile = async (id) => {
 
 .rotating {
   animation: rotate 2s linear infinite;
+}
+
+
+
+.favorites-import-warning-card {
+  background: #ffeaea;
+  border: 1.5px solid #a30000;
+}
+
+.favorites-import-warning-text {
+  color: #a30000;
+  font-weight: 600;
+}
+
+.favorites-import-warning-icon {
+  color: #a30000;
+}
+
+:deep(body.body--dark) .favorites-import-warning-card {
+  background: #2a1818;
+  border-color: #ff4d4d;
+}
+
+:deep(body.body--dark) .favorites-import-warning-text {
+  color: #ff4d4d;
+  font-weight: 700;
+}
+
+:deep(body.body--dark) .favorites-import-warning-icon {
+  color: #ff4d4d;
 }
 
 /* Make table rows appear clickable */

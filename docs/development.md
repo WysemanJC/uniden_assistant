@@ -52,7 +52,7 @@ Common commands:
 ./uniden_assistant logs both
 ```
 
-This script manages the backend and frontend together, handles stale processes, runs startup validation, and writes logs and PID files to the project workspace.
+This script manages the backend and frontend together, handles stale processes, runs startup validation, writes development logs under `DEVELOPMENT/logs/backend` and `DEVELOPMENT/logs/frontend`, and keeps PID files in the project workspace.
 
 ## Local Browser Access
 

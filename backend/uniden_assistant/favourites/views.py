@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.db.utils import DatabaseError
-from django.db import models
+from django.db import models, transaction
 import logging
 from django.shortcuts import get_object_or_404
 from django.conf import settings
@@ -13,9 +13,9 @@ from django.http import HttpResponse
 import io
 import zipfile
 from .models import (
-    ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList, ScannerRawFile, ScannerRawLine,
+    ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList,
     ConventionalSystem, TrunkSystem, CGroup, CFreq, Site, BandPlanP25, BandPlanMot, TFreq, TGroup,
-    TGID, Rectangle, FleetMap, UnitId, AvoidTgid, UserPreference
+    TGID, Rectangle, FleetMap, UnitId, AvoidTgid, UserPreference, ScannerFileRecord
 )
 from .serializers import (
     ScannerProfileSerializer, FrequencySerializer, ChannelGroupSerializer,
@@ -98,7 +98,7 @@ class ClearUserSettingsDataView(APIView):
         except DatabaseError as e:
             logger.exception("Failed to clear user settings data", exc_info=e)
             return Response(
-                {'error': f'Failed to clear data: {str(e)}', 'host': _favorites_db_host()},
+                {'error': f'Failed to clear data: {str(e)}', 'host': _favorites_db_path()},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         except Exception as e:
@@ -107,22 +107,6 @@ class ClearUserSettingsDataView(APIView):
                 {'error': f'Failed to clear data: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
-class ClearScannerRawDataView(APIView):
-    """Clear all raw scanner file data from the database"""
-
-    def post(self, request):
-        try:
-            logger.info("Clearing scanner raw data")
-            # Delete raw files and lines (cascades to lines automatically)
-            ScannerRawFile.objects.using('favorites').all().delete()
-            
-            logger.info("Scanner raw data cleared successfully")
-            return Response({'message': 'Scanner raw data cleared successfully'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.exception("Failed to clear scanner raw data", exc_info=e)
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserPreferencesView(APIView):
@@ -173,7 +157,11 @@ class ExportFavoritesFolderView(APIView):
             return Response({'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _build_f_list_cfg(self) -> str:
-        favorites_lists = FavoritesList.objects.using('favorites').all().order_by('filename')
+        structured_content = self._build_f_list_cfg_from_records()
+        if structured_content is not None:
+            return structured_content
+
+        favorites_lists = FavoritesList.objects.using('favorites').all().order_by('order', 'filename')
         scanner_model = favorites_lists[0].scanner_model if favorites_lists else 'BCDx36HP'
         format_version = favorites_lists[0].format_version if favorites_lists else '1.00'
 
@@ -199,6 +187,26 @@ class ExportFavoritesFolderView(APIView):
                 *s_qkeys,
             ]
             lines.append(self._join_record('F-List ', fields))
+
+        return '\r\n'.join(lines) + '\r\n'
+
+    def _build_f_list_cfg_from_records(self) -> str | None:
+        """Rebuild f_list.cfg from structured per-line records only."""
+        records = list(
+            ScannerFileRecord.objects.using('favorites')
+            .filter(file_path='favorites_lists/f_list.cfg')
+            .order_by('line_number')
+        )
+        if not records:
+            return None
+
+        lines: list[str] = []
+        for record in records:
+            fields = [str(f) if f is not None else '' for f in (record.fields or [])]
+            line = str(record.record_type or '')
+            if fields:
+                line += '\t' + '\t'.join(fields)
+            lines.append(line)
 
         return '\r\n'.join(lines) + '\r\n'
 
@@ -1022,12 +1030,15 @@ class FavoritesImportViewSet(viewsets.ViewSet):
         """Import favorites lists from f_list.cfg and f_*.hpd files"""
         from .favorites_hpd_parser import FavoritesHPDParser
         from .favorites_parser import FavoritesListParser
-        
+
+        def normalize_hpd_name(name):
+            return (name or '').replace('\\', '/').split('/')[-1].strip().lower()
+
         files = request.FILES.getlist('files')
         if not files:
             return Response({'error': 'No files uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        filenames = [Path(f.name).name.lower() for f in files]
+        filenames = [normalize_hpd_name(f.name) for f in files]
         if 'f_list.cfg' not in filenames:
             return Response({'error': 'Missing f_list.cfg.'}, status=status.HTTP_400_BAD_REQUEST)
         if not any(name.endswith('.hpd') for name in filenames):
@@ -1037,11 +1048,12 @@ class FavoritesImportViewSet(viewsets.ViewSet):
         try:
             saved = {}
             for f in files:
-                target = temp_dir / Path(f.name).name
+                normalized_name = normalize_hpd_name(f.name)
+                target = temp_dir / normalized_name
                 with open(target, 'wb') as out:
                     for chunk in f.chunks():
                         out.write(chunk)
-                saved[Path(f.name).name.lower()] = target
+                saved[normalized_name] = target
 
             # Step 1: Parse f_list.cfg using FavoritesListParser
             if 'f_list.cfg' in saved:
@@ -1056,25 +1068,41 @@ class FavoritesImportViewSet(viewsets.ViewSet):
             # Step 2: Parse each f_*.hpd file using FavoritesHPDParser
             imported = 0
             errors = []
-            
+            favorites_by_filename = {
+                normalize_hpd_name(fav.filename): fav
+                for fav in FavoritesList.objects.using('favorites').all()
+            }
+
             for name, path in saved.items():
                 if not name.endswith('.hpd'):
                     continue
-                
-                # Extract the filename (e.g., "f_000001.hpd")
+
                 hpd_filename = path.name
-                
-                # Find the corresponding FavoritesList entry
-                favorites_list = FavoritesList.objects.using('favorites').filter(filename=hpd_filename).first()
-                if not favorites_list:
-                    errors.append({'file': hpd_filename, 'error': 'No matching F-List entry found'})
-                    continue
-                
+
                 try:
-                    parser = FavoritesHPDParser()
-                    parser.parse_file(str(path), favorites_list)
+                    # FavoritesList lookup is inside try so a DB connection error
+                    # here is caught per-file rather than propagating to the outer
+                    # DatabaseError handler (which calls _favorites_db_path).
+                    favorites_list = favorites_by_filename.get(normalize_hpd_name(hpd_filename))
+                    if not favorites_list:
+                        errors.append({'file': hpd_filename, 'error': 'No matching F-List entry found'})
+                        continue
+
+                    with transaction.atomic(using='favorites'):
+                        parser = FavoritesHPDParser()
+                        import_summary = parser.parse_file(str(path), favorites_list)
                     imported += 1
-                    logger.info(f"Successfully imported {hpd_filename}")
+                    logger.info(
+                        "Successfully imported %s with %d records across %d record types",
+                        hpd_filename,
+                        import_summary.get('total_records', 0),
+                        len(import_summary.get('record_type_counts', {})),
+                    )
+                    logger.debug(
+                        "Import record breakdown for %s: %s",
+                        hpd_filename,
+                        import_summary.get('record_type_counts', {}),
+                    )
                 except Exception as exc:
                     logger.exception(f"Error parsing {hpd_filename}", exc_info=exc)
                     errors.append({'file': hpd_filename, 'error': str(exc)})
@@ -1087,7 +1115,7 @@ class FavoritesImportViewSet(viewsets.ViewSet):
         except DatabaseError as exc:
             logger.exception("Favourites import failed", exc_info=exc)
             return Response(
-                {'error': str(exc), 'host': _favorites_db_host()},
+                {'error': str(exc), 'host': _favorites_db_path()},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         finally:

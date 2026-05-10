@@ -58,8 +58,8 @@ IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
 NEXT_PATCH=$((PATCH + 1))
 NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
 
-# Construct version string with build metadata
-# Format: MAJOR.MINOR.PATCH-LABEL+gSHA
-VERSION="${NEXT_VERSION}-${LABEL}+g${SHORT_SHA}"
+# Construct version string using a Docker-safe SemVer pre-release.
+# Format: MAJOR.MINOR.PATCH-LABEL.gSHA
+VERSION="${NEXT_VERSION}-${LABEL}.g${SHORT_SHA}"
 
 echo "$VERSION"

@@ -92,6 +92,7 @@ htmlcov/
 *.tmp
 tmp/
 temp/
+DEVELOPMENT/
 SAMPLE_DATA/
 
 

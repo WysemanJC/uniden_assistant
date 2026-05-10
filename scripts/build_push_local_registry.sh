@@ -81,7 +81,7 @@ calculate_version_fallback() {
     fi
 
     next_patch=$((patch + 1))
-    echo "${major}.${minor}.${next_patch}-${label}+g${short_sha}"
+    echo "${major}.${minor}.${next_patch}-${label}.g${short_sha}"
 }
 
 if ! version="$("${version_script}" 2>/dev/null)"; then
@@ -89,13 +89,9 @@ if ! version="$("${version_script}" 2>/dev/null)"; then
     version="$(calculate_version_fallback)"
 fi
 
-# Docker image tags do not allow '+' (SemVer build metadata separator).
-# Keep original semantic version for display, but sanitize for tag usage.
-docker_version="$(echo "${version}" | sed 's/+/-/g')"
-
 image_repo="${REGISTRY_URL}/${registry_repository}/${image_name}"
 
-tags=("${image_repo}:${docker_version}")
+tags=("${image_repo}:${version}")
 
 # Keep moving tags aligned with existing build logic without changing GHCR behavior.
 if [[ "${version}" == *"-dev"* ]]; then

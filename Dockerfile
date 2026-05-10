@@ -9,7 +9,7 @@ WORKDIR /workspace
 RUN if [ -n "${APP_VERSION}" ]; then \
         echo "${APP_VERSION}" > /version.txt; \
     else \
-        echo "0.0.0-dev+unknown" > /version.txt; \
+        echo "0.0.0-dev.gunknown" > /version.txt; \
     fi
 
 FROM node:20-bookworm-slim AS frontend-build
@@ -47,6 +47,8 @@ ENV DJANGO_SETTINGS_MODULE=uniden_assistant.settings
 ENV PYTHONPATH=/app/backend
 ENV UNIDEN_DATA_DIR=/data/uniden_assistant
 ENV UNIDEN_DB_DIR=/data/uniden_assistant/db
+ENV UNIDEN_LOG_DIR=/data/uniden_assistant/logs/backend
+ENV UNIDEN_FRONTEND_LOG_DIR=/data/uniden_assistant/logs/frontend
 ENV MEDIA_ROOT=/data/uniden_assistant/media
 ENV STATIC_ROOT=/app/staticfiles
 
@@ -71,7 +73,7 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh \
-    && mkdir -p /data/uniden_assistant/db /data/uniden_assistant/media /app/staticfiles
+    && mkdir -p /data/uniden_assistant/db /data/uniden_assistant/media /data/uniden_assistant/logs/backend /data/uniden_assistant/logs/frontend /app/staticfiles
 
 EXPOSE 80
 

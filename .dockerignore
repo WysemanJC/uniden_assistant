@@ -43,6 +43,7 @@ frontend/dist/
 .logs/
 .pids/
 *.log
+DEVELOPMENT/
 
 # Sample / test data
 SAMPLE_DATA/

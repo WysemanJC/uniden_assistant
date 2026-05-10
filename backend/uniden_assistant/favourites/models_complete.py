@@ -581,34 +581,3 @@ class ScannerFileRecord(models.Model):
             models.Index(fields=['file_path', 'line_number']),
             models.Index(fields=['record_type']),
         ]
-
-
-class ScannerRawFile(models.Model):
-    """Raw scanner file data for reconstruction and archiving"""
-    file_name = models.CharField(max_length=255)
-    file_path = models.CharField(max_length=500, blank=True)
-    file_type = models.CharField(max_length=50)
-    file_size = models.IntegerField()
-    upload_time = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.file_name
-
-    class Meta:
-        ordering = ['-upload_time']
-        app_label = 'usersettings'
-
-
-class ScannerRawLine(models.Model):
-    """Individual raw lines from scanner files"""
-    raw_file = models.ForeignKey(ScannerRawFile, on_delete=models.CASCADE, related_name='lines')
-    line_number = models.IntegerField()
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['raw_file', 'line_number']
-        app_label = 'usersettings'
-        indexes = [
-            models.Index(fields=['raw_file', 'line_number']),
-        ]
