@@ -118,10 +118,16 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': DEFAULT_DB_PATH,
+        'OPTIONS': {
+            'timeout': 30,  # Retry SQLITE_BUSY for up to 30 seconds (important on NAS volumes)
+        },
     },
     'favorites': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': FAVOURITES_DB_PATH,
+        'OPTIONS': {
+            'timeout': 30,  # Retry SQLITE_BUSY for up to 30 seconds (important on NAS volumes)
+        },
     },
 }
 
@@ -170,7 +176,7 @@ REST_FRAMEWORK = {
 
 # Reverse proxy / HTTPS settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_HOST = get_env_bool('USE_X_FORWARDED_HOST', default=False)
 
 # CORS / CSRF — derived from EXTERNAL_URL, overridable individually
 _csrf_env = get_env_list('CSRF_TRUSTED_ORIGINS', default='')
@@ -187,3 +193,59 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 DATA_UPLOAD_MAX_NUMBER_FILES = 10000  # Allow up to 10,000 files per upload
 MEDIA_ROOT = get_env_path('MEDIA_ROOT', default=str(UNIDEN_DATA_DIR / 'media'))
 STATIC_ROOT = get_env_path('STATIC_ROOT', default=str(BASE_DIR / 'staticfiles'))
+
+# Logging
+UNIDEN_LOG_DIR = get_env_path('UNIDEN_LOG_DIR', default=str(UNIDEN_DATA_DIR / 'logs' / 'backend'))
+UNIDEN_LOG_DIR.mkdir(parents=True, exist_ok=True)
+DJANGO_LOG_FILE = UNIDEN_LOG_DIR / 'django.log'
+DJANGO_REQUEST_LOG_FILE = UNIDEN_LOG_DIR / 'django-requests.log'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s %(levelname)s [%(name)s] %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s [%(name)s] %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'backend_file': {
+            'class': 'logging.FileHandler',
+            'filename': str(DJANGO_LOG_FILE),
+            'formatter': 'verbose',
+        },
+        'request_file': {
+            'class': 'logging.FileHandler',
+            'filename': str(DJANGO_REQUEST_LOG_FILE),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'backend_file'],
+            'level': get_env('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'request_file'],
+            'level': get_env('DJANGO_REQUEST_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'uniden_assistant': {
+            'handlers': ['console', 'backend_file'],
+            'level': get_env('APP_LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO'),
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console', 'backend_file'],
+        'level': get_env('ROOT_LOG_LEVEL', 'INFO'),
+    },
+}

@@ -33,7 +33,7 @@ The Uniden Assistant project uses **TWO AND ONLY TWO** management scripts. Adher
   - Validates setup before starting
   - Runs database migrations and connectivity checks
   - Tracks PIDs in .pids/ directory
-  - Writes logs to .logs/ directory
+  - Writes development logs to DEVELOPMENT/logs/ and container logs to /data/logs/
   - **NEVER pipes through tail or other commands**
   - Uses proper venv paths (venv/bin/python, not bare 'python')
   - Graceful shutdown with SIGTERM, fallback to SIGKILL

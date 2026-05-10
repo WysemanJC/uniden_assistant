@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.db.utils import DatabaseError
-from django.db import models
+from django.db import models, transaction
 import logging
 from django.shortcuts import get_object_or_404
 from django.conf import settings
@@ -98,7 +98,7 @@ class ClearUserSettingsDataView(APIView):
         except DatabaseError as e:
             logger.exception("Failed to clear user settings data", exc_info=e)
             return Response(
-                {'error': f'Failed to clear data: {str(e)}', 'host': _favorites_db_host()},
+                {'error': f'Failed to clear data: {str(e)}', 'host': _favorites_db_path()},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         except Exception as e:
@@ -1022,12 +1022,15 @@ class FavoritesImportViewSet(viewsets.ViewSet):
         """Import favorites lists from f_list.cfg and f_*.hpd files"""
         from .favorites_hpd_parser import FavoritesHPDParser
         from .favorites_parser import FavoritesListParser
-        
+
+        def normalize_hpd_name(name):
+            return (name or '').replace('\\', '/').split('/')[-1].strip().lower()
+
         files = request.FILES.getlist('files')
         if not files:
             return Response({'error': 'No files uploaded.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        filenames = [Path(f.name).name.lower() for f in files]
+        filenames = [normalize_hpd_name(f.name) for f in files]
         if 'f_list.cfg' not in filenames:
             return Response({'error': 'Missing f_list.cfg.'}, status=status.HTTP_400_BAD_REQUEST)
         if not any(name.endswith('.hpd') for name in filenames):
@@ -1037,11 +1040,12 @@ class FavoritesImportViewSet(viewsets.ViewSet):
         try:
             saved = {}
             for f in files:
-                target = temp_dir / Path(f.name).name
+                normalized_name = normalize_hpd_name(f.name)
+                target = temp_dir / normalized_name
                 with open(target, 'wb') as out:
                     for chunk in f.chunks():
                         out.write(chunk)
-                saved[Path(f.name).name.lower()] = target
+                saved[normalized_name] = target
 
             # Step 1: Parse f_list.cfg using FavoritesListParser
             if 'f_list.cfg' in saved:
@@ -1056,23 +1060,29 @@ class FavoritesImportViewSet(viewsets.ViewSet):
             # Step 2: Parse each f_*.hpd file using FavoritesHPDParser
             imported = 0
             errors = []
-            
+            favorites_by_filename = {
+                normalize_hpd_name(fav.filename): fav
+                for fav in FavoritesList.objects.using('favorites').all()
+            }
+
             for name, path in saved.items():
                 if not name.endswith('.hpd'):
                     continue
-                
-                # Extract the filename (e.g., "f_000001.hpd")
+
                 hpd_filename = path.name
-                
-                # Find the corresponding FavoritesList entry
-                favorites_list = FavoritesList.objects.using('favorites').filter(filename=hpd_filename).first()
-                if not favorites_list:
-                    errors.append({'file': hpd_filename, 'error': 'No matching F-List entry found'})
-                    continue
-                
+
                 try:
-                    parser = FavoritesHPDParser()
-                    parser.parse_file(str(path), favorites_list)
+                    # FavoritesList lookup is inside try so a DB connection error
+                    # here is caught per-file rather than propagating to the outer
+                    # DatabaseError handler (which calls _favorites_db_path).
+                    favorites_list = favorites_by_filename.get(normalize_hpd_name(hpd_filename))
+                    if not favorites_list:
+                        errors.append({'file': hpd_filename, 'error': 'No matching F-List entry found'})
+                        continue
+
+                    with transaction.atomic(using='favorites'):
+                        parser = FavoritesHPDParser()
+                        parser.parse_file(str(path), favorites_list)
                     imported += 1
                     logger.info(f"Successfully imported {hpd_filename}")
                 except Exception as exc:
@@ -1087,7 +1097,7 @@ class FavoritesImportViewSet(viewsets.ViewSet):
         except DatabaseError as exc:
             logger.exception("Favourites import failed", exc_info=exc)
             return Response(
-                {'error': str(exc), 'host': _favorites_db_host()},
+                {'error': str(exc), 'host': _favorites_db_path()},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         finally:

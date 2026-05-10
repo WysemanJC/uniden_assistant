@@ -158,16 +158,19 @@ class FavoritesHPDParser:
     def _store_record(self, file_path: str, record_type: str, fields: list[str], line_number: int, raw_line: str) -> None:
         trailing_empty = len(raw_line) - len(raw_line.rstrip('\t'))
         spec_field_order, spec_field_map = build_spec_field_map(record_type, fields)
-        ScannerFileRecord.objects.using('favorites').create(
-            file_name=file_path.split('/')[-1],
-            file_path='favorites_lists/' + file_path.split('/')[-1],
-            record_type=record_type,
-            fields=fields,
-            spec_field_order=spec_field_order,
-            spec_field_map=spec_field_map,
-            trailing_empty_fields=trailing_empty,
-            line_number=line_number,
-        )
+        try:
+            ScannerFileRecord.objects.using('favorites').create(
+                file_name=file_path.split('/')[-1],
+                file_path='favorites_lists/' + file_path.split('/')[-1],
+                record_type=record_type,
+                fields=fields,
+                spec_field_order=spec_field_order,
+                spec_field_map=spec_field_map,
+                trailing_empty_fields=trailing_empty,
+                line_number=line_number,
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to store raw record (line {line_number}, type {record_type}): {exc}")
 
     def _parse_conventional(self, fields: list[str], favorites_list: FavoritesList) -> None:
         # Don't trim - keep field positions per spec

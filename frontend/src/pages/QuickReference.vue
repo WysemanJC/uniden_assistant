@@ -12,7 +12,7 @@
           emit-value
           map-options
           style="width: 200px; margin-right: 16px"
-          class="bg-white text-dark"
+          class="quickref-filter-select"
         />
         <q-btn flat round dense icon="print" @click="printPage" />
       </q-toolbar>
@@ -128,7 +128,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useQuasar, QSeparator } from 'quasar'
 import api from '../api'
 
 const router = useRouter()
@@ -180,7 +180,6 @@ const isQuickKeyActive = (value) => {
 const quickReferenceCards = computed(() => {
   const cards = (favorites.value || []).map((fav) => {
     const favKey = fav.quick_key ?? 'Off'
-    if (!isQuickKeyActive(favKey)) return null
     const favName = fav.user_name || fav.filename || 'Favourite List'
     const systemsList = systemsByFav.value[fav.id] || []
     const systemMap = new Map()
@@ -216,7 +215,7 @@ const quickReferenceCards = computed(() => {
         })
       }
       const deptQuickKey = group.quick_key ?? 'Off'
-      if (!isQuickKeyActive(deptQuickKey)) return
+      // Always add departments, don't filter by quick_key
       systemMap.get(key).departments.push({
         key: `dept_${fav.id}_${group.id || idx}`,
         name: group.name_tag || `Department ${idx + 1}`,
@@ -224,28 +223,35 @@ const quickReferenceCards = computed(() => {
       })
     })
 
-    const systems = Array.from(systemMap.values())
-      .filter((system) => isQuickKeyActive(system.quick_key))
-      .map((system) => {
-        const departments = system.departments
-          .slice()
-          .sort((a, b) => {
-            const av = quickKeySortValue(a.quick_key)
-            const bv = quickKeySortValue(b.quick_key)
-            if (av !== bv) return av - bv
-            return (a.name || '').localeCompare(b.name || '')
-          })
-          .map((dept) => ({
-            ...dept,
-            quickKeyDisplay: buildQuickKeyChain([favKey, system.quick_key, dept.quick_key])
-          }))
+    const mappedSystems = Array.from(systemMap.values()).map((system) => {
+      const departments = system.departments
+        .slice()
+        .sort((a, b) => {
+          const av = quickKeySortValue(a.quick_key)
+          const bv = quickKeySortValue(b.quick_key)
+          if (av !== bv) return av - bv
+          return (a.name || '').localeCompare(b.name || '')
+        })
+        .map((dept) => ({
+          ...dept,
+          quickKeyDisplay: buildQuickKeyChain([favKey, system.quick_key, dept.quick_key])
+        }))
 
-        return {
-          ...system,
-          quickKeyDisplay: buildQuickKeyChain([favKey, system.quick_key]),
-          departments
-        }
-      })
+      return {
+        ...system,
+        quickKeyDisplay: buildQuickKeyChain([favKey, system.quick_key]),
+        departments
+      }
+    })
+
+    const activeSystems = mappedSystems
+      .filter((system) => isQuickKeyActive(system.quick_key))
+      .map((system) => ({
+        ...system,
+        departments: system.departments.filter((dept) => isQuickKeyActive(dept.quick_key))
+      }))
+
+    const systems = (activeSystems.length > 0 ? activeSystems : mappedSystems)
       .sort((a, b) => {
         const av = quickKeySortValue(a.quick_key)
         const bv = quickKeySortValue(b.quick_key)
@@ -435,6 +441,42 @@ onMounted(() => {
 .q-space {
   flex: 1 1 auto;
   min-width: 4px;
+}
+
+.quickref-filter-select {
+  border-radius: 8px;
+}
+
+.quickref-filter-select :deep(.q-field__control) {
+  background: rgba(255, 255, 255, 0.96);
+  color: #1f2937;
+}
+
+.quickref-filter-select :deep(.q-field__native),
+.quickref-filter-select :deep(.q-field__input),
+.quickref-filter-select :deep(.q-field__marginal) {
+  color: #1f2937;
+}
+
+.quickref-filter-select :deep(.q-field__control:before),
+.quickref-filter-select :deep(.q-field__control:after) {
+  border-color: rgba(31, 41, 55, 0.35);
+}
+
+:deep(body.body--dark) .quickref-filter-select :deep(.q-field__control) {
+  background: rgba(20, 30, 42, 0.9);
+  color: #e5edf6;
+}
+
+:deep(body.body--dark) .quickref-filter-select :deep(.q-field__native),
+:deep(body.body--dark) .quickref-filter-select :deep(.q-field__input),
+:deep(body.body--dark) .quickref-filter-select :deep(.q-field__marginal) {
+  color: #e5edf6;
+}
+
+:deep(body.body--dark) .quickref-filter-select :deep(.q-field__control:before),
+:deep(body.body--dark) .quickref-filter-select :deep(.q-field__control:after) {
+  border-color: rgba(229, 237, 246, 0.45);
 }
 
 @media print {

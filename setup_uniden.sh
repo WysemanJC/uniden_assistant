@@ -25,6 +25,9 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEV_ROOT_DIR="$SCRIPT_DIR/DEVELOPMENT"
+DEV_DB_DIR="$SCRIPT_DIR/DEVELOPMENT/Databases"
+DEV_LOG_DIR="$SCRIPT_DIR/DEVELOPMENT/logs"
 PROJECT_NAME="Uniden Assistant"
 PYTHON_MIN_VERSION="3.8"
 NODE_MIN_VERSION="20"
@@ -35,6 +38,25 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
 # Clear command hash cache to ensure new PATH is used
 hash -r
+
+normalize_dir_path() {
+    local path="$1"
+
+    if [[ -f "$path" ]]; then
+        mv "$path" "$path.legacy"
+    fi
+
+    mkdir -p "$path"
+}
+
+# Function to create development workspace directories
+create_development_directories() {
+    normalize_dir_path "$DEV_ROOT_DIR"
+    normalize_dir_path "$DEV_DB_DIR"
+    normalize_dir_path "$DEV_LOG_DIR"
+    normalize_dir_path "$DEV_LOG_DIR/backend"
+    normalize_dir_path "$DEV_LOG_DIR/frontend"
+}
 
 # Function to print colored output
 print_status() {
@@ -253,7 +275,8 @@ setup_backend() {
     
     # Run migrations
     print_status "Running database migrations..."
-    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$DEV_DB_DIR}"
+    mkdir -p "$UNIDEN_DB_DIR"
     "$VENV_PY" manage.py migrate --noinput --database=default 2>/dev/null || print_warning "Default database migrations encountered issues"
     "$VENV_PY" manage.py migrate --noinput --database=favorites 2>/dev/null || print_warning "Favorites database migrations encountered issues"
     print_success "Database migrations completed"
@@ -341,7 +364,8 @@ check_databases() {
     print_status "Checking database connectivity..."
     
     cd "$SCRIPT_DIR/backend"
-    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$SCRIPT_DIR/backend}"
+    export UNIDEN_DB_DIR="${UNIDEN_DB_DIR:-$DEV_DB_DIR}"
+    mkdir -p "$UNIDEN_DB_DIR"
     
     # Test database connection by running a simple check
     "$SCRIPT_DIR/backend/venv/bin/python" -c "
@@ -366,6 +390,8 @@ main() {
     echo -e "${BLUE}║          $PROJECT_NAME Setup              ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
+
+    create_development_directories
     
     # Clean if requested
     if [ "$CLEAN_MODE" = true ]; then
