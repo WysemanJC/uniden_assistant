@@ -199,6 +199,7 @@ UNIDEN_LOG_DIR = get_env_path('UNIDEN_LOG_DIR', default=str(UNIDEN_DATA_DIR / 'l
 UNIDEN_LOG_DIR.mkdir(parents=True, exist_ok=True)
 DJANGO_LOG_FILE = UNIDEN_LOG_DIR / 'django.log'
 DJANGO_REQUEST_LOG_FILE = UNIDEN_LOG_DIR / 'django-requests.log'
+APP_LOG_LEVEL = get_env('LOG_LEVEL', get_env('APP_LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO'))
 
 LOGGING = {
     'version': 1,
@@ -240,7 +241,7 @@ LOGGING = {
         },
         'uniden_assistant': {
             'handlers': ['console', 'backend_file'],
-            'level': get_env('APP_LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO'),
+            'level': APP_LOG_LEVEL,
             'propagate': False,
         },
     },

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import Optional
 
 from .models import (
@@ -49,9 +50,39 @@ class FavoritesHPDParser:
         self.unitid_order = 0
         self.avoid_tgid_order = 0
 
-    def parse_file(self, file_path: str, favorites_list: FavoritesList) -> None:
-        """Parse a favorites file into models."""
+    def parse_file(self, file_path: str, favorites_list: FavoritesList):
+        """Parse a favorites file into models and return a summary."""
         self._reset_state()
+
+        record_type_counts = {}
+        total_records = 0
+        file_name = os.path.basename(file_path)
+        known_record_types = {
+            'TargetModel',
+            'FormatVersion',
+            'Conventional',
+            'Trunk',
+            'DQKs_Status',
+            'C-Group',
+            'C-Freq',
+            'Site',
+            'BandPlan_P25',
+            'BandPlan_Mot',
+            'FleetMap',
+            'UnitIds',
+            'AvoidTgids',
+            'T-Freq',
+            'T-Group',
+            'TGID',
+            'Rectangle',
+        }
+
+        logger.info(
+            "Starting HPD import for %s (favorites=%s, filename=%s)",
+            file_name,
+            favorites_list.user_name,
+            favorites_list.filename,
+        )
 
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             for line_number, raw_line in enumerate(f, start=1):
@@ -62,6 +93,24 @@ class FavoritesHPDParser:
                 parts_all = raw_line.split('\t')
                 record_type = parts_all[0] if parts_all else ''
                 fields = parts_all[1:] if len(parts_all) > 1 else []
+                total_records += 1
+                record_type_counts[record_type] = record_type_counts.get(record_type, 0) + 1
+
+                logger.debug(
+                    "HPD record parsed file=%s line=%d type=%s field_count=%d",
+                    file_name,
+                    line_number,
+                    record_type,
+                    len(fields),
+                )
+
+                if record_type not in known_record_types:
+                    logger.debug(
+                        "HPD record type not mapped to model parser file=%s line=%d type=%s",
+                        file_name,
+                        line_number,
+                        record_type,
+                    )
 
                 # Store structured record for reference
                 self._store_record(file_path, record_type, fields, line_number, raw_line)
@@ -135,6 +184,20 @@ class FavoritesHPDParser:
                 if record_type == 'Rectangle':
                     self._parse_rectangle(fields)
                     continue
+
+        logger.info(
+            "Completed HPD import for %s with %d records across %d record types",
+            file_name,
+            total_records,
+            len(record_type_counts),
+        )
+        logger.debug("HPD record type breakdown for %s: %s", file_name, record_type_counts)
+
+        return {
+            'file_name': file_name,
+            'total_records': total_records,
+            'record_type_counts': record_type_counts,
+        }
 
     def _reset_state(self) -> None:
         self.current_conventional = None

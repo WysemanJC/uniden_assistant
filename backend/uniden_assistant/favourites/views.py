@@ -1082,9 +1082,19 @@ class FavoritesImportViewSet(viewsets.ViewSet):
 
                     with transaction.atomic(using='favorites'):
                         parser = FavoritesHPDParser()
-                        parser.parse_file(str(path), favorites_list)
+                        import_summary = parser.parse_file(str(path), favorites_list)
                     imported += 1
-                    logger.info(f"Successfully imported {hpd_filename}")
+                    logger.info(
+                        "Successfully imported %s with %d records across %d record types",
+                        hpd_filename,
+                        import_summary.get('total_records', 0),
+                        len(import_summary.get('record_type_counts', {})),
+                    )
+                    logger.debug(
+                        "Import record breakdown for %s: %s",
+                        hpd_filename,
+                        import_summary.get('record_type_counts', {}),
+                    )
                 except Exception as exc:
                     logger.exception(f"Error parsing {hpd_filename}", exc_info=exc)
                     errors.append({'file': hpd_filename, 'error': str(exc)})
