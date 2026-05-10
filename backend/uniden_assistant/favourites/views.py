@@ -13,9 +13,9 @@ from django.http import HttpResponse
 import io
 import zipfile
 from .models import (
-    ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList, ScannerRawFile, ScannerRawLine,
+    ScannerProfile, Frequency, ChannelGroup, Agency, FavoritesList,
     ConventionalSystem, TrunkSystem, CGroup, CFreq, Site, BandPlanP25, BandPlanMot, TFreq, TGroup,
-    TGID, Rectangle, FleetMap, UnitId, AvoidTgid, UserPreference
+    TGID, Rectangle, FleetMap, UnitId, AvoidTgid, UserPreference, ScannerFileRecord
 )
 from .serializers import (
     ScannerProfileSerializer, FrequencySerializer, ChannelGroupSerializer,
@@ -109,22 +109,6 @@ class ClearUserSettingsDataView(APIView):
             )
 
 
-class ClearScannerRawDataView(APIView):
-    """Clear all raw scanner file data from the database"""
-
-    def post(self, request):
-        try:
-            logger.info("Clearing scanner raw data")
-            # Delete raw files and lines (cascades to lines automatically)
-            ScannerRawFile.objects.using('favorites').all().delete()
-            
-            logger.info("Scanner raw data cleared successfully")
-            return Response({'message': 'Scanner raw data cleared successfully'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.exception("Failed to clear scanner raw data", exc_info=e)
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
 class UserPreferencesView(APIView):
     """Read and update app-wide user preferences."""
 
@@ -173,7 +157,11 @@ class ExportFavoritesFolderView(APIView):
             return Response({'error': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _build_f_list_cfg(self) -> str:
-        favorites_lists = FavoritesList.objects.using('favorites').all().order_by('filename')
+        structured_content = self._build_f_list_cfg_from_records()
+        if structured_content is not None:
+            return structured_content
+
+        favorites_lists = FavoritesList.objects.using('favorites').all().order_by('order', 'filename')
         scanner_model = favorites_lists[0].scanner_model if favorites_lists else 'BCDx36HP'
         format_version = favorites_lists[0].format_version if favorites_lists else '1.00'
 
@@ -199,6 +187,26 @@ class ExportFavoritesFolderView(APIView):
                 *s_qkeys,
             ]
             lines.append(self._join_record('F-List ', fields))
+
+        return '\r\n'.join(lines) + '\r\n'
+
+    def _build_f_list_cfg_from_records(self) -> str | None:
+        """Rebuild f_list.cfg from structured per-line records only."""
+        records = list(
+            ScannerFileRecord.objects.using('favorites')
+            .filter(file_path='favorites_lists/f_list.cfg')
+            .order_by('line_number')
+        )
+        if not records:
+            return None
+
+        lines: list[str] = []
+        for record in records:
+            fields = [str(f) if f is not None else '' for f in (record.fields or [])]
+            line = str(record.record_type or '')
+            if fields:
+                line += '\t' + '\t'.join(fields)
+            lines.append(line)
 
         return '\r\n'.join(lines) + '\r\n'
 
