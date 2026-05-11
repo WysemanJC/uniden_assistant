@@ -78,6 +78,34 @@ Examples:
 
 In most deployments, this is the only environment variable you need to set explicitly. The application derives the host, CORS, and CSRF settings from this value automatically. For long-lived production deployments, you may also want to review the additional environment variables documented in [docs/docker.md](docs/docker.md).
 
+`EXTERNAL_WEB_PORT` controls nginx's listen port inside the container. It defaults to `80` when not provided.
+
+Example using a custom internal nginx port:
+
+```bash
+docker run --rm \
+   -p 8080:8081 \
+   -e EXTERNAL_WEB_PORT=8081 \
+   -e EXTERNAL_URL='http://localhost:8080' \
+   -v uniden_assistant_data:/data/uniden_assistant \
+   ghcr.io/wysemanjc/uniden_assistant:stable
+```
+
+Compose equivalent:
+
+```yaml
+services:
+   uniden-assistant:
+      image: ghcr.io/wysemanjc/uniden_assistant:stable
+      ports:
+         - "8080:8081"
+      environment:
+         EXTERNAL_WEB_PORT: 8081
+         EXTERNAL_URL: http://localhost:8080
+```
+
+If you run with `network_mode: host`, set `EXTERNAL_WEB_PORT` to avoid host-port conflicts because nginx binds directly on the host network namespace.
+
 ## Development Environment
 
 If you want to run the project from source instead of the published container, see [docs/development.md](docs/development.md). That guide covers local setup, the supported management scripts, browser access during development, system requirements, and the application architecture.
