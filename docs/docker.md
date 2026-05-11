@@ -1,12 +1,12 @@
 # Docker Deployment
 
-This project is designed to run as a single container that serves the Vue UI and proxies API requests to Django through nginx on port 80.
+This project is designed to run as a single container that serves the Vue UI and proxies API requests to Django through nginx.
 
 ## Image layout
 
 - Frontend is built with Vite during the image build step and copied into nginx's web root.
 - Django runs behind gunicorn on `127.0.0.1:8000` inside the container.
-- nginx listens on container port `80` and proxies `/api/` and `/admin/` to gunicorn.
+- nginx listens on `EXTERNAL_WEB_PORT` (default `80`) and proxies `/api/` and `/admin/` to gunicorn.
 - Static files are collected into `/app/staticfiles` at container startup.
 - Persistent SQLite databases live under `/data/uniden_assistant/db` by default.
 
@@ -38,6 +38,7 @@ Optional values:
 - `USE_X_FORWARDED_HOST` — Defaults to `0`. Leave this disabled unless your upstream proxy rewrites `X-Forwarded-Host` to a Django-safe hostname and you explicitly need Django to trust it.
 - `GUNICORN_WORKERS` — Number of gunicorn workers, default `3`.
 - `GUNICORN_LOG_LEVEL` — Gunicorn log verbosity (`debug`, `info`, `warning`, `error`), default `info`.
+- `EXTERNAL_WEB_PORT` — Runtime nginx listen port inside the container, default `80` when unset. Set this when using `network_mode: host` to avoid host port conflicts. When changed in bridge mode, update Docker port mapping to match container-side port (for example `-p 8080:8081` with `EXTERNAL_WEB_PORT=8081`).
 
 Advanced overrides (normally derived automatically from `EXTERNAL_URL`):
 
@@ -141,6 +142,32 @@ docker run --rm \
   uniden-assistant:latest
 ```
 
+Custom internal nginx port example (bridge networking):
+
+```bash
+docker run --rm \
+  -p 8080:8081 \
+  -e SECRET_KEY='change-me' \
+  -e EXTERNAL_WEB_PORT=8081 \
+  -e EXTERNAL_URL='http://localhost:8080' \
+  -e UNIDEN_DATA_DIR=/data/uniden_assistant \
+  -v uniden_assistant_data:/data/uniden_assistant \
+  uniden-assistant:latest
+```
+
+For host-network mode, do not publish ports and set nginx to a free host port:
+
+```bash
+docker run --rm \
+  --network host \
+  -e SECRET_KEY='change-me' \
+  -e EXTERNAL_WEB_PORT=8081 \
+  -e EXTERNAL_URL='http://localhost:8081' \
+  -e UNIDEN_DATA_DIR=/data/uniden_assistant \
+  -v uniden_assistant_data:/data/uniden_assistant \
+  uniden-assistant:latest
+```
+
 ## Startup sequence
 
 When the container starts it will:
@@ -153,7 +180,7 @@ When the container starts it will:
 
 ## Notes
 
-- The container only exposes port `80` externally.
+- nginx binds to `EXTERNAL_WEB_PORT` (default `80`) at runtime.
 - API calls use the same-origin `/api` base path — no CORS configuration is needed when accessing through the container's own nginx.
 - When placing the app behind a reverse proxy or TLS terminator (e.g. Traefik, Nginx Proxy Manager), set `EXTERNAL_URL` to the public URL. This is sufficient for `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, and `CORS_ALLOWED_ORIGINS` to be configured correctly.
 - The container automatically trusts `X-Forwarded-Proto` headers from an upstream proxy so HTTPS is detected correctly.

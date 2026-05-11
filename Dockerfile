@@ -51,6 +51,7 @@ ENV UNIDEN_LOG_DIR=/data/uniden_assistant/logs/backend
 ENV UNIDEN_FRONTEND_LOG_DIR=/data/uniden_assistant/logs/frontend
 ENV MEDIA_ROOT=/data/uniden_assistant/media
 ENV STATIC_ROOT=/app/staticfiles
+ENV EXTERNAL_WEB_PORT=80
 
 # Copy version from builder
 COPY --from=version-builder /version.txt /app/.version
@@ -69,7 +70,7 @@ WORKDIR /app
 COPY --from=python-deps /usr/local /usr/local
 COPY backend/ /app/backend/
 COPY --from=frontend-build /workspace/frontend/dist/ /usr/share/nginx/html/
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf.template
 COPY docker/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh \
